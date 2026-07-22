@@ -33,22 +33,12 @@ function DashboardContent() {
         </p>
 
         <div className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-center">
-          {user.profilePictureUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              className="h-16 w-16 rounded-full object-cover"
-              src={user.profilePictureUrl}
-              alt={`Fotografía de ${fullName}`}
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-200 font-semibold text-slate-700"
-              aria-hidden="true"
-            >
-              {initials}
-            </div>
-          )}
+          <div
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-200 font-semibold text-slate-700"
+            aria-hidden="true"
+          >
+            {initials}
+          </div>
           <div>
             <p className="font-medium text-slate-950">{fullName}</p>
             <p className="mt-1 break-all text-sm text-slate-600">{user.email}</p>
