@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { ClientActivationConfirmation } from "@/features/clients/components/client-activation-confirmation";
 import { ClientForm } from "@/features/clients/components/client-form";
 import {
   ClientDetailsErrorFeedback,
@@ -23,6 +24,7 @@ import {
   validateClientForm,
 } from "@/features/clients/client-form-validation";
 import { useClientDetails } from "@/features/clients/use-client-details";
+import { useSetClientActivation } from "@/features/clients/use-set-client-activation";
 import { useUpdateClient } from "@/features/clients/use-update-client";
 import { ApiError } from "@/lib/http/api-error";
 import { cn } from "@/lib/utils/cn";
@@ -84,10 +86,19 @@ function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
     error: updateError,
     resetError,
   } = useUpdateClient();
+  const {
+    setActivation,
+    isSubmitting: isActivationSubmitting,
+    error: activationError,
+    resetError: resetActivationError,
+  } = useSetClientActivation();
   const [isEditing, setIsEditing] = useState(false);
   const [values, setValues] = useState<CreateClientFormValues | null>(null);
   const [errors, setErrors] = useState<ClientFormErrors>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [activationTarget, setActivationTarget] = useState<boolean | null>(
+    null,
+  );
 
   const startEditing = useCallback(() => {
     if (!client) {
@@ -97,9 +108,11 @@ function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
     setValues(toFormValues(client));
     setErrors({});
     resetError();
+    resetActivationError();
     setSuccessMessage(null);
+    setActivationTarget(null);
     setIsEditing(true);
-  }, [client, resetError]);
+  }, [client, resetActivationError, resetError]);
 
   const cancelEditing = useCallback(() => {
     setValues(client ? toFormValues(client) : null);
@@ -107,6 +120,59 @@ function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
     resetError();
     setIsEditing(false);
   }, [client, resetError]);
+
+  const openActivationConfirmation = useCallback(() => {
+    if (!client || isEditing || isActivationSubmitting) {
+      return;
+    }
+
+    resetActivationError();
+    setSuccessMessage(null);
+    setActivationTarget(!client.isActive);
+  }, [client, isActivationSubmitting, isEditing, resetActivationError]);
+
+  const cancelActivationConfirmation = useCallback(() => {
+    if (isActivationSubmitting) {
+      return;
+    }
+
+    setActivationTarget(null);
+    resetActivationError();
+  }, [isActivationSubmitting, resetActivationError]);
+
+  const confirmActivation = useCallback(async () => {
+    if (!client || activationTarget === null || isActivationSubmitting) {
+      return;
+    }
+
+    if (activationTarget === client.isActive) {
+      setActivationTarget(null);
+      resetActivationError();
+      return;
+    }
+
+    const updatedClient = await setActivation(clientId, activationTarget);
+
+    if (!updatedClient) {
+      return;
+    }
+
+    replaceClient(updatedClient);
+    setActivationTarget(null);
+    setSuccessMessage(
+      activationTarget
+        ? "Cliente activado correctamente."
+        : "Cliente desactivado correctamente.",
+    );
+  }, [
+    activationTarget,
+    client,
+    clientId,
+    isActivationSubmitting,
+    replaceClient,
+    resetActivationError,
+    setActivation,
+  ]);
 
   const setFieldValue = useCallback(
     (field: keyof CreateClientFormValues, value: string) => {
@@ -159,8 +225,18 @@ function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
     replaceClient(updatedClient);
     setValues(toFormValues(updatedClient));
     setIsEditing(false);
+    setActivationTarget(null);
+    resetActivationError();
     setSuccessMessage("Cliente actualizado correctamente.");
-  }, [clientId, isSubmitting, replaceClient, resetError, update, values]);
+  }, [
+    clientId,
+    isSubmitting,
+    replaceClient,
+    resetActivationError,
+    resetError,
+    update,
+    values,
+  ]);
 
   if (isLoading) {
     return <ClientDetailsLoading />;
@@ -260,7 +336,22 @@ function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
     <ClientDetailsView
       client={client}
       successMessage={successMessage}
+      isEditDisabled={activationTarget !== null || isActivationSubmitting}
+      isActivationDisabled={activationTarget !== null || isActivationSubmitting}
+      activationConfirmation={
+        activationTarget !== null ? (
+          <ClientActivationConfirmation
+            legalName={client.legalName}
+            targetIsActive={activationTarget}
+            isSubmitting={isActivationSubmitting}
+            error={activationError}
+            onConfirm={confirmActivation}
+            onCancel={cancelActivationConfirmation}
+          />
+        ) : null
+      }
       onEdit={startEditing}
+      onRequestActivation={openActivationConfirmation}
     />
   );
 }

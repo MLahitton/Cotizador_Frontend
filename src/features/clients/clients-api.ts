@@ -4,6 +4,7 @@ import type {
   ClientsPage,
   CreateClientRequest,
   GetClientsParameters,
+  SetClientActivationPayload,
   UpdateClientPayload,
 } from "@/features/clients/clients-types";
 import { apiRequest } from "@/lib/http/api-client";
@@ -162,6 +163,31 @@ export async function updateClient(
       title: "Respuesta inválida",
       detail:
         "El servidor devolvió una respuesta inesperada al actualizar el cliente.",
+    });
+  }
+
+  return response;
+}
+
+export async function setClientActivation(
+  clientId: string,
+  payload: SetClientActivationPayload,
+): Promise<ClientDetails> {
+  const response = await apiRequest(
+    `/api/v1/clients/${encodeURIComponent(clientId)}/activation`,
+    {
+      method: "PATCH",
+      authenticated: true,
+      body: payload,
+    },
+  );
+
+  if (!isClientDetails(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta inválida",
+      detail:
+        "El servidor devolvió una respuesta inesperada al cambiar el estado del cliente.",
     });
   }
 

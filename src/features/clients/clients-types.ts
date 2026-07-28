@@ -60,6 +60,10 @@ export type CreateClientRequest = ClientPayload;
 
 export type UpdateClientPayload = ClientPayload;
 
+export interface SetClientActivationPayload {
+  isActive: boolean;
+}
+
 export interface CreateClientFormValues {
   clientType: string;
   legalName: string;

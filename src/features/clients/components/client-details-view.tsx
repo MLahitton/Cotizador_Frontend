@@ -92,12 +92,24 @@ function DetailSection({
 export function ClientDetailsView({
   client,
   successMessage,
+  isEditDisabled = false,
+  isActivationDisabled = false,
+  activationConfirmation,
   onEdit,
+  onRequestActivation,
 }: {
   client: ClientDetails;
   successMessage: string | null;
+  isEditDisabled?: boolean;
+  isActivationDisabled?: boolean;
+  activationConfirmation?: ReactNode;
   onEdit: () => void;
+  onRequestActivation: () => void;
 }) {
+  const activationLabel = client.isActive
+    ? "Desactivar cliente"
+    : "Activar cliente";
+
   return (
     <div className="space-y-6">
       <header className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -127,16 +139,30 @@ export function ClientDetailsView({
             </p>
           ) : null}
         </div>
-        <Button
-          type="button"
-          variant="secondary"
-          className="w-full shrink-0 sm:w-auto"
-          onClick={onEdit}
-        >
-          <Pencil aria-hidden="true" size={17} strokeWidth={1.75} />
-          Editar
-        </Button>
+        <div className="flex w-full shrink-0 flex-col gap-3 sm:w-auto sm:flex-row lg:justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={isEditDisabled}
+            className="w-full sm:w-auto"
+            onClick={onEdit}
+          >
+            <Pencil aria-hidden="true" size={17} strokeWidth={1.75} />
+            Editar
+          </Button>
+          <Button
+            type="button"
+            variant={client.isActive ? "danger" : "primary"}
+            disabled={isActivationDisabled}
+            className="w-full sm:w-auto"
+            onClick={onRequestActivation}
+          >
+            {activationLabel}
+          </Button>
+        </div>
       </header>
+
+      {activationConfirmation}
 
       {successMessage ? (
         <div
