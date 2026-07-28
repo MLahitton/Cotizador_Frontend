@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/features/auth/auth-context";
 import { ProtectedRoute } from "@/features/auth/protected-route";
-import { DashboardOverview } from "@/features/dashboard/components/dashboard-overview";
+import { ClientsPageContent } from "@/features/clients/components/clients-page-content";
 
-function DashboardContent() {
+function ClientsContent() {
   const router = useRouter();
   const { signOut, user } = useAuth();
 
@@ -33,15 +33,15 @@ function DashboardContent() {
       initials={initials}
       onSignOut={handleSignOut}
     >
-      <DashboardOverview firstName={user.firstName} />
+      <ClientsPageContent />
     </AppShell>
   );
 }
 
-export default function DashboardPage() {
+export default function ClientsPage() {
   return (
     <ProtectedRoute>
-      <DashboardContent />
+      <ClientsContent />
     </ProtectedRoute>
   );
 }

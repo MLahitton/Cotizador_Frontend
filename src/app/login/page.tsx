@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+import { LoginAccessPanel } from "@/components/auth/login-access-panel";
+import { LoginBrandPanel } from "@/components/auth/login-brand-panel";
 import { FullPageStatus } from "@/components/full-page-status";
 import { useAuth } from "@/features/auth/auth-context";
 import { GoogleSignIn } from "@/features/auth/google-sign-in";
@@ -28,30 +30,13 @@ export default function LoginPage() {
   const visibleNotice = notice === error ? null : notice;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
-      <section className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h1 className="text-2xl font-semibold text-slate-950">
-          Iniciar sesión
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          Accede al cotizador de Steel and Glass con tu cuenta de Google.
-        </p>
-
-        <div className="mt-6">
+    <main className="min-h-screen overflow-x-hidden bg-background lg:grid lg:grid-cols-[minmax(0,0.46fr)_minmax(0,0.54fr)]">
+      <LoginBrandPanel />
+      <LoginAccessPanel error={error} notice={visibleNotice}>
+        <div className="flex justify-center">
           <GoogleSignIn />
         </div>
-
-        {error ? (
-          <p className="mt-4 text-sm text-red-700" role="alert" aria-live="assertive">
-            {error}
-          </p>
-        ) : null}
-        {visibleNotice ? (
-          <p className="mt-4 text-sm text-amber-800" role="status" aria-live="polite">
-            {visibleNotice}
-          </p>
-        ) : null}
-      </section>
+      </LoginAccessPanel>
     </main>
   );
 }
