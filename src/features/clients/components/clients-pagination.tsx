@@ -41,6 +41,7 @@ export function ClientsPagination({
             variant="outline"
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
+            className="w-full"
           >
             <ChevronLeft aria-hidden="true" size={17} strokeWidth={1.75} />
             Anterior
@@ -50,6 +51,7 @@ export function ClientsPagination({
             variant="outline"
             disabled={totalPages === 0 || page >= totalPages}
             onClick={() => onPageChange(page + 1)}
+            className="w-full"
           >
             Siguiente
             <ChevronRight aria-hidden="true" size={17} strokeWidth={1.75} />

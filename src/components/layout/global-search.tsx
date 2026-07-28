@@ -6,7 +6,7 @@ const SEARCH_DESCRIPTION_ID = "global-search-description";
 
 export function GlobalSearch() {
   return (
-    <div className="relative min-w-0 flex-1 lg:max-w-xl">
+    <div className="relative hidden min-w-0 flex-1 md:block lg:max-w-xl">
       <Search
         aria-hidden="true"
         className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"

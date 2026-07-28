@@ -15,7 +15,7 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-brand text-brand-foreground hover:bg-brand-hover active:bg-brand-active",
+          "bg-brand [color:var(--sng-color-on-brand)] hover:bg-brand-hover active:bg-brand-active",
         secondary:
           "border border-border bg-brand-soft text-brand hover:bg-surface-muted active:bg-surface-muted",
         outline:
@@ -23,7 +23,7 @@ export const buttonVariants = cva(
         ghost:
           "bg-transparent text-foreground-secondary hover:bg-brand-soft hover:text-foreground active:bg-surface-muted",
         danger:
-          "bg-danger text-brand-foreground hover:brightness-90 active:brightness-75",
+          "bg-danger [color:var(--sng-color-on-danger)] hover:brightness-90 active:brightness-75",
       },
       size: {
         sm: "h-9 px-3 text-sm",

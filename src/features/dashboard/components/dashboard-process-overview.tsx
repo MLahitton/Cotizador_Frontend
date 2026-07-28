@@ -13,8 +13,8 @@ const processStages = [
 export function DashboardProcessOverview() {
   return (
     <section aria-labelledby="process-overview-title">
-      <Surface padding="none">
-        <div className="p-5 sm:p-6">
+      <Surface padding="none" className="min-w-0 overflow-hidden">
+        <div className="p-4 sm:p-6">
           <h2
             id="process-overview-title"
             className="text-lg font-semibold text-foreground"
@@ -26,14 +26,14 @@ export function DashboardProcessOverview() {
           </p>
         </div>
         <Separator />
-        <ol className="grid gap-px bg-border-subtle md:grid-cols-3">
+        <ol className="grid gap-px bg-border-subtle lg:grid-cols-3">
           {processStages.map((stage) => {
             const Icon = stage.icon;
 
             return (
-              <li key={stage.name} className="bg-surface p-5 sm:p-6">
+              <li key={stage.name} className="min-w-0 bg-surface p-4 sm:p-6">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-sm bg-surface-muted text-brand">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-surface-muted text-brand">
                     <Icon
                       aria-hidden="true"
                       size={19}

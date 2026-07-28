@@ -7,9 +7,9 @@ import { Surface } from "@/components/ui/surface";
 export function DashboardActivity() {
   return (
     <section aria-labelledby="dashboard-activity-title">
-      <Surface padding="none">
-        <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
-          <div>
+      <Surface padding="none" className="min-w-0">
+        <div className="flex min-w-0 flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+          <div className="min-w-0">
             <h2
               id="dashboard-activity-title"
               className="text-lg font-semibold text-foreground"
@@ -25,7 +25,7 @@ export function DashboardActivity() {
           </Badge>
         </div>
         <Separator />
-        <div className="px-5 py-10 text-center sm:px-6 sm:py-12">
+        <div className="px-4 py-10 text-center sm:px-6 sm:py-12">
           <Activity
             aria-hidden="true"
             className="mx-auto text-muted"

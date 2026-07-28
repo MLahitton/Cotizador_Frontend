@@ -25,8 +25,8 @@ const quickActions = [
 export function DashboardQuickActions() {
   return (
     <section aria-labelledby="quick-actions-title">
-      <Surface padding="none">
-        <div className="p-5 sm:p-6">
+      <Surface padding="none" className="min-w-0">
+        <div className="p-4 sm:p-6">
           <h2
             id="quick-actions-title"
             className="text-lg font-semibold text-foreground"
@@ -38,7 +38,7 @@ export function DashboardQuickActions() {
           </p>
         </div>
         <Separator />
-        <div className="space-y-3 p-5 sm:p-6">
+        <div className="space-y-3 p-4 sm:p-6">
           {quickActions.map((action) => {
             const Icon = action.icon;
 
@@ -46,7 +46,7 @@ export function DashboardQuickActions() {
               <div
                 key={action.title}
                 aria-disabled="true"
-                className="rounded-sm border border-border-subtle bg-surface-subtle p-4"
+                className="min-w-0 rounded-sm border border-border-subtle bg-surface-subtle p-4"
               >
                 <div className="flex items-start gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-brand-soft text-brand">
@@ -57,7 +57,7 @@ export function DashboardQuickActions() {
                     />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-foreground">
                         {action.title}
                       </p>

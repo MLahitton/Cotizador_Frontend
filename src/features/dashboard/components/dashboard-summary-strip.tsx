@@ -20,15 +20,15 @@ export function DashboardSummaryStrip() {
       <h2 id="dashboard-summary-title" className="sr-only">
         Indicadores generales
       </h2>
-      <Surface padding="none" className="overflow-hidden">
+      <Surface padding="none" className="min-w-0 overflow-hidden">
         <div className="grid gap-px bg-border-subtle sm:grid-cols-2 xl:grid-cols-4">
           {summaryItems.map((item) => {
             const Icon = item.icon;
 
             return (
-              <div key={item.label} className="bg-surface p-5">
+              <div key={item.label} className="min-w-0 bg-surface p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-4">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground-secondary">
                       {item.label}
                     </p>

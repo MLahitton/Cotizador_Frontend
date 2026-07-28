@@ -19,7 +19,7 @@ export function AppShell({
   onSignOut,
 }: AppShellProps) {
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen min-w-0 overflow-x-hidden bg-background text-foreground">
       <a
         href="#main-content"
         className="sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[var(--sng-z-toast)] focus:not-sr-only focus:rounded-sm focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-brand-foreground"
@@ -36,7 +36,7 @@ export function AppShell({
         />
         <main
           id="main-content"
-          className="px-[var(--sng-content-gutter-mobile)] py-6 md:px-[var(--sng-content-gutter-tablet)] md:py-8 lg:px-[var(--sng-content-gutter-desktop)]"
+          className="min-w-0 px-[var(--sng-content-gutter-mobile)] py-6 md:px-[var(--sng-content-gutter-tablet)] md:py-8 lg:px-[var(--sng-content-gutter-desktop)]"
         >
           <div className="mx-auto w-full max-w-[var(--sng-content-max-width)]">
             {children}

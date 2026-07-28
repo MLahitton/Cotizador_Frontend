@@ -1,7 +1,10 @@
 import type {
+  ClientDetails,
   ClientListItem,
   ClientsPage,
+  CreateClientRequest,
   GetClientsParameters,
+  UpdateClientPayload,
 } from "@/features/clients/clients-types";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
@@ -29,7 +32,7 @@ function isValidPageSize(value: unknown): value is number {
   return isPositiveInteger(value) && value <= 100;
 }
 
-function isClientListItem(value: unknown): value is ClientListItem {
+export function isClientDetails(value: unknown): value is ClientDetails {
   if (!isRecord(value)) {
     return false;
   }
@@ -50,6 +53,10 @@ function isClientListItem(value: unknown): value is ClientListItem {
     typeof value.createdAtUtc === "string" &&
     typeof value.updatedAtUtc === "string"
   );
+}
+
+function isClientListItem(value: unknown): value is ClientListItem {
+  return isClientDetails(value);
 }
 
 function isClientsPage(value: unknown): value is ClientsPage {
@@ -89,6 +96,72 @@ export async function getClients(
       status: 0,
       title: "Respuesta inválida",
       detail: INVALID_RESPONSE_DETAIL,
+    });
+  }
+
+  return response;
+}
+
+export async function createClient(
+  request: CreateClientRequest,
+): Promise<ClientListItem> {
+  const response = await apiRequest("/api/v1/clients", {
+    method: "POST",
+    authenticated: true,
+    body: request,
+  });
+
+  if (!isClientListItem(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta inválida",
+      detail:
+        "El servidor devolvió una respuesta inesperada al crear el cliente.",
+    });
+  }
+
+  return response;
+}
+
+export async function getClientById(clientId: string): Promise<ClientDetails> {
+  const response = await apiRequest(
+    `/api/v1/clients/${encodeURIComponent(clientId)}`,
+    {
+      authenticated: true,
+    },
+  );
+
+  if (!isClientDetails(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta inválida",
+      detail:
+        "El servidor devolvió una respuesta inesperada al consultar el cliente.",
+    });
+  }
+
+  return response;
+}
+
+export async function updateClient(
+  clientId: string,
+  payload: UpdateClientPayload,
+): Promise<ClientDetails> {
+  const response = await apiRequest(
+    `/api/v1/clients/${encodeURIComponent(clientId)}`,
+    {
+      method: "PUT",
+      authenticated: true,
+      body: payload,
+    },
+  );
+
+  if (!isClientDetails(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta inválida",
+      detail:
+        "El servidor devolvió una respuesta inesperada al actualizar el cliente.",
     });
   }
 

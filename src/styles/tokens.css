@@ -66,6 +66,9 @@
   --sng-color-brand-secondary: var(--sng-color-steel-500);
   --sng-color-brand-soft: var(--sng-color-steel-100);
   --sng-color-brand-foreground: var(--sng-color-white);
+  --sng-color-on-brand: var(--sng-color-brand-foreground);
+  --sng-color-on-danger: var(--sng-color-white);
+  --sng-color-danger-foreground: var(--sng-color-white);
 
   --sng-color-success: var(--sng-color-success-700);
   --sng-color-success-soft: var(--sng-color-success-100);
@@ -150,6 +153,8 @@
   --color-brand-active: var(--sng-color-brand-primary-active);
   --color-brand-soft: var(--sng-color-brand-soft);
   --color-brand-foreground: var(--sng-color-brand-foreground);
+  --color-on-brand: var(--sng-color-on-brand);
+  --color-on-danger: var(--sng-color-on-danger);
   --color-border: var(--sng-color-border-default);
   --color-border-subtle: var(--sng-color-border-subtle);
   --color-border-strong: var(--sng-color-border-strong);

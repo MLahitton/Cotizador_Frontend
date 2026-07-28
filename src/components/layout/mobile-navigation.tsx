@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 
 export function MobileNavigation() {
   return (
-    <details className="relative lg:hidden">
+    <details className="relative shrink-0 lg:hidden">
       <summary
         aria-label="Abrir navegación principal"
         className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-sm text-foreground-secondary transition-colors marker:hidden hover:bg-surface-muted hover:text-foreground [&::-webkit-details-marker]:hidden"

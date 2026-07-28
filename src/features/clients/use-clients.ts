@@ -9,24 +9,41 @@ import type {
 } from "@/features/clients/clients-types";
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 350;
+const SEARCH_MAX_LENGTH = 200;
+const SEARCH_VALIDATION_MESSAGE =
+  "La búsqueda no puede superar los 200 caracteres.";
 
 export function useClients() {
   const [data, setData] = useState<ClientsPage | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [status, setStatus] = useState<ClientStatusFilter>("active");
   const [page, setPageState] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
   const requestIdRef = useRef(0);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchValidationMessage =
+    searchInput.trim().length > SEARCH_MAX_LENGTH
+      ? SEARCH_VALIDATION_MESSAGE
+      : "";
+
+  const clearSearchTimer = useCallback(() => {
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
 
     void getClients({
-      search: search || null,
+      search: appliedSearch || null,
       status,
       page,
       pageSize: PAGE_SIZE,
@@ -47,7 +64,9 @@ export function useClients() {
           setIsRefreshing(false);
         }
       });
-  }, [page, reloadKey, search, status]);
+  }, [appliedSearch, page, reloadKey, status]);
+
+  useEffect(() => () => clearSearchTimer(), [clearSearchTimer]);
 
   const prepareRequest = useCallback(() => {
     setError(null);
@@ -58,19 +77,54 @@ export function useClients() {
     }
   }, [data]);
 
-  const applySearch = useCallback(
+  const applySearchValue = useCallback(
     (nextSearch: string) => {
       const normalizedSearch = nextSearch.trim();
-      if (normalizedSearch === search) {
+      if (
+        normalizedSearch.length > SEARCH_MAX_LENGTH ||
+        normalizedSearch === appliedSearch
+      ) {
         return;
       }
 
       prepareRequest();
-      setSearch(normalizedSearch);
+      setAppliedSearch(normalizedSearch);
       setPageState(1);
     },
-    [prepareRequest, search],
+    [appliedSearch, prepareRequest],
   );
+
+  const changeSearchInput = useCallback(
+    (nextSearchInput: string) => {
+      setSearchInput(nextSearchInput);
+      clearSearchTimer();
+
+      const normalizedSearch = nextSearchInput.trim();
+      if (
+        normalizedSearch.length > SEARCH_MAX_LENGTH ||
+        normalizedSearch === appliedSearch
+      ) {
+        return;
+      }
+
+      searchTimerRef.current = setTimeout(() => {
+        applySearchValue(normalizedSearch);
+        searchTimerRef.current = null;
+      }, SEARCH_DEBOUNCE_MS);
+    },
+    [appliedSearch, applySearchValue, clearSearchTimer],
+  );
+
+  const submitSearch = useCallback(() => {
+    clearSearchTimer();
+    applySearchValue(searchInput);
+  }, [applySearchValue, clearSearchTimer, searchInput]);
+
+  const clearSearch = useCallback(() => {
+    clearSearchTimer();
+    setSearchInput("");
+    applySearchValue("");
+  }, [applySearchValue, clearSearchTimer]);
 
   const changeStatus = useCallback(
     (nextStatus: ClientStatusFilter) => {
@@ -104,26 +158,32 @@ export function useClients() {
   }, [prepareRequest]);
 
   const clearFilters = useCallback(() => {
-    if (search === "" && status === "active") {
+    if (appliedSearch === "" && status === "active") {
       return;
     }
 
+    clearSearchTimer();
     prepareRequest();
-    setSearch("");
+    setSearchInput("");
+    setAppliedSearch("");
     setStatus("active");
     setPageState(1);
-  }, [prepareRequest, search, status]);
+  }, [appliedSearch, clearSearchTimer, prepareRequest, status]);
 
   return {
     data,
     error,
     isLoading,
     isRefreshing,
-    search,
+    searchInput,
+    appliedSearch,
+    searchValidationMessage,
     status,
     page,
     pageSize: PAGE_SIZE,
-    applySearch,
+    changeSearchInput,
+    submitSearch,
+    clearSearch,
     changeStatus,
     changePage,
     clearFilters,

@@ -17,7 +17,7 @@ export function UserAccount({
   onSignOut,
 }: UserAccountProps) {
   return (
-    <details className="relative">
+    <details className="relative shrink-0">
       <summary
         aria-label={`Abrir menú de cuenta de ${displayName}`}
         className="flex cursor-pointer list-none items-center gap-2 rounded-sm p-1 text-foreground transition-colors marker:hidden hover:bg-surface-muted [&::-webkit-details-marker]:hidden"

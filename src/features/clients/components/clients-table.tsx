@@ -1,9 +1,11 @@
 import { SearchX, Users } from "lucide-react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import type { ClientListItem } from "@/features/clients/clients-types";
+import { cn } from "@/lib/utils/cn";
 
 const dateFormatter = new Intl.DateTimeFormat("es-CO", {
   dateStyle: "medium",
@@ -36,7 +38,7 @@ export function ClientsTable({
 }: ClientsTableProps) {
   return (
     <section aria-labelledby="clients-table-title">
-      <Surface padding="none" className="overflow-hidden">
+      <Surface padding="none" className="min-w-0 overflow-hidden">
         <div className="border-b border-border-subtle px-5 py-4 sm:px-6">
           <h2
             id="clients-table-title"
@@ -59,6 +61,7 @@ export function ClientsTable({
                   "Ciudad",
                   "Estado",
                   "Actualización",
+                  "Acciones",
                 ].map((heading) => (
                   <th
                     key={heading}
@@ -73,7 +76,7 @@ export function ClientsTable({
             <tbody className="divide-y divide-border-subtle">
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-6 py-12 text-center">
                     {hasFilters ? (
                       <SearchX
                         aria-hidden="true"
@@ -149,7 +152,7 @@ export function ClientsTable({
                       {client.email || client.phone ? (
                         <>
                           {client.email ? (
-                            <p className="max-w-64 break-all text-foreground">
+                            <p className="max-w-56 break-all text-foreground xl:max-w-64">
                               {client.email}
                             </p>
                           ) : null}
@@ -176,6 +179,18 @@ export function ClientsTable({
                     </td>
                     <td className="px-5 py-4 align-top text-sm text-foreground-secondary">
                       {formatDate(client.updatedAtUtc)}
+                    </td>
+                    <td className="px-5 py-4 align-top">
+                      <Link
+                        href={`/clients/${client.id}`}
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                          "w-full",
+                        )}
+                        aria-label={`Ver detalles de ${client.legalName}`}
+                      >
+                        Ver detalle
+                      </Link>
                     </td>
                   </tr>
                 ))

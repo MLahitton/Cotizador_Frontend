@@ -1,12 +1,17 @@
 "use client";
 
+import { Plus } from "lucide-react";
+import Link from "next/link";
+
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { ClientsFeedback } from "@/features/clients/components/clients-feedback";
 import { ClientsPagination } from "@/features/clients/components/clients-pagination";
 import { ClientsTable } from "@/features/clients/components/clients-table";
 import { ClientsToolbar } from "@/features/clients/components/clients-toolbar";
 import { useClients } from "@/features/clients/use-clients";
+import { cn } from "@/lib/utils/cn";
 
 export function ClientsPageContent() {
   const {
@@ -14,23 +19,27 @@ export function ClientsPageContent() {
     error,
     isLoading,
     isRefreshing,
-    search,
+    searchInput,
+    appliedSearch,
+    searchValidationMessage,
     status,
     pageSize,
-    applySearch,
+    changeSearchInput,
+    submitSearch,
+    clearSearch,
     changeStatus,
     changePage,
     clearFilters,
     reload,
   } = useClients();
 
-  const hasFilters = search.length > 0 || status !== "active";
+  const hasFilters = appliedSearch.length > 0 || status !== "active";
   const showResults = data !== null && !isLoading;
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <header className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
           <Badge tone="brand">Gestión comercial</Badge>
           <h1 className="mt-4 text-3xl font-semibold text-foreground">
             Clientes
@@ -40,22 +49,29 @@ export function ClientsPageContent() {
             la plataforma.
           </p>
         </div>
-        <Badge tone="neutral">Creación próximamente</Badge>
+        <Link
+          href="/clients/new"
+          className={cn(
+            buttonVariants({ variant: "primary" }),
+            "w-full shrink-0 sm:w-auto",
+          )}
+        >
+          <Plus aria-hidden="true" size={17} strokeWidth={1.75} />
+          Nuevo cliente
+        </Link>
       </header>
 
       <Surface padding="none">
         <ClientsToolbar
-          key={search}
-          appliedSearch={search}
+          searchInput={searchInput}
+          appliedSearch={appliedSearch}
+          validationMessage={searchValidationMessage}
           status={status}
-          onSearch={applySearch}
+          onSearchInputChange={changeSearchInput}
+          onSearchSubmit={submitSearch}
+          onSearchClear={clearSearch}
           onStatusChange={changeStatus}
         />
-        <div className="p-5 sm:p-6">
-          <p className="text-sm text-muted">
-            Nueva creación disponible próximamente
-          </p>
-        </div>
       </Surface>
 
       <ClientsFeedback

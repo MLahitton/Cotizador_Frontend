@@ -13,10 +13,10 @@ export function DashboardOverview({ firstName }: DashboardOverviewProps) {
   const normalizedFirstName = firstName.trim();
 
   return (
-    <div className="space-y-8">
-      <header>
+    <div className="min-w-0 space-y-6 sm:space-y-8">
+      <header className="min-w-0">
         <Badge tone="brand">Resumen operativo</Badge>
-        <h1 className="mt-4 text-3xl font-semibold text-foreground">
+        <h1 className="mt-4 text-2xl font-semibold text-foreground sm:text-3xl">
           {normalizedFirstName ? `Hola, ${normalizedFirstName}` : "Hola"}
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground-secondary">
@@ -31,20 +31,20 @@ export function DashboardOverview({ firstName }: DashboardOverviewProps) {
 
       <DashboardSummaryStrip />
 
-      <div className="grid gap-6 lg:grid-cols-12">
-        <div className="order-2 lg:order-1 lg:col-span-8">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-12">
+        <div className="order-2 min-w-0 xl:order-1 xl:col-span-8">
           <DashboardRecentProjects />
         </div>
-        <div className="order-1 lg:order-2 lg:col-span-4">
+        <div className="order-1 min-w-0 xl:order-2 xl:col-span-4">
           <DashboardQuickActions />
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-12">
-        <div className="lg:col-span-8">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-12">
+        <div className="min-w-0 xl:col-span-8">
           <DashboardProcessOverview />
         </div>
-        <div className="lg:col-span-4">
+        <div className="min-w-0 xl:col-span-4">
           <DashboardActivity />
         </div>
       </div>

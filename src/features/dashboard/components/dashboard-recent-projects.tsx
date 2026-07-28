@@ -7,9 +7,9 @@ import { Surface } from "@/components/ui/surface";
 export function DashboardRecentProjects() {
   return (
     <section aria-labelledby="recent-projects-title">
-      <Surface padding="none">
-        <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
-          <div>
+      <Surface padding="none" className="min-w-0 overflow-hidden">
+        <div className="flex min-w-0 flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+          <div className="min-w-0">
             <h2
               id="recent-projects-title"
               className="text-lg font-semibold text-foreground"
@@ -27,7 +27,7 @@ export function DashboardRecentProjects() {
         </div>
         <Separator />
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[42rem] border-collapse text-left">
+          <table className="w-full min-w-[36rem] border-collapse text-left">
             <caption className="sr-only">
               Proyectos creados o actualizados recientemente
             </caption>
@@ -38,7 +38,7 @@ export function DashboardRecentProjects() {
                     <th
                       key={heading}
                       scope="col"
-                      className="border-b border-border-subtle px-6 py-3 text-xs font-semibold text-foreground-secondary"
+                      className="border-b border-border-subtle px-4 py-3 text-xs font-semibold text-foreground-secondary sm:px-6"
                     >
                       {heading}
                     </th>
@@ -48,7 +48,7 @@ export function DashboardRecentProjects() {
             </thead>
             <tbody>
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center">
+                <td colSpan={4} className="px-4 py-10 text-center sm:px-6 sm:py-12">
                   <FolderOpen
                     aria-hidden="true"
                     className="mx-auto text-muted"
