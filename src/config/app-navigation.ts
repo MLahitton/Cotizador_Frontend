@@ -36,9 +36,9 @@ export const appNavigationItems: AppNavigationItem[] = [
   {
     id: "projects",
     label: "Proyectos",
-    href: null,
+    href: "/projects",
     icon: FolderKanban,
-    disabled: true,
+    disabled: false,
   },
   {
     id: "prequoter",

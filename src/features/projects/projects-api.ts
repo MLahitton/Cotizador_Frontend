@@ -1,0 +1,168 @@
+import type {
+  CreatedProject,
+  CreateProjectRequest,
+  GetProjectsParameters,
+  ProjectClientSummary,
+  ProjectListItem,
+  ProjectsPage,
+} from "@/features/projects/projects-types";
+import { apiRequest } from "@/lib/http/api-client";
+import { ApiError } from "@/lib/http/api-error";
+
+const INVALID_RESPONSE_DETAIL =
+  "El servidor devolvió una respuesta inesperada al consultar proyectos.";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return typeof value === "string" || value === null;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1;
+}
+
+function isValidPageSize(value: unknown): value is number {
+  return isPositiveInteger(value) && value <= 100;
+}
+
+function isProjectClientSummary(
+  value: unknown,
+): value is ProjectClientSummary {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    value.id.trim().length > 0 &&
+    typeof value.clientType === "string" &&
+    typeof value.legalName === "string" &&
+    isNullableString(value.tradeName) &&
+    isNullableString(value.documentType) &&
+    isNullableString(value.documentNumber)
+  );
+}
+
+function isProjectListItem(value: unknown): value is ProjectListItem {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    value.id.trim().length > 0 &&
+    typeof value.clientId === "string" &&
+    value.clientId.trim().length > 0 &&
+    typeof value.code === "string" &&
+    typeof value.name === "string" &&
+    isNullableString(value.description) &&
+    isNullableString(value.location) &&
+    typeof value.isActive === "boolean" &&
+    typeof value.createdAtUtc === "string" &&
+    typeof value.updatedAtUtc === "string" &&
+    isProjectClientSummary(value.client)
+  );
+}
+
+function isCreatedProject(value: unknown): value is CreatedProject {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    value.id.trim().length > 0 &&
+    typeof value.clientId === "string" &&
+    value.clientId.trim().length > 0 &&
+    typeof value.code === "string" &&
+    typeof value.name === "string" &&
+    isNullableString(value.description) &&
+    isNullableString(value.location) &&
+    typeof value.isActive === "boolean" &&
+    typeof value.createdAtUtc === "string" &&
+    typeof value.updatedAtUtc === "string"
+  );
+}
+
+function isProjectsPage(value: unknown): value is ProjectsPage {
+  if (!isRecord(value) || !Array.isArray(value.items)) {
+    return false;
+  }
+
+  return (
+    value.items.every(isProjectListItem) &&
+    isPositiveInteger(value.page) &&
+    isValidPageSize(value.pageSize) &&
+    isNonNegativeInteger(value.totalCount) &&
+    isNonNegativeInteger(value.totalPages)
+  );
+}
+
+export async function getProjects(
+  parameters: GetProjectsParameters,
+): Promise<ProjectsPage> {
+  const query = new URLSearchParams({
+    status: parameters.status,
+    page: String(parameters.page),
+    pageSize: String(parameters.pageSize),
+  });
+
+  const normalizedSearch = parameters.search?.trim();
+  if (normalizedSearch) {
+    query.set("search", normalizedSearch);
+  }
+
+  if (parameters.clientId) {
+    query.set("clientId", parameters.clientId);
+  }
+
+  if (parameters.clientType) {
+    query.set("clientType", parameters.clientType);
+  }
+
+  if (parameters.documentType) {
+    query.set("documentType", parameters.documentType);
+  }
+
+  const response = await apiRequest(`/api/v1/projects?${query.toString()}`, {
+    authenticated: true,
+  });
+
+  if (!isProjectsPage(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta inválida",
+      detail: INVALID_RESPONSE_DETAIL,
+    });
+  }
+
+  return response;
+}
+
+export async function createProject(
+  request: CreateProjectRequest,
+): Promise<CreatedProject> {
+  const response = await apiRequest("/api/v1/projects", {
+    method: "POST",
+    authenticated: true,
+    body: request,
+  });
+
+  if (!isCreatedProject(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta inválida",
+      detail:
+        "El servidor devolvió una respuesta inesperada al crear el proyecto.",
+    });
+  }
+
+  return response;
+}
