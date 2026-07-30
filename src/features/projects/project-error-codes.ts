@@ -1,0 +1,12 @@
+export const PROJECT_ERROR_CODES = {
+  invalidRequest: "PROJECT_INVALID_REQUEST",
+  unauthorized: "AUTH_UNAUTHORIZED",
+  inactiveUser: "AUTH_USER_INACTIVE",
+  clientNotFound: "PROJECT_CLIENT_NOT_FOUND",
+  clientInactive: "PROJECT_CLIENT_INACTIVE",
+  duplicateCode: "PROJECT_CODE_DUPLICATE",
+  persistenceError: "PROJECT_PERSISTENCE_ERROR",
+} as const;
+
+export type ProjectErrorCode =
+  (typeof PROJECT_ERROR_CODES)[keyof typeof PROJECT_ERROR_CODES];

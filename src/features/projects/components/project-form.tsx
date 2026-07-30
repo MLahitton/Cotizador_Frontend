@@ -73,15 +73,24 @@ export function ProjectForm({
   const nameRef = useRef<HTMLInputElement>(null);
   const locationRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
-  const lastFormErrorRef = useRef<string | undefined>(undefined);
+  const lastErrorFocusKeyRef = useRef<string | undefined>(undefined);
   const disabled = isSubmitting;
 
   useEffect(() => {
-    if (!errors.form || errors.form === lastFormErrorRef.current) {
+    const errorFocusKey = [
+      errors.form,
+      errors.client,
+      errors.code,
+      errors.name,
+      errors.location,
+      errors.description,
+    ].join("|");
+
+    if (!errors.form || errorFocusKey === lastErrorFocusKeyRef.current) {
       return;
     }
 
-    lastFormErrorRef.current = errors.form;
+    lastErrorFocusKeyRef.current = errorFocusKey;
 
     if (errors.client) {
       clientSelectorRef.current?.focusSearch();

@@ -4,6 +4,7 @@ export interface ApiProblemDetails {
   status?: number;
   detail?: string;
   instance?: string;
+  code?: unknown;
   traceId?: string;
   errors?: Record<string, string[]>;
 }

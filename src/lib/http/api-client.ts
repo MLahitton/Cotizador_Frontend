@@ -32,6 +32,7 @@ function toProblemDetails(value: unknown): ApiProblemDetails | undefined {
   if (typeof value.status === "number") problem.status = value.status;
   if (typeof value.detail === "string") problem.detail = value.detail;
   if (typeof value.instance === "string") problem.instance = value.instance;
+  if ("code" in value) problem.code = value.code;
   if (typeof value.traceId === "string") problem.traceId = value.traceId;
 
   if (isRecord(value.errors)) {
@@ -47,6 +48,15 @@ function toProblemDetails(value: unknown): ApiProblemDetails | undefined {
   return problem;
 }
 
+function isJsonResponse(contentType: string): boolean {
+  const mediaType = contentType
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+
+  return mediaType === "application/json" || mediaType.endsWith("+json");
+}
+
 async function readResponseBody(response: Response): Promise<unknown> {
   if (response.status === 204) {
     return undefined;
@@ -58,7 +68,7 @@ async function readResponseBody(response: Response): Promise<unknown> {
   }
 
   const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().includes("application/json")) {
+  if (!isJsonResponse(contentType)) {
     return text;
   }
 
