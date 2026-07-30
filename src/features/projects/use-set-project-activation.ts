@@ -37,19 +37,25 @@ export function useSetProjectActivation(
   const requestIdRef = useRef(0);
   const currentProjectIdRef = useRef(projectId);
 
-  currentProjectIdRef.current = projectId;
-
   const reset = useCallback(() => {
     setError(null);
     setSuccessMessage(null);
   }, []);
 
   useEffect(() => {
+    currentProjectIdRef.current = projectId;
     requestIdRef.current += 1;
     isSubmittingRef.current = false;
-    setIsSubmitting(false);
-    setError(null);
-    setSuccessMessage(null);
+
+    queueMicrotask(() => {
+      if (currentProjectIdRef.current !== projectId) {
+        return;
+      }
+
+      setIsSubmitting(false);
+      setError(null);
+      setSuccessMessage(null);
+    });
   }, [projectId]);
 
   const setActivation = useCallback(
