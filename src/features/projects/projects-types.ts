@@ -58,6 +58,13 @@ export interface CreateProjectRequest {
   location: string | null;
 }
 
+export interface UpdateProjectRequest {
+  code: string;
+  name: string;
+  description: string | null;
+  location: string | null;
+}
+
 export interface CreatedProject {
   id: string;
   clientId: string;

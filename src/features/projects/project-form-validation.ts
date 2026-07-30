@@ -2,6 +2,7 @@ import type {
   CreateProjectRequest,
   ProjectFormErrors,
   ProjectFormValues,
+  UpdateProjectRequest,
 } from "@/features/projects/projects-types";
 
 const PROJECT_CODE_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -22,19 +23,14 @@ export function normalizeProjectCode(value: string): string {
   return value.trim().toUpperCase();
 }
 
-export function validateProjectForm(
+export function validateProjectEditableFields(
   values: ProjectFormValues,
-  clientId: string | null,
 ): ProjectFormErrors {
   const errors: ProjectFormErrors = {};
   const code = values.code.trim();
   const name = values.name.trim();
   const location = values.location.trim();
   const description = values.description.trim();
-
-  if (!clientId) {
-    errors.client = "Selecciona un cliente activo.";
-  }
 
   if (!code) {
     errors.code = "Ingresa el código del proyecto.";
@@ -61,12 +57,36 @@ export function validateProjectForm(
   return errors;
 }
 
+export function validateProjectForm(
+  values: ProjectFormValues,
+  clientId: string | null,
+): ProjectFormErrors {
+  const errors = validateProjectEditableFields(values);
+
+  if (!clientId) {
+    errors.client = "Selecciona un cliente activo.";
+  }
+
+  return errors;
+}
+
 export function toCreateProjectRequest(
   values: ProjectFormValues,
   clientId: string,
 ): CreateProjectRequest {
   return {
     clientId,
+    code: normalizeProjectCode(values.code),
+    name: values.name.trim(),
+    description: optionalTrimmed(values.description),
+    location: optionalTrimmed(values.location),
+  };
+}
+
+export function toUpdateProjectRequest(
+  values: ProjectFormValues,
+): UpdateProjectRequest {
+  return {
     code: normalizeProjectCode(values.code),
     name: values.name.trim(),
     description: optionalTrimmed(values.description),

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ProjectActivationConfirmation } from "@/features/projects/components/project-activation-confirmation";
 import { ProjectClientSummary } from "@/features/projects/components/project-client-summary";
+import { ProjectEditForm } from "@/features/projects/components/project-edit-form";
 import {
   InvalidProjectIdFeedback,
   ProjectDetailsErrorFeedback,
@@ -12,6 +13,7 @@ import {
 import { ProjectDetailView } from "@/features/projects/components/project-detail-view";
 import { useProjectDetails } from "@/features/projects/use-project-details";
 import { useSetProjectActivation } from "@/features/projects/use-set-project-activation";
+import { useUpdateProject } from "@/features/projects/use-update-project";
 
 export function ProjectDetailPageContent({
   projectId,
@@ -40,21 +42,31 @@ export function ProjectDetailPageContent({
   const [activationTarget, setActivationTarget] = useState<boolean | null>(
     null,
   );
+  const [isEditing, setIsEditing] = useState(false);
+  const updateProject = useUpdateProject(project);
 
   useEffect(() => {
     queueMicrotask(() => {
       setActivationTarget(null);
+      setIsEditing(false);
     });
   }, [projectId]);
 
   const openActivationConfirmation = useCallback(() => {
-    if (!project || isActivationSubmitting) {
+    if (!project || isActivationSubmitting || isEditing || updateProject.isSubmitting) {
       return;
     }
 
+    updateProject.clearSuccess();
     resetActivation();
     setActivationTarget(!project.isActive);
-  }, [isActivationSubmitting, project, resetActivation]);
+  }, [
+    isActivationSubmitting,
+    isEditing,
+    project,
+    resetActivation,
+    updateProject,
+  ]);
 
   const cancelActivationConfirmation = useCallback(() => {
     if (isActivationSubmitting) {
@@ -97,6 +109,44 @@ export function ProjectDetailPageContent({
     setActivation,
   ]);
 
+  const startEditing = useCallback(() => {
+    if (!project || activationTarget !== null || isActivationSubmitting) {
+      return;
+    }
+
+    resetActivation();
+    updateProject.reset();
+    setIsEditing(true);
+  }, [
+    activationTarget,
+    isActivationSubmitting,
+    project,
+    resetActivation,
+    updateProject,
+  ]);
+
+  const cancelEditing = useCallback(() => {
+    if (updateProject.isSubmitting) {
+      return;
+    }
+
+    updateProject.reset();
+    setIsEditing(false);
+  }, [updateProject]);
+
+  const submitUpdate = useCallback(async () => {
+    if (!project) {
+      return;
+    }
+
+    const result = await updateProject.submit();
+
+    if (result.status === "updated") {
+      applyProjectUpdate(result.project);
+      setIsEditing(false);
+    }
+  }, [applyProjectUpdate, project, updateProject]);
+
   if (!isProjectIdValid) {
     return <InvalidProjectIdFeedback />;
   }
@@ -126,8 +176,29 @@ export function ProjectDetailPageContent({
   return (
     <ProjectDetailView
       project={project}
-      successMessage={successMessage}
-      isActivationDisabled={activationTarget !== null || isActivationSubmitting}
+      successMessage={updateProject.successMessage ?? successMessage}
+      isActivationDisabled={
+        activationTarget !== null ||
+        isActivationSubmitting ||
+        isEditing ||
+        updateProject.isSubmitting
+      }
+      isEditDisabled={activationTarget !== null || isActivationSubmitting}
+      isEditing={isEditing}
+      editForm={
+        <ProjectEditForm
+          values={updateProject.values}
+          errors={updateProject.errors}
+          isSubmitting={updateProject.isSubmitting}
+          isDirty={updateProject.isDirty}
+          submitError={updateProject.submitError}
+          showProjectsLink={updateProject.showProjectsLink}
+          onFieldChange={updateProject.updateField}
+          onCodeBlur={updateProject.normalizeCodeField}
+          onSubmit={submitUpdate}
+          onCancel={cancelEditing}
+        />
+      }
       activationConfirmation={
         activationTarget !== null ? (
           <ProjectActivationConfirmation
@@ -140,6 +211,7 @@ export function ProjectDetailPageContent({
           />
         ) : null
       }
+      onRequestEdit={startEditing}
       onRequestActivation={openActivationConfirmation}
       clientSummary={
         <ProjectClientSummary

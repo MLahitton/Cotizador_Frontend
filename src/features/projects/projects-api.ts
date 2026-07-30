@@ -7,6 +7,7 @@ import type {
   ProjectListItem,
   ProjectsPage,
   SetProjectActivationRequest,
+  UpdateProjectRequest,
 } from "@/features/projects/projects-types";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
@@ -137,6 +138,26 @@ function isRequestedProjectDetails(
   );
 }
 
+function isValidDateTime(value: string): boolean {
+  return Number.isFinite(Date.parse(value));
+}
+
+function isRequestedProjectUpdate(
+  value: unknown,
+  currentProject: ProjectDetails,
+): value is ProjectDetails {
+  return (
+    isProjectDetails(value) &&
+    value.id.trim().toLowerCase() ===
+      currentProject.id.trim().toLowerCase() &&
+    value.clientId.trim().toLowerCase() ===
+      currentProject.clientId.trim().toLowerCase() &&
+    value.isActive === currentProject.isActive &&
+    isValidDateTime(value.createdAtUtc) &&
+    isValidDateTime(value.updatedAtUtc)
+  );
+}
+
 function isProjectsPage(value: unknown): value is ProjectsPage {
   if (!isRecord(value) || !Array.isArray(value.items)) {
     return false;
@@ -229,6 +250,32 @@ export async function getProjectById(
       title: "Respuesta inválida",
       detail:
         "El servidor devolvió una respuesta inesperada al consultar el proyecto.",
+    });
+  }
+
+  return response;
+}
+
+export async function updateProject(
+  projectId: string,
+  request: UpdateProjectRequest,
+  currentProject: ProjectDetails,
+): Promise<ProjectDetails> {
+  const response = await apiRequest(
+    `/api/v1/projects/${encodeURIComponent(projectId)}`,
+    {
+      method: "PUT",
+      authenticated: true,
+      body: request,
+    },
+  );
+
+  if (!isRequestedProjectUpdate(response, currentProject)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta inválida",
+      detail:
+        "El servidor devolvió una respuesta inesperada al actualizar el proyecto.",
     });
   }
 
