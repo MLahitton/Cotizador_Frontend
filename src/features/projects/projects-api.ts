@@ -3,8 +3,10 @@ import type {
   CreateProjectRequest,
   GetProjectsParameters,
   ProjectClientSummary,
+  ProjectDetails,
   ProjectListItem,
   ProjectsPage,
+  SetProjectActivationRequest,
 } from "@/features/projects/projects-types";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
@@ -30,6 +32,20 @@ function isPositiveInteger(value: unknown): value is number {
 
 function isValidPageSize(value: unknown): value is number {
   return isPositiveInteger(value) && value <= 100;
+}
+
+function isUuid(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value.trim(),
+    ) &&
+    value.trim() !== "00000000-0000-0000-0000-000000000000"
+  );
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function isProjectClientSummary(
@@ -88,6 +104,36 @@ function isCreatedProject(value: unknown): value is CreatedProject {
     typeof value.isActive === "boolean" &&
     typeof value.createdAtUtc === "string" &&
     typeof value.updatedAtUtc === "string"
+  );
+}
+
+function isProjectDetails(value: unknown): value is ProjectDetails {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isUuid(value.id) &&
+    isUuid(value.clientId) &&
+    isNonEmptyString(value.code) &&
+    isNonEmptyString(value.name) &&
+    isNullableString(value.description) &&
+    isNullableString(value.location) &&
+    typeof value.isActive === "boolean" &&
+    isNonEmptyString(value.createdAtUtc) &&
+    isNonEmptyString(value.updatedAtUtc)
+  );
+}
+
+function isRequestedProjectDetails(
+  value: unknown,
+  projectId: string,
+  isActive: boolean,
+): value is ProjectDetails {
+  return (
+    isProjectDetails(value) &&
+    value.id.trim().toLowerCase() === projectId.trim().toLowerCase() &&
+    value.isActive === isActive
   );
 }
 
@@ -161,6 +207,53 @@ export async function createProject(
       title: "Respuesta inválida",
       detail:
         "El servidor devolvió una respuesta inesperada al crear el proyecto.",
+    });
+  }
+
+  return response;
+}
+
+export async function getProjectById(
+  projectId: string,
+): Promise<ProjectDetails> {
+  const response = await apiRequest(
+    `/api/v1/projects/${encodeURIComponent(projectId)}`,
+    {
+      authenticated: true,
+    },
+  );
+
+  if (!isProjectDetails(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta inválida",
+      detail:
+        "El servidor devolvió una respuesta inesperada al consultar el proyecto.",
+    });
+  }
+
+  return response;
+}
+
+export async function setProjectActivation(
+  projectId: string,
+  request: SetProjectActivationRequest,
+): Promise<ProjectDetails> {
+  const response = await apiRequest(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/activation`,
+    {
+      method: "PATCH",
+      authenticated: true,
+      body: request,
+    },
+  );
+
+  if (!isRequestedProjectDetails(response, projectId, request.isActive)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail:
+        "No fue posible confirmar el nuevo estado del proyecto.",
     });
   }
 

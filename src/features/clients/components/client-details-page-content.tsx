@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import type { ClientDetailBackNavigation } from "@/features/clients/client-detail-navigation";
 import { ClientActivationConfirmation } from "@/features/clients/components/client-activation-confirmation";
 import { ClientForm } from "@/features/clients/components/client-form";
 import {
@@ -77,7 +78,13 @@ function getUpdateErrorMessage(error: unknown): string {
   }
 }
 
-function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
+function ClientDetailsLoadedContent({
+  clientId,
+  backNavigation,
+}: {
+  clientId: string;
+  backNavigation: ClientDetailBackNavigation;
+}) {
   const { client, error, isLoading, reload, replaceClient } =
     useClientDetails(clientId);
   const {
@@ -239,11 +246,17 @@ function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
   ]);
 
   if (isLoading) {
-    return <ClientDetailsLoading />;
+    return <ClientDetailsLoading backNavigation={backNavigation} />;
   }
 
   if (error) {
-    return <ClientDetailsErrorFeedback error={error} onRetry={reload} />;
+    return (
+      <ClientDetailsErrorFeedback
+        error={error}
+        onRetry={reload}
+        backNavigation={backNavigation}
+      />
+    );
   }
 
   if (!client) {
@@ -257,6 +270,7 @@ function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
           }),
         }}
         onRetry={reload}
+        backNavigation={backNavigation}
       />
     );
   }
@@ -267,14 +281,14 @@ function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
         <header className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <Link
-              href="/clients"
+              href={backNavigation.href}
               className={cn(
                 buttonVariants({ variant: "ghost", size: "sm" }),
                 "mb-4 w-full justify-start px-0 sm:w-auto",
               )}
             >
               <ArrowLeft aria-hidden="true" size={17} strokeWidth={1.75} />
-              Volver a clientes
+              {backNavigation.label}
             </Link>
             <Badge tone="brand">Clientes</Badge>
             <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
@@ -302,7 +316,7 @@ function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
             updateError.cause.status === 404 ? (
               <div className="mt-4">
                 <Link
-                  href="/clients"
+                  href={backNavigation.href}
                   className={cn(buttonVariants({ variant: "outline" }))}
                 >
                   <ArrowLeft
@@ -310,7 +324,7 @@ function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
                     size={17}
                     strokeWidth={1.75}
                   />
-                  Volver a clientes
+                  {backNavigation.label}
                 </Link>
               </div>
             ) : null}
@@ -352,14 +366,26 @@ function ClientDetailsLoadedContent({ clientId }: { clientId: string }) {
       }
       onEdit={startEditing}
       onRequestActivation={openActivationConfirmation}
+      backNavigation={backNavigation}
     />
   );
 }
 
-export function ClientDetailsPageContent({ clientId }: { clientId: string }) {
+export function ClientDetailsPageContent({
+  clientId,
+  backNavigation,
+}: {
+  clientId: string;
+  backNavigation: ClientDetailBackNavigation;
+}) {
   if (!isValidClientId(clientId)) {
-    return <InvalidClientIdFeedback />;
+    return <InvalidClientIdFeedback backNavigation={backNavigation} />;
   }
 
-  return <ClientDetailsLoadedContent clientId={clientId} />;
+  return (
+    <ClientDetailsLoadedContent
+      clientId={clientId}
+      backNavigation={backNavigation}
+    />
+  );
 }

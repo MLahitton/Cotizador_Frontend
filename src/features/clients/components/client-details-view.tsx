@@ -5,6 +5,10 @@ import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
+import {
+  DEFAULT_CLIENT_DETAIL_BACK_NAVIGATION,
+  type ClientDetailBackNavigation,
+} from "@/features/clients/client-detail-navigation";
 import type { ClientDetails } from "@/features/clients/clients-types";
 import { cn } from "@/lib/utils/cn";
 
@@ -95,6 +99,7 @@ export function ClientDetailsView({
   isEditDisabled = false,
   isActivationDisabled = false,
   activationConfirmation,
+  backNavigation = DEFAULT_CLIENT_DETAIL_BACK_NAVIGATION,
   onEdit,
   onRequestActivation,
 }: {
@@ -103,6 +108,7 @@ export function ClientDetailsView({
   isEditDisabled?: boolean;
   isActivationDisabled?: boolean;
   activationConfirmation?: ReactNode;
+  backNavigation?: ClientDetailBackNavigation;
   onEdit: () => void;
   onRequestActivation: () => void;
 }) {
@@ -115,14 +121,14 @@ export function ClientDetailsView({
       <header className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <Link
-            href="/clients"
+            href={backNavigation.href}
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
               "mb-4 w-full justify-start px-0 sm:w-auto",
             )}
           >
             <ArrowLeft aria-hidden="true" size={17} strokeWidth={1.75} />
-            Volver a clientes
+            {backNavigation.label}
           </Link>
           <Badge tone="brand">Clientes</Badge>
           <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">

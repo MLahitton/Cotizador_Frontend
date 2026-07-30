@@ -1,9 +1,11 @@
-import { FolderOpen, SearchX } from "lucide-react";
+import { Eye, FolderOpen, SearchX } from "lucide-react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import type { ProjectListItem } from "@/features/projects/projects-types";
+import { cn } from "@/lib/utils/cn";
 
 const EMPTY_VALUE = "—";
 
@@ -63,7 +65,7 @@ export function ProjectsTable({
           </h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[70rem] border-collapse text-left">
+          <table className="w-full min-w-[78rem] border-collapse text-left">
             <caption className="sr-only">
               Listado de proyectos registrados y sus clientes asociados
             </caption>
@@ -76,6 +78,7 @@ export function ProjectsTable({
                   "Ubicación",
                   "Estado",
                   "Actualización",
+                  "Detalle",
                 ].map((heading) => (
                   <th
                     key={heading}
@@ -90,7 +93,7 @@ export function ProjectsTable({
             <tbody className="divide-y divide-border-subtle">
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-6 py-12 text-center">
                     {hasFilters ? (
                       <SearchX
                         aria-hidden="true"
@@ -187,6 +190,19 @@ export function ProjectsTable({
                     </td>
                     <td className="px-5 py-4 align-top text-sm text-foreground-secondary">
                       {formatDate(project.updatedAtUtc)}
+                    </td>
+                    <td className="px-5 py-4 align-top">
+                      <Link
+                        href={`/projects/${encodeURIComponent(project.id)}`}
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                          "w-full",
+                        )}
+                        aria-label={`Ver detalle de ${project.name}`}
+                      >
+                        <Eye aria-hidden="true" size={17} strokeWidth={1.75} />
+                        Ver detalle
+                      </Link>
                     </td>
                   </tr>
                 ))

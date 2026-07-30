@@ -1,16 +1,14 @@
 "use client";
 
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { getClientDetailBackNavigation } from "@/features/clients/client-detail-navigation";
 import { useAuth } from "@/features/auth/auth-context";
 import { ProtectedRoute } from "@/features/auth/protected-route";
-import { ClientDetailsPageContent } from "@/features/clients/components/client-details-page-content";
+import { ProjectDetailPageContent } from "@/features/projects/components/project-detail-page-content";
 
-function ClientDetailsContent() {
-  const params = useParams<{ clientId?: string | string[] }>();
-  const searchParams = useSearchParams();
+function ProjectDetailContent() {
+  const params = useParams<{ projectId?: string | string[] }>();
   const router = useRouter();
   const { signOut, user } = useAuth();
 
@@ -23,11 +21,8 @@ function ClientDetailsContent() {
     .filter(Boolean)
     .map((name) => name?.charAt(0).toUpperCase())
     .join("");
-  const clientId =
-    typeof params.clientId === "string" ? params.clientId : "";
-  const backNavigation = getClientDetailBackNavigation(
-    searchParams.getAll("fromProjectId"),
-  );
+  const projectId =
+    typeof params.projectId === "string" ? params.projectId : "";
 
   const handleSignOut = () => {
     signOut();
@@ -41,18 +36,15 @@ function ClientDetailsContent() {
       initials={initials}
       onSignOut={handleSignOut}
     >
-      <ClientDetailsPageContent
-        clientId={clientId}
-        backNavigation={backNavigation}
-      />
+      <ProjectDetailPageContent projectId={projectId} />
     </AppShell>
   );
 }
 
-export default function ClientDetailsPage() {
+export default function ProjectDetailPage() {
   return (
     <ProtectedRoute>
-      <ClientDetailsContent />
+      <ProjectDetailContent />
     </ProtectedRoute>
   );
 }

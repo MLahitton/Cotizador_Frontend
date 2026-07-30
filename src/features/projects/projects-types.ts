@@ -70,6 +70,22 @@ export interface CreatedProject {
   updatedAtUtc: string;
 }
 
+export interface ProjectDetails {
+  id: string;
+  clientId: string;
+  code: string;
+  name: string;
+  description: string | null;
+  location: string | null;
+  isActive: boolean;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface SetProjectActivationRequest {
+  isActive: boolean;
+}
+
 export interface ProjectFormValues {
   code: string;
   name: string;
