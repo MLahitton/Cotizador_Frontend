@@ -184,6 +184,12 @@ export function ProjectDetailPageContent({
         updateProject.isSubmitting
       }
       isEditDisabled={activationTarget !== null || isActivationSubmitting}
+      isPreQuotesDisabled={
+        activationTarget !== null ||
+        isActivationSubmitting ||
+        isEditing ||
+        updateProject.isSubmitting
+      }
       isEditing={isEditing}
       editForm={
         <ProjectEditForm

@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil, Power, PowerOff } from "lucide-react";
+import { ArrowLeft, FileText, Pencil, Power, PowerOff } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -38,6 +38,7 @@ export function ProjectDetailView({
   successMessage,
   isActivationDisabled = false,
   isEditDisabled = false,
+  isPreQuotesDisabled = false,
   isEditing = false,
   editForm,
   activationConfirmation,
@@ -49,6 +50,7 @@ export function ProjectDetailView({
   successMessage: string | null;
   isActivationDisabled?: boolean;
   isEditDisabled?: boolean;
+  isPreQuotesDisabled?: boolean;
   isEditing?: boolean;
   editForm?: ReactNode;
   activationConfirmation?: ReactNode;
@@ -88,6 +90,29 @@ export function ProjectDetailView({
           </div>
         </div>
         <div className="flex w-full shrink-0 flex-col gap-3 sm:w-auto sm:flex-row lg:justify-end">
+          {isPreQuotesDisabled ? (
+            <span
+              aria-disabled="true"
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "w-full pointer-events-none opacity-60 sm:w-auto",
+              )}
+            >
+              <FileText aria-hidden="true" size={17} strokeWidth={1.75} />
+              Precotizaciones
+            </span>
+          ) : (
+            <Link
+              href={`/projects/${encodeURIComponent(project.id)}/prequotes`}
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "w-full sm:w-auto",
+              )}
+            >
+              <FileText aria-hidden="true" size={17} strokeWidth={1.75} />
+              Precotizaciones
+            </Link>
+          )}
           <Button
             type="button"
             variant="outline"
