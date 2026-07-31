@@ -3,10 +3,10 @@ import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Surface } from "@/components/ui/surface";
 import {
-  availabilityNeedsManualRefresh,
   formatContentType,
   formatDuration,
   formatFileSize,
+  formatMissingExtractionSummary,
   formatPdfClassification,
   formatProcessingOutcome,
   formatProcessingState,
@@ -36,19 +36,17 @@ function LatestAttemptSummary({
   }
 
   return (
-    <div className="space-y-2 text-sm text-foreground-secondary">
-      <p>
-        Último intento:{" "}
-        <span className="font-medium text-foreground">
-          {formatProcessingState(latestAttempt.processingState)}
-        </span>
-      </p>
-      <p>
-        Resultado:{" "}
-        <span className="font-medium text-foreground">
-          {formatProcessingOutcome(latestAttempt.outcome)}
-        </span>
-      </p>
+    <div className="space-y-3 text-sm text-foreground-secondary">
+      <dl className="grid gap-2">
+        <div>
+          <dt className="font-medium text-foreground">Estado</dt>
+          <dd>{formatProcessingState(latestAttempt.processingState)}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-foreground">Resultado</dt>
+          <dd>{formatProcessingOutcome(latestAttempt.outcome)}</dd>
+        </div>
+      </dl>
       {latestAttempt.outcome === "FAILED" ? (
         <p>El último intento de procesamiento no pudo completarse.</p>
       ) : null}
@@ -68,9 +66,7 @@ function LatestAttemptSummary({
             tone={latestAttempt.resultMetadata.requiresOcr ? "warning" : "success"}
             size="sm"
           >
-            {latestAttempt.resultMetadata.requiresOcr
-              ? "Requirió OCR"
-              : "Sin OCR"}
+            {latestAttempt.resultMetadata.requiresOcr ? "Requirió OCR" : "Sin OCR"}
           </Badge>
           <Badge tone="neutral" size="sm">
             {formatDuration(latestAttempt.resultMetadata.durationMs)}
@@ -82,14 +78,16 @@ function LatestAttemptSummary({
 }
 
 function StructuredSummary({
+  document,
   summary,
 }: {
+  document: PreQuoteDocumentListItem;
   summary: StructuredExtractionSummary | null;
 }) {
   if (!summary) {
     return (
       <p className="text-sm text-foreground-secondary">
-        Sin resumen de extracción estructurada.
+        {formatMissingExtractionSummary(document.processingAvailability)}
       </p>
     );
   }
@@ -114,7 +112,7 @@ function StructuredSummary({
           <dd>{summary.itemsRequiringReview}</dd>
         </div>
         <div>
-          <dt className="font-medium text-foreground">Issues</dt>
+          <dt className="font-medium text-foreground">Observaciones</dt>
           <dd>{summary.issueCount}</dd>
         </div>
         <div>
@@ -140,7 +138,7 @@ function StructuredSummary({
   );
 }
 
-function AvailabilityNote({
+function ProcessingNote({
   document,
 }: {
   document: PreQuoteDocumentListItem;
@@ -150,12 +148,13 @@ function AvailabilityNote({
   }
 
   if (document.processingAvailability === "LEGACY_ONLY") {
-    return (
-      <p>Existe un resultado anterior sin extracción estructurada disponible.</p>
-    );
+    return <p>Existe un procesamiento anterior sin extracción estructurada.</p>;
   }
 
-  if (availabilityNeedsManualRefresh(document.processingAvailability)) {
+  if (
+    document.processingAvailability === "PENDING" ||
+    document.processingAvailability === "PROCESSING"
+  ) {
     return <p>Usa Actualizar documentos para consultar el estado más reciente.</p>;
   }
 
@@ -169,35 +168,27 @@ export function PreQuoteDocumentsTable({
 }) {
   return (
     <Surface padding="none" className="min-w-0 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[76rem] border-collapse text-left">
-          <caption className="sr-only">
-            Listado de documentos asociados a la precotización
-          </caption>
-          <thead className="bg-surface-subtle">
-            <tr>
-              {[
-                "Documento",
-                "Archivo",
-                "Procesamiento",
-                "Último intento",
-                "Extracción",
-              ].map((heading) => (
-                <th
-                  key={heading}
-                  scope="col"
-                  className="border-b border-border-subtle px-5 py-3 text-xs font-semibold text-foreground-secondary"
-                >
-                  {heading}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-subtle">
-            {items.map((document) => (
-              <tr key={document.documentId} className="bg-surface">
-                <td className="px-5 py-4 align-top">
-                  <div className="flex min-w-0 items-start gap-3">
+      <ul
+        className="divide-y divide-border-subtle"
+        aria-label="Listado de documentos asociados a la precotización"
+      >
+        {items.map((document) => {
+          const headingId = `prequote-document-${document.documentId}`;
+
+          return (
+            <li key={document.documentId}>
+              <article
+                aria-labelledby={headingId}
+                className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)]"
+              >
+                <section className="min-w-0" aria-labelledby={`${headingId}-file`}>
+                  <h3
+                    id={`${headingId}-file`}
+                    className="text-xs font-semibold uppercase text-foreground-secondary"
+                  >
+                    Archivo
+                  </h3>
+                  <div className="mt-3 flex min-w-0 items-start gap-3">
                     <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-brand-soft text-brand">
                       <FileText
                         aria-hidden="true"
@@ -206,10 +197,20 @@ export function PreQuoteDocumentsTable({
                       />
                     </span>
                     <div className="min-w-0">
-                      <p className="break-words font-semibold text-foreground">
+                      <p
+                        id={headingId}
+                        className="break-words font-semibold text-foreground"
+                      >
                         {document.originalFileName}
                       </p>
-                      <p className="mt-1 break-all text-sm text-foreground-secondary">
+                      <p className="mt-1 text-sm text-foreground-secondary">
+                        {formatContentType(document.contentType)} ·{" "}
+                        {formatFileSize(document.sizeBytes)}
+                      </p>
+                      <p className="mt-1 text-sm text-foreground-secondary">
+                        Cargado: {formatPreQuoteDateTime(document.createdAtUtc)}
+                      </p>
+                      <p className="mt-1 break-all text-xs text-muted">
                         <span className="sr-only">
                           Identificador completo:
                         </span>
@@ -217,37 +218,45 @@ export function PreQuoteDocumentsTable({
                       </p>
                     </div>
                   </div>
-                </td>
-                <td className="px-5 py-4 align-top text-sm text-foreground-secondary">
-                  <p className="font-medium text-foreground">
-                    {formatContentType(document.contentType)}
-                  </p>
-                  <p className="mt-1">{formatFileSize(document.sizeBytes)}</p>
-                  <p className="mt-1">
-                    Cargado: {formatPreQuoteDateTime(document.createdAtUtc)}
-                  </p>
-                </td>
-                <td className="px-5 py-4 align-top">
-                  <div className="space-y-2 text-sm text-foreground-secondary">
-                    <ProcessingAvailabilityBadge
-                      value={document.processingAvailability}
-                    />
-                    <AvailabilityNote document={document} />
-                  </div>
-                </td>
-                <td className="px-5 py-4 align-top">
+                </section>
+
+                <section
+                  className="min-w-0 space-y-3"
+                  aria-labelledby={`${headingId}-processing`}
+                >
+                  <h3
+                    id={`${headingId}-processing`}
+                    className="text-xs font-semibold uppercase text-foreground-secondary"
+                  >
+                    Procesamiento
+                  </h3>
+                  <ProcessingAvailabilityBadge
+                    value={document.processingAvailability}
+                  />
+                  <ProcessingNote document={document} />
                   <LatestAttemptSummary latestAttempt={document.latestAttempt} />
-                </td>
-                <td className="px-5 py-4 align-top">
+                </section>
+
+                <section
+                  className="min-w-0 space-y-3"
+                  aria-labelledby={`${headingId}-extraction`}
+                >
+                  <h3
+                    id={`${headingId}-extraction`}
+                    className="text-xs font-semibold uppercase text-foreground-secondary"
+                  >
+                    Extracción
+                  </h3>
                   <StructuredSummary
+                    document={document}
                     summary={document.structuredExtractionSummary}
                   />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </section>
+              </article>
+            </li>
+          );
+        })}
+      </ul>
     </Surface>
   );
 }

@@ -12,17 +12,30 @@ export interface ProjectDetailsLoadError {
   cause: unknown;
 }
 
-export function useProjectDetails(projectId: string) {
-  const [project, setProject] = useState<ProjectDetails | null>(null);
-  const [projectError, setProjectError] =
-    useState<ProjectDetailsLoadError | null>(null);
-  const [isProjectLoading, setIsProjectLoading] = useState(false);
-  const [projectReloadKey, setProjectReloadKey] = useState(0);
+type ResourceState<T> =
+  | { key: string; status: "idle"; data: null; error: null }
+  | { key: string; status: "loading"; data: null; error: null }
+  | { key: string; status: "success"; data: T; error: null }
+  | { key: string; status: "error"; data: null; error: ProjectDetailsLoadError };
 
-  const [client, setClient] = useState<ClientDetails | null>(null);
-  const [clientError, setClientError] =
-    useState<ProjectDetailsLoadError | null>(null);
-  const [isClientLoading, setIsClientLoading] = useState(false);
+function idleState<T>(key: string): ResourceState<T> {
+  return { key, status: "idle", data: null, error: null };
+}
+
+function idsMatch(left: string, right: string): boolean {
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+export function useProjectDetails(projectId: string) {
+  const [projectState, setProjectState] = useState<ResourceState<ProjectDetails>>(
+    () => idleState(projectId),
+  );
+  const [projectReloadKey, setProjectReloadKey] = useState(0);
+  const projectKey = `${projectId}:${projectReloadKey}`;
+
+  const [clientState, setClientState] = useState<ResourceState<ClientDetails>>(
+    () => idleState(""),
+  );
 
   const projectRequestIdRef = useRef(0);
   const clientRequestIdRef = useRef(0);
@@ -31,25 +44,35 @@ export function useProjectDetails(projectId: string) {
   const loadClient = useCallback((clientId: string) => {
     const requestId = clientRequestIdRef.current + 1;
     clientRequestIdRef.current = requestId;
-    setClient(null);
-    setClientError(null);
-    setIsClientLoading(true);
+    setClientState({
+      key: clientId,
+      status: "loading",
+      data: null,
+      error: null,
+    });
 
     void getClientById(clientId)
       .then((response) => {
-        if (requestId === clientRequestIdRef.current) {
-          setClient(response);
+        if (
+          requestId === clientRequestIdRef.current &&
+          idsMatch(response.id, clientId)
+        ) {
+          setClientState({
+            key: clientId,
+            status: "success",
+            data: response,
+            error: null,
+          });
         }
       })
       .catch((requestError: unknown) => {
         if (requestId === clientRequestIdRef.current) {
-          setClient(null);
-          setClientError({ cause: requestError });
-        }
-      })
-      .finally(() => {
-        if (requestId === clientRequestIdRef.current) {
-          setIsClientLoading(false);
+          setClientState({
+            key: clientId,
+            status: "error",
+            data: null,
+            error: { cause: requestError },
+          });
         }
       });
   }, []);
@@ -59,78 +82,96 @@ export function useProjectDetails(projectId: string) {
     projectRequestIdRef.current = requestId;
     clientRequestIdRef.current += 1;
 
-    queueMicrotask(() => {
-      if (requestId !== projectRequestIdRef.current) {
-        return;
-      }
-
-      setProject(null);
-      setProjectError(null);
-      setClient(null);
-      setClientError(null);
-      setIsClientLoading(false);
-
-      if (!isProjectIdValid) {
-        setIsProjectLoading(false);
-        return;
-      }
-
-      setIsProjectLoading(true);
-    });
-
     if (!isProjectIdValid) {
       return;
     }
 
     void getProjectById(projectId)
       .then((response) => {
-        if (requestId === projectRequestIdRef.current) {
-          setProject(response);
+        if (
+          requestId === projectRequestIdRef.current &&
+          idsMatch(response.id, projectId)
+        ) {
+          setProjectState({
+            key: projectKey,
+            status: "success",
+            data: response,
+            error: null,
+          });
           loadClient(response.clientId);
         }
       })
       .catch((requestError: unknown) => {
         if (requestId === projectRequestIdRef.current) {
-          setProject(null);
-          setProjectError({ cause: requestError });
-        }
-      })
-      .finally(() => {
-        if (requestId === projectRequestIdRef.current) {
-          setIsProjectLoading(false);
+          setProjectState({
+            key: projectKey,
+            status: "error",
+            data: null,
+            error: { cause: requestError },
+          });
         }
       });
-  }, [isProjectIdValid, loadClient, projectId, projectReloadKey]);
+  }, [isProjectIdValid, loadClient, projectId, projectKey]);
 
   const retryProject = useCallback(() => {
     setProjectReloadKey((current) => current + 1);
   }, []);
 
+  const renderableProject =
+    projectState.key === projectKey && projectState.status === "success"
+      ? projectState.data
+      : null;
+  const renderableProjectError =
+    projectState.key === projectKey && projectState.status === "error"
+      ? projectState.error
+      : null;
+  const currentClientId = renderableProject?.clientId ?? "";
+  const renderableClient =
+    clientState.key === currentClientId && clientState.status === "success"
+      ? clientState.data
+      : null;
+  const renderableClientError =
+    clientState.key === currentClientId && clientState.status === "error"
+      ? clientState.error
+      : null;
+
   const retryClient = useCallback(() => {
-    if (project) {
-      loadClient(project.clientId);
+    if (renderableProject) {
+      loadClient(renderableProject.clientId);
     }
-  }, [loadClient, project]);
+  }, [loadClient, renderableProject]);
 
   const applyProjectUpdate = useCallback((updatedProject: ProjectDetails) => {
-    setProject((currentProject) => {
-      if (!currentProject || currentProject.id !== updatedProject.id) {
-        return currentProject;
+    setProjectState((currentProjectState) => {
+      if (
+        currentProjectState.status !== "success" ||
+        !idsMatch(currentProjectState.data.id, updatedProject.id)
+      ) {
+        return currentProjectState;
       }
 
-      return updatedProject;
+      return {
+        key: currentProjectState.key,
+        status: "success",
+        data: updatedProject,
+        error: null,
+      };
     });
   }, []);
 
   return {
-    project,
-    projectError,
-    isProjectLoading,
+    project: renderableProject,
+    projectError: renderableProjectError,
+    isProjectLoading:
+      isProjectIdValid &&
+      (projectState.key !== projectKey || projectState.status === "loading"),
     retryProject,
     applyProjectUpdate,
-    client,
-    clientError,
-    isClientLoading,
+    client: renderableClient,
+    clientError: renderableClientError,
+    isClientLoading:
+      Boolean(currentClientId) &&
+      (clientState.key !== currentClientId || clientState.status === "loading"),
     retryClient,
     isProjectIdValid,
   };

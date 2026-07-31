@@ -9,8 +9,18 @@ import type { PreQuoteLoadError } from "@/features/prequotes/prequotes-types";
 
 const PAGE_SIZE = 20;
 
+type DocumentsState =
+  | { key: string; status: "idle"; data: null; error: null }
+  | { key: string; status: "loading"; data: null; error: null }
+  | { key: string; status: "success"; data: PreQuoteDocumentsPage; error: null }
+  | { key: string; status: "error"; data: null; error: PreQuoteLoadError };
+
 function idsMatch(left: string, right: string): boolean {
   return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+function idleState(key: string): DocumentsState {
+  return { key, status: "idle", data: null, error: null };
 }
 
 export function usePreQuoteDocuments(
@@ -18,23 +28,16 @@ export function usePreQuoteDocuments(
   page: number,
   enabled: boolean,
 ) {
-  const [documentsPage, setDocumentsPage] =
-    useState<PreQuoteDocumentsPage | null>(null);
-  const [error, setError] = useState<PreQuoteLoadError | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const documentsKey = `${preQuoteId}:${page}:${reloadKey}`;
+  const [documentsState, setDocumentsState] = useState<DocumentsState>(() =>
+    idleState(documentsKey),
+  );
   const requestIdRef = useRef(0);
   const currentPreQuoteIdRef = useRef(preQuoteId);
-  const hasDocumentsPageRef = useRef(false);
-  const lastPageRef = useRef(page);
   const isPreQuoteIdValid = isValidPreQuoteId(preQuoteId);
 
   useEffect(() => {
-    if (!idsMatch(currentPreQuoteIdRef.current, preQuoteId)) {
-      hasDocumentsPageRef.current = false;
-    }
-
     currentPreQuoteIdRef.current = preQuoteId;
   }, [preQuoteId]);
 
@@ -42,35 +45,6 @@ export function usePreQuoteDocuments(
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     const requestedPreQuoteId = preQuoteId;
-    const pageChanged = lastPageRef.current !== page;
-    lastPageRef.current = page;
-
-    queueMicrotask(() => {
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-
-      setError(null);
-
-      if (!enabled || !isPreQuoteIdValid) {
-        setDocumentsPage(null);
-        hasDocumentsPageRef.current = false;
-        setIsLoading(false);
-        setIsRefreshing(false);
-        return;
-      }
-
-      if (pageChanged) {
-        setDocumentsPage(null);
-        hasDocumentsPageRef.current = false;
-      }
-
-      if (!hasDocumentsPageRef.current) {
-        setIsLoading(true);
-      } else {
-        setIsRefreshing(true);
-      }
-    });
 
     if (!enabled || !isPreQuoteIdValid) {
       return;
@@ -86,8 +60,12 @@ export function usePreQuoteDocuments(
           requestId === requestIdRef.current &&
           idsMatch(currentPreQuoteIdRef.current, requestedPreQuoteId)
         ) {
-          hasDocumentsPageRef.current = true;
-          setDocumentsPage(response);
+          setDocumentsState({
+            key: documentsKey,
+            status: "success",
+            data: response,
+            error: null,
+          });
         }
       })
       .catch((requestError: unknown) => {
@@ -95,29 +73,38 @@ export function usePreQuoteDocuments(
           requestId === requestIdRef.current &&
           idsMatch(currentPreQuoteIdRef.current, requestedPreQuoteId)
         ) {
-          setError({ cause: requestError });
+          setDocumentsState({
+            key: documentsKey,
+            status: "error",
+            data: null,
+            error: { cause: requestError },
+          });
         }
       })
-      .finally(() => {
-        if (
-          requestId === requestIdRef.current &&
-          idsMatch(currentPreQuoteIdRef.current, requestedPreQuoteId)
-        ) {
-          setIsLoading(false);
-          setIsRefreshing(false);
-        }
-      });
-  }, [enabled, isPreQuoteIdValid, page, preQuoteId, reloadKey]);
+  }, [documentsKey, enabled, isPreQuoteIdValid, page, preQuoteId]);
 
   const refresh = useCallback(() => {
     setReloadKey((current) => current + 1);
   }, []);
 
+  const renderableDocumentsPage =
+    documentsState.key === documentsKey && documentsState.status === "success"
+      ? documentsState.data
+      : null;
+  const renderableError =
+    documentsState.key === documentsKey && documentsState.status === "error"
+      ? documentsState.error
+      : null;
+
   return {
-    documentsPage,
-    error,
-    isLoading,
-    isRefreshing,
+    documentsPage: renderableDocumentsPage,
+    error: renderableError,
+    isLoading:
+      enabled &&
+      isPreQuoteIdValid &&
+      (documentsState.key !== documentsKey ||
+        documentsState.status === "loading"),
+    isRefreshing: false,
     page,
     pageSize: PAGE_SIZE,
     refresh,

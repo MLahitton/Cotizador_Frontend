@@ -74,12 +74,12 @@ export function PreQuoteDetailHeader({
               <span className="sr-only">Identificador completo: </span>
               {preQuoteId}
             </p>
-          <p
-            aria-hidden="true"
-            className="mt-1 text-xs font-semibold uppercase text-muted"
-          >
+            <p
+              aria-hidden="true"
+              className="mt-1 text-xs font-semibold uppercase text-muted"
+            >
               {formatPreQuoteIdentifier(preQuoteId)}
-          </p>
+            </p>
           </>
         ) : null}
       </div>
@@ -144,13 +144,6 @@ export function PreQuoteDetailView({
             />
           </dl>
         </section>
-      </Surface>
-
-      <Surface>
-        <p className="text-sm leading-6 text-foreground-secondary">
-          Los documentos y resultados de procesamiento se integrarán en una fase
-          posterior.
-        </p>
       </Surface>
     </div>
   );

@@ -15,23 +15,32 @@ import type {
   PreQuoteLoadError,
 } from "@/features/prequotes/prequotes-types";
 
+type ResourceState<T> =
+  | { key: string; status: "idle"; data: null; error: null }
+  | { key: string; status: "loading"; data: null; error: null }
+  | { key: string; status: "success"; data: T; error: null }
+  | { key: string; status: "error"; data: null; error: PreQuoteLoadError };
+
 function idsMatch(left: string, right: string): boolean {
   return left.trim().toLowerCase() === right.trim().toLowerCase();
 }
 
+function idleState<T>(key: string): ResourceState<T> {
+  return { key, status: "idle", data: null, error: null };
+}
+
 export function usePreQuoteDetails(projectId: string, preQuoteId: string) {
-  const [project, setProject] = useState<ProjectDetails | null>(null);
-  const [projectError, setProjectError] = useState<PreQuoteLoadError | null>(
-    null,
+  const [projectState, setProjectState] = useState<ResourceState<ProjectDetails>>(
+    () => idleState(projectId),
   );
-  const [isProjectLoading, setIsProjectLoading] = useState(false);
   const [projectReloadKey, setProjectReloadKey] = useState(0);
 
-  const [preQuote, setPreQuote] = useState<PreQuoteDetails | null>(null);
-  const [preQuoteError, setPreQuoteError] =
-    useState<PreQuoteLoadError | null>(null);
-  const [isPreQuoteLoading, setIsPreQuoteLoading] = useState(false);
   const [preQuoteReloadKey, setPreQuoteReloadKey] = useState(0);
+  const projectKey = `${projectId}:${projectReloadKey}`;
+  const preQuoteKey = `${projectId}:${preQuoteId}:${preQuoteReloadKey}`;
+  const [preQuoteState, setPreQuoteState] = useState<
+    ResourceState<PreQuoteDetails>
+  >(() => idleState(preQuoteKey));
 
   const projectRequestIdRef = useRef(0);
   const preQuoteRequestIdRef = useRef(0);
@@ -41,22 +50,6 @@ export function usePreQuoteDetails(projectId: string, preQuoteId: string) {
   useEffect(() => {
     const requestId = projectRequestIdRef.current + 1;
     projectRequestIdRef.current = requestId;
-
-    queueMicrotask(() => {
-      if (requestId !== projectRequestIdRef.current) {
-        return;
-      }
-
-      setProject(null);
-      setProjectError(null);
-
-      if (!isProjectIdValid) {
-        setIsProjectLoading(false);
-        return;
-      }
-
-      setIsProjectLoading(true);
-    });
 
     if (!isProjectIdValid) {
       return;
@@ -68,41 +61,29 @@ export function usePreQuoteDetails(projectId: string, preQuoteId: string) {
           requestId === projectRequestIdRef.current &&
           idsMatch(response.id, projectId)
         ) {
-          setProject(response);
+          setProjectState({
+            key: projectKey,
+            status: "success",
+            data: response,
+            error: null,
+          });
         }
       })
       .catch((requestError: unknown) => {
         if (requestId === projectRequestIdRef.current) {
-          setProject(null);
-          setProjectError({ cause: requestError });
-        }
-      })
-      .finally(() => {
-        if (requestId === projectRequestIdRef.current) {
-          setIsProjectLoading(false);
+          setProjectState({
+            key: projectKey,
+            status: "error",
+            data: null,
+            error: { cause: requestError },
+          });
         }
       });
-  }, [isProjectIdValid, projectId, projectReloadKey]);
+  }, [isProjectIdValid, projectId, projectKey]);
 
   useEffect(() => {
     const requestId = preQuoteRequestIdRef.current + 1;
     preQuoteRequestIdRef.current = requestId;
-
-    queueMicrotask(() => {
-      if (requestId !== preQuoteRequestIdRef.current) {
-        return;
-      }
-
-      setPreQuote(null);
-      setPreQuoteError(null);
-
-      if (!isProjectIdValid || !isPreQuoteIdValid) {
-        setIsPreQuoteLoading(false);
-        return;
-      }
-
-      setIsPreQuoteLoading(true);
-    });
 
     if (!isProjectIdValid || !isPreQuoteIdValid) {
       return;
@@ -117,25 +98,29 @@ export function usePreQuoteDetails(projectId: string, preQuoteId: string) {
           idsMatch(response.id, preQuoteId) &&
           idsMatch(response.projectId, projectId)
         ) {
-          setPreQuote(response);
+          setPreQuoteState({
+            key: preQuoteKey,
+            status: "success",
+            data: response,
+            error: null,
+          });
         }
       })
       .catch((requestError: unknown) => {
         if (requestId === preQuoteRequestIdRef.current) {
-          setPreQuote(null);
-          setPreQuoteError({ cause: requestError });
-        }
-      })
-      .finally(() => {
-        if (requestId === preQuoteRequestIdRef.current) {
-          setIsPreQuoteLoading(false);
+          setPreQuoteState({
+            key: preQuoteKey,
+            status: "error",
+            data: null,
+            error: { cause: requestError },
+          });
         }
       });
   }, [
     isPreQuoteIdValid,
     isProjectIdValid,
     preQuoteId,
-    preQuoteReloadKey,
+    preQuoteKey,
     projectId,
   ]);
 
@@ -147,13 +132,35 @@ export function usePreQuoteDetails(projectId: string, preQuoteId: string) {
     setPreQuoteReloadKey((current) => current + 1);
   }, []);
 
+  const renderableProject =
+    projectState.key === projectKey && projectState.status === "success"
+      ? projectState.data
+      : null;
+  const renderableProjectError =
+    projectState.key === projectKey && projectState.status === "error"
+      ? projectState.error
+      : null;
+  const renderablePreQuote =
+    preQuoteState.key === preQuoteKey && preQuoteState.status === "success"
+      ? preQuoteState.data
+      : null;
+  const renderablePreQuoteError =
+    preQuoteState.key === preQuoteKey && preQuoteState.status === "error"
+      ? preQuoteState.error
+      : null;
+
   return {
-    project,
-    preQuote,
-    projectError,
-    preQuoteError,
-    isProjectLoading,
-    isPreQuoteLoading,
+    project: renderableProject,
+    preQuote: renderablePreQuote,
+    projectError: renderableProjectError,
+    preQuoteError: renderablePreQuoteError,
+    isProjectLoading:
+      isProjectIdValid &&
+      (projectState.key !== projectKey || projectState.status === "loading"),
+    isPreQuoteLoading:
+      isProjectIdValid &&
+      isPreQuoteIdValid &&
+      (preQuoteState.key !== preQuoteKey || preQuoteState.status === "loading"),
     retryProject,
     retryPreQuote,
     isProjectIdValid,

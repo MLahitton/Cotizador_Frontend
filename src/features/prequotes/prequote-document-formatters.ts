@@ -40,7 +40,7 @@ export function formatProcessingAvailability(
     case "FAILED":
       return "Procesamiento fallido";
     case "LEGACY_ONLY":
-      return "Resultado anterior";
+      return "Procesamiento anterior";
     case "AVAILABLE_CURRENT":
       return "Extracción actual disponible";
     case "AVAILABLE_PREVIOUS":
@@ -108,4 +108,25 @@ export function availabilityNeedsManualRefresh(
   value: DocumentProcessingAvailability,
 ): boolean {
   return value === "PENDING" || value === "PROCESSING";
+}
+
+export function formatMissingExtractionSummary(
+  value: DocumentProcessingAvailability,
+): string {
+  switch (value) {
+    case "NOT_PROCESSED":
+      return "Aún no hay extracción disponible.";
+    case "PENDING":
+      return "La extracción estará disponible cuando termine el procesamiento.";
+    case "PROCESSING":
+      return "El documento se está procesando.";
+    case "FAILED":
+      return "No fue posible generar una extracción.";
+    case "LEGACY_ONLY":
+      return "Este procesamiento no generó un resumen estructurado.";
+    case "AVAILABLE_CURRENT":
+      return "El resumen de extracción no está disponible.";
+    case "AVAILABLE_PREVIOUS":
+      return "El resumen de la extracción anterior no está disponible.";
+  }
 }

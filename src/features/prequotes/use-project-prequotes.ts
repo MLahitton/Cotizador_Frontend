@@ -13,50 +13,40 @@ import type {
 
 const PAGE_SIZE = 20;
 
+type ResourceState<T> =
+  | { key: string; status: "idle"; data: null; error: null }
+  | { key: string; status: "loading"; data: null; error: null }
+  | { key: string; status: "success"; data: T; error: null }
+  | { key: string; status: "error"; data: null; error: PreQuoteLoadError };
+
 function idsMatch(left: string, right: string): boolean {
   return left.trim().toLowerCase() === right.trim().toLowerCase();
 }
 
+function idleState<T>(key: string): ResourceState<T> {
+  return { key, status: "idle", data: null, error: null };
+}
+
 export function useProjectPreQuotes(projectId: string, page: number) {
-  const [project, setProject] = useState<ProjectDetails | null>(null);
-  const [projectError, setProjectError] = useState<PreQuoteLoadError | null>(
-    null,
+  const [projectState, setProjectState] = useState<ResourceState<ProjectDetails>>(
+    () => idleState(projectId),
   );
-  const [isProjectLoading, setIsProjectLoading] = useState(false);
   const [projectReloadKey, setProjectReloadKey] = useState(0);
 
-  const [preQuotesPage, setPreQuotesPage] =
-    useState<ProjectPreQuotesPage | null>(null);
-  const [preQuotesError, setPreQuotesError] =
-    useState<PreQuoteLoadError | null>(null);
-  const [isPreQuotesLoading, setIsPreQuotesLoading] = useState(false);
-  const [isPreQuotesRefreshing, setIsPreQuotesRefreshing] = useState(false);
   const [preQuotesReloadKey, setPreQuotesReloadKey] = useState(0);
+  const projectKey = `${projectId}:${projectReloadKey}`;
+  const preQuotesKey = `${projectId}:${page}:${preQuotesReloadKey}`;
+  const [preQuotesState, setPreQuotesState] = useState<
+    ResourceState<ProjectPreQuotesPage>
+  >(() => idleState(preQuotesKey));
 
   const projectRequestIdRef = useRef(0);
   const preQuotesRequestIdRef = useRef(0);
-  const hasPreQuotesPageRef = useRef(false);
   const isProjectIdValid = isValidProjectId(projectId);
 
   useEffect(() => {
     const requestId = projectRequestIdRef.current + 1;
     projectRequestIdRef.current = requestId;
-
-    queueMicrotask(() => {
-      if (requestId !== projectRequestIdRef.current) {
-        return;
-      }
-
-      setProject(null);
-      setProjectError(null);
-
-      if (!isProjectIdValid) {
-        setIsProjectLoading(false);
-        return;
-      }
-
-      setIsProjectLoading(true);
-    });
 
     if (!isProjectIdValid) {
       return;
@@ -68,47 +58,29 @@ export function useProjectPreQuotes(projectId: string, page: number) {
           requestId === projectRequestIdRef.current &&
           idsMatch(response.id, projectId)
         ) {
-          setProject(response);
+          setProjectState({
+            key: projectKey,
+            status: "success",
+            data: response,
+            error: null,
+          });
         }
       })
       .catch((requestError: unknown) => {
         if (requestId === projectRequestIdRef.current) {
-          setProject(null);
-          setProjectError({ cause: requestError });
-        }
-      })
-      .finally(() => {
-        if (requestId === projectRequestIdRef.current) {
-          setIsProjectLoading(false);
+          setProjectState({
+            key: projectKey,
+            status: "error",
+            data: null,
+            error: { cause: requestError },
+          });
         }
       });
-  }, [isProjectIdValid, projectId, projectReloadKey]);
+  }, [isProjectIdValid, projectId, projectKey]);
 
   useEffect(() => {
     const requestId = preQuotesRequestIdRef.current + 1;
     preQuotesRequestIdRef.current = requestId;
-
-    queueMicrotask(() => {
-      if (requestId !== preQuotesRequestIdRef.current) {
-        return;
-      }
-
-        setPreQuotesError(null);
-
-        if (!isProjectIdValid) {
-          setPreQuotesPage(null);
-          hasPreQuotesPageRef.current = false;
-          setIsPreQuotesLoading(false);
-          setIsPreQuotesRefreshing(false);
-          return;
-        }
-
-      if (!hasPreQuotesPageRef.current) {
-        setIsPreQuotesLoading(true);
-      } else {
-        setIsPreQuotesRefreshing(true);
-      }
-    });
 
     if (!isProjectIdValid) {
       return;
@@ -121,22 +93,25 @@ export function useProjectPreQuotes(projectId: string, page: number) {
     })
       .then((response) => {
         if (requestId === preQuotesRequestIdRef.current) {
-          hasPreQuotesPageRef.current = true;
-          setPreQuotesPage(response);
+          setPreQuotesState({
+            key: preQuotesKey,
+            status: "success",
+            data: response,
+            error: null,
+          });
         }
       })
       .catch((requestError: unknown) => {
         if (requestId === preQuotesRequestIdRef.current) {
-          setPreQuotesError({ cause: requestError });
-        }
-      })
-      .finally(() => {
-        if (requestId === preQuotesRequestIdRef.current) {
-          setIsPreQuotesLoading(false);
-          setIsPreQuotesRefreshing(false);
+          setPreQuotesState({
+            key: preQuotesKey,
+            status: "error",
+            data: null,
+            error: { cause: requestError },
+          });
         }
       });
-  }, [isProjectIdValid, page, preQuotesReloadKey, projectId]);
+  }, [isProjectIdValid, page, preQuotesKey, projectId]);
 
   const retryProject = useCallback(() => {
     setProjectReloadKey((current) => current + 1);
@@ -146,15 +121,37 @@ export function useProjectPreQuotes(projectId: string, page: number) {
     setPreQuotesReloadKey((current) => current + 1);
   }, []);
 
+  const renderableProject =
+    projectState.key === projectKey && projectState.status === "success"
+      ? projectState.data
+      : null;
+  const renderableProjectError =
+    projectState.key === projectKey && projectState.status === "error"
+      ? projectState.error
+      : null;
+  const renderablePreQuotesPage =
+    preQuotesState.key === preQuotesKey && preQuotesState.status === "success"
+      ? preQuotesState.data
+      : null;
+  const renderablePreQuotesError =
+    preQuotesState.key === preQuotesKey && preQuotesState.status === "error"
+      ? preQuotesState.error
+      : null;
+
   return {
-    project,
-    projectError,
-    isProjectLoading,
+    project: renderableProject,
+    projectError: renderableProjectError,
+    isProjectLoading:
+      isProjectIdValid &&
+      (projectState.key !== projectKey || projectState.status === "loading"),
     retryProject,
-    preQuotesPage,
-    preQuotesError,
-    isPreQuotesLoading,
-    isPreQuotesRefreshing,
+    preQuotesPage: renderablePreQuotesPage,
+    preQuotesError: renderablePreQuotesError,
+    isPreQuotesLoading:
+      isProjectIdValid &&
+      (preQuotesState.key !== preQuotesKey ||
+        preQuotesState.status === "loading"),
+    isPreQuotesRefreshing: false,
     retryPreQuotes,
     page,
     pageSize: PAGE_SIZE,

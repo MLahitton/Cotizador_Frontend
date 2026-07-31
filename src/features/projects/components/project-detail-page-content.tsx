@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { ProjectActivationConfirmation } from "@/features/projects/components/project-activation-confirmation";
 import { ProjectClientSummary } from "@/features/projects/components/project-client-summary";
@@ -39,18 +39,19 @@ export function ProjectDetailPageContent({
     successMessage,
     reset: resetActivation,
   } = useSetProjectActivation(projectId);
-  const [activationTarget, setActivationTarget] = useState<boolean | null>(
-    null,
-  );
-  const [isEditing, setIsEditing] = useState(false);
+  const [viewState, setViewState] = useState<{
+    projectId: string;
+    activationTarget: boolean | null;
+    isEditing: boolean;
+  }>(() => ({
+    projectId,
+    activationTarget: null,
+    isEditing: false,
+  }));
+  const activationTarget =
+    viewState.projectId === projectId ? viewState.activationTarget : null;
+  const isEditing = viewState.projectId === projectId && viewState.isEditing;
   const updateProject = useUpdateProject(project);
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      setActivationTarget(null);
-      setIsEditing(false);
-    });
-  }, [projectId]);
 
   const openActivationConfirmation = useCallback(() => {
     if (!project || isActivationSubmitting || isEditing || updateProject.isSubmitting) {
@@ -59,11 +60,16 @@ export function ProjectDetailPageContent({
 
     updateProject.clearSuccess();
     resetActivation();
-    setActivationTarget(!project.isActive);
+    setViewState({
+      projectId,
+      activationTarget: !project.isActive,
+      isEditing: false,
+    });
   }, [
     isActivationSubmitting,
     isEditing,
     project,
+    projectId,
     resetActivation,
     updateProject,
   ]);
@@ -73,9 +79,13 @@ export function ProjectDetailPageContent({
       return;
     }
 
-    setActivationTarget(null);
+    setViewState({
+      projectId,
+      activationTarget: null,
+      isEditing,
+    });
     resetActivation();
-  }, [isActivationSubmitting, resetActivation]);
+  }, [isActivationSubmitting, isEditing, projectId, resetActivation]);
 
   const confirmActivation = useCallback(async () => {
     if (!project || activationTarget === null || isActivationSubmitting) {
@@ -83,7 +93,11 @@ export function ProjectDetailPageContent({
     }
 
     if (activationTarget === project.isActive) {
-      setActivationTarget(null);
+      setViewState({
+        projectId,
+        activationTarget: null,
+        isEditing,
+      });
       resetActivation();
       return;
     }
@@ -92,19 +106,29 @@ export function ProjectDetailPageContent({
 
     if (result.status === "updated") {
       applyProjectUpdate(result.project);
-      setActivationTarget(null);
+      setViewState({
+        projectId,
+        activationTarget: null,
+        isEditing,
+      });
       return;
     }
 
     if (result.status === "unchanged") {
-      setActivationTarget(null);
+      setViewState({
+        projectId,
+        activationTarget: null,
+        isEditing,
+      });
       resetActivation();
     }
   }, [
     activationTarget,
     applyProjectUpdate,
     isActivationSubmitting,
+    isEditing,
     project,
+    projectId,
     resetActivation,
     setActivation,
   ]);
@@ -116,11 +140,16 @@ export function ProjectDetailPageContent({
 
     resetActivation();
     updateProject.reset();
-    setIsEditing(true);
+    setViewState({
+      projectId,
+      activationTarget: null,
+      isEditing: true,
+    });
   }, [
     activationTarget,
     isActivationSubmitting,
     project,
+    projectId,
     resetActivation,
     updateProject,
   ]);
@@ -131,8 +160,12 @@ export function ProjectDetailPageContent({
     }
 
     updateProject.reset();
-    setIsEditing(false);
-  }, [updateProject]);
+    setViewState({
+      projectId,
+      activationTarget,
+      isEditing: false,
+    });
+  }, [activationTarget, projectId, updateProject]);
 
   const submitUpdate = useCallback(async () => {
     if (!project) {
@@ -143,9 +176,13 @@ export function ProjectDetailPageContent({
 
     if (result.status === "updated") {
       applyProjectUpdate(result.project);
-      setIsEditing(false);
+      setViewState({
+        projectId,
+        activationTarget,
+        isEditing: false,
+      });
     }
-  }, [applyProjectUpdate, project, updateProject]);
+  }, [activationTarget, applyProjectUpdate, project, projectId, updateProject]);
 
   if (!isProjectIdValid) {
     return <InvalidProjectIdFeedback />;
