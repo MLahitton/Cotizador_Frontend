@@ -105,7 +105,11 @@ export function PreQuoteDocumentsSection({
           </Surface>
         ) : (
           <>
-            <PreQuoteDocumentsTable items={documentsPage.items} />
+            <PreQuoteDocumentsTable
+              items={documentsPage.items}
+              projectId={projectId}
+              preQuoteId={preQuoteId}
+            />
             <PreQuoteDocumentsPagination
               projectId={projectId}
               preQuoteId={preQuoteId}

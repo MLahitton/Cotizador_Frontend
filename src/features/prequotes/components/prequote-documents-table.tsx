@@ -1,6 +1,8 @@
 import { FileText } from "lucide-react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import {
   formatContentType,
@@ -21,6 +23,7 @@ import {
   ProcessingAvailabilityBadge,
   StructuredExtractionStatusBadge,
 } from "@/features/prequotes/components/prequote-document-status";
+import { cn } from "@/lib/utils/cn";
 
 function LatestAttemptSummary({
   latestAttempt,
@@ -163,8 +166,12 @@ function ProcessingNote({
 
 export function PreQuoteDocumentsTable({
   items,
+  projectId,
+  preQuoteId,
 }: {
   items: PreQuoteDocumentListItem[];
+  projectId: string;
+  preQuoteId: string;
 }) {
   return (
     <Surface padding="none" className="min-w-0 overflow-hidden">
@@ -251,6 +258,19 @@ export function PreQuoteDocumentsTable({
                     document={document}
                     summary={document.structuredExtractionSummary}
                   />
+                  {document.structuredExtractionSummary ? (
+                    <Link
+                      href={`/projects/${encodeURIComponent(projectId)}/prequotes/${encodeURIComponent(preQuoteId)}/documents/${encodeURIComponent(document.documentId)}/extraction`}
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "sm" }),
+                        "mt-4 w-full sm:w-auto",
+                      )}
+                    >
+                      {document.structuredExtractionSummary.isFromLatestAttempt
+                        ? "Ver extracción"
+                        : "Ver extracción anterior"}
+                    </Link>
+                  ) : null}
                 </section>
               </article>
             </li>
