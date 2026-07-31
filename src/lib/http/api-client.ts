@@ -105,6 +105,22 @@ function buildUrl(path: string): string {
   return `${getApiBaseUrl()}${path}`;
 }
 
+function isFormDataBody(value: unknown): value is FormData {
+  return typeof FormData !== "undefined" && value instanceof FormData;
+}
+
+function prepareRequestBody(body: unknown): BodyInit | undefined {
+  if (body === undefined) {
+    return undefined;
+  }
+
+  if (isFormDataBody(body)) {
+    return body;
+  }
+
+  return JSON.stringify(body);
+}
+
 export async function apiRequest(
   path: string,
   options: ApiRequestOptions = {},
@@ -112,7 +128,9 @@ export async function apiRequest(
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
 
-  if (options.body !== undefined) {
+  if (isFormDataBody(options.body)) {
+    headers.delete("Content-Type");
+  } else if (options.body !== undefined) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -123,12 +141,14 @@ export async function apiRequest(
     }
   }
 
+  const requestBody = prepareRequestBody(options.body);
+
   let response: Response;
   try {
     response = await fetch(buildUrl(path), {
       method: options.method ?? "GET",
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: requestBody,
     });
   } catch (error: unknown) {
     if (error instanceof ApiError) {
