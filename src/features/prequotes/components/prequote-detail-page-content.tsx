@@ -13,14 +13,18 @@ import {
   PreQuoteDetailHeader,
   PreQuoteDetailView,
 } from "@/features/prequotes/components/prequote-detail-view";
+import { PreQuoteDocumentsSection } from "@/features/prequotes/components/prequote-documents-section";
 import { usePreQuoteDetails } from "@/features/prequotes/use-prequote-details";
+import { usePreQuoteDocuments } from "@/features/prequotes/use-prequote-documents";
 
 export function PreQuoteDetailPageContent({
   projectId,
   preQuoteId,
+  documentsPage,
 }: {
   projectId: string;
   preQuoteId: string;
+  documentsPage: number;
 }) {
   const {
     project,
@@ -34,6 +38,11 @@ export function PreQuoteDetailPageContent({
     isProjectIdValid,
     isPreQuoteIdValid,
   } = usePreQuoteDetails(projectId, preQuoteId);
+  const documents = usePreQuoteDocuments(
+    preQuoteId,
+    documentsPage,
+    Boolean(preQuote && !preQuoteError && isPreQuoteIdValid),
+  );
 
   if (!isProjectIdValid) {
     return <InvalidIdentifierFeedback message="Identificador de proyecto inválido." />;
@@ -86,7 +95,18 @@ export function PreQuoteDetailPageContent({
       ) : null}
 
       {preQuote && !isPreQuoteLoading && !preQuoteError ? (
-        <PreQuoteDetailView project={project} preQuote={preQuote} />
+        <>
+          <PreQuoteDetailView project={project} preQuote={preQuote} />
+          <PreQuoteDocumentsSection
+            projectId={project.id}
+            preQuoteId={preQuote.id}
+            documentsPage={documents.documentsPage}
+            error={documents.error}
+            isLoading={documents.isLoading}
+            isRefreshing={documents.isRefreshing}
+            onRefresh={documents.refresh}
+          />
+        </>
       ) : null}
     </div>
   );
