@@ -2,6 +2,7 @@ import { isValidProjectId } from "@/features/projects/project-identifiers";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
 import type {
+  CreatedPreQuote,
   GetProjectPreQuotesParameters,
   PreQuoteDetails,
   PreQuoteListItem,
@@ -15,6 +16,22 @@ const INVALID_DETAILS_RESPONSE_DETAIL =
   "El servidor devolvió una respuesta inesperada al consultar la precotización.";
 const PREQUOTE_PROJECT_MISMATCH_DETAIL =
   "La precotización solicitada no pertenece a este proyecto.";
+
+const INVALID_CREATE_RESPONSE_MESSAGE =
+  "El servidor devolvió una respuesta inesperada al crear la precotización.";
+
+export class InvalidCreatePreQuoteResponseError extends Error {
+  constructor() {
+    super(INVALID_CREATE_RESPONSE_MESSAGE);
+    this.name = "InvalidCreatePreQuoteResponseError";
+  }
+}
+
+export function isInvalidCreatePreQuoteResponseError(
+  error: unknown,
+): error is InvalidCreatePreQuoteResponseError {
+  return error instanceof InvalidCreatePreQuoteResponseError;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -101,6 +118,25 @@ function isPreQuoteDetails(value: unknown): value is PreQuoteDetails {
   );
 }
 
+function isCreatedPreQuote(
+  value: unknown,
+  requestedProjectId: string,
+): value is CreatedPreQuote {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    isValidPreQuoteId(value.id) &&
+    typeof value.projectId === "string" &&
+    isValidProjectId(value.projectId) &&
+    normalizeId(value.projectId) === normalizeId(requestedProjectId) &&
+    isValidDateTime(value.createdAtUtc) &&
+    isValidDateTime(value.updatedAtUtc)
+  );
+}
+
 export function createPreQuoteProjectMismatchError(): ApiError {
   return new ApiError({
     status: 0,
@@ -136,6 +172,28 @@ export async function getProjectPreQuotes(
       title: "Respuesta inválida",
       detail: INVALID_LIST_RESPONSE_DETAIL,
     });
+  }
+
+  return response;
+}
+
+export async function createProjectPreQuote(
+  projectId: string,
+): Promise<CreatedPreQuote> {
+  if (!isValidProjectId(projectId)) {
+    throw new InvalidCreatePreQuoteResponseError();
+  }
+
+  const response = await apiRequest(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/prequotes`,
+    {
+      method: "POST",
+      authenticated: true,
+    },
+  );
+
+  if (!isCreatedPreQuote(response, projectId)) {
+    throw new InvalidCreatePreQuoteResponseError();
   }
 
   return response;

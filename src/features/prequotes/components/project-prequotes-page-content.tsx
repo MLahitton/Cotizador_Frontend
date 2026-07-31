@@ -1,5 +1,9 @@
 "use client";
 
+import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { CreatePreQuoteConfirmation } from "@/features/prequotes/components/create-prequote-confirmation";
 import {
   getProjectContextErrorMessage,
   getProjectPreQuotesErrorMessage,
@@ -12,6 +16,7 @@ import {
 import { ProjectPreQuotesHeader } from "@/features/prequotes/components/project-prequotes-header";
 import { ProjectPreQuotesPagination } from "@/features/prequotes/components/project-prequotes-pagination";
 import { ProjectPreQuotesTable } from "@/features/prequotes/components/project-prequotes-table";
+import { useCreatePreQuote } from "@/features/prequotes/use-create-prequote";
 import { useProjectPreQuotes } from "@/features/prequotes/use-project-prequotes";
 
 export function ProjectPreQuotesPageContent({
@@ -21,6 +26,9 @@ export function ProjectPreQuotesPageContent({
   projectId: string;
   page: number;
 }) {
+  const router = useRouter();
+  const [createConfirmationProjectId, setCreateConfirmationProjectId] =
+    useState<string | null>(null);
   const {
     project,
     projectError,
@@ -34,6 +42,50 @@ export function ProjectPreQuotesPageContent({
     pageSize,
     isProjectIdValid,
   } = useProjectPreQuotes(projectId, page);
+  const {
+    create,
+    isSubmitting: isCreateSubmitting,
+    error: createError,
+    reset: resetCreate,
+  } = useCreatePreQuote(projectId);
+
+  const canCreatePreQuote = Boolean(project?.isActive);
+  const isCreateConfirmationOpen =
+    createConfirmationProjectId === projectId;
+  const createDisabledReason =
+    project && !project.isActive
+      ? "Activa el proyecto para crear precotizaciones."
+      : null;
+
+  const handleRequestCreate = useCallback(() => {
+    if (!canCreatePreQuote || isCreateSubmitting) {
+      return;
+    }
+
+    resetCreate();
+    setCreateConfirmationProjectId(projectId);
+  }, [canCreatePreQuote, isCreateSubmitting, projectId, resetCreate]);
+
+  const handleCancelCreate = useCallback(() => {
+    if (isCreateSubmitting) {
+      return;
+    }
+
+    resetCreate();
+    setCreateConfirmationProjectId(null);
+  }, [isCreateSubmitting, resetCreate]);
+
+  const handleConfirmCreate = useCallback(async () => {
+    const result = await create();
+
+    if (result.status !== "created") {
+      return;
+    }
+
+    router.push(
+      `/projects/${encodeURIComponent(projectId)}/prequotes/${encodeURIComponent(result.preQuote.id)}`,
+    );
+  }, [create, projectId, router]);
 
   if (!isProjectIdValid) {
     return <InvalidIdentifierFeedback message="Identificador de proyecto inválido." />;
@@ -65,7 +117,24 @@ export function ProjectPreQuotesPageContent({
 
   return (
     <div className="min-w-0 space-y-6">
-      <ProjectPreQuotesHeader project={project} />
+      <ProjectPreQuotesHeader
+        project={project}
+        onRequestCreate={handleRequestCreate}
+        isCreateDisabled={!canCreatePreQuote || isCreateSubmitting}
+        isCreating={isCreateSubmitting}
+        createDisabledReason={createDisabledReason}
+      />
+
+      {isCreateConfirmationOpen ? (
+        <CreatePreQuoteConfirmation
+          projectCode={project.code}
+          projectName={project.name}
+          isSubmitting={isCreateSubmitting}
+          error={createError}
+          onConfirm={handleConfirmCreate}
+          onCancel={handleCancelCreate}
+        />
+      ) : null}
 
       {preQuotesError ? (
         <PreQuotesError
@@ -95,6 +164,9 @@ export function ProjectPreQuotesPageContent({
             projectId={project.id}
             items={preQuotesPage.items}
             onRetry={retryPreQuotes}
+            onRequestCreate={handleRequestCreate}
+            canCreate={canCreatePreQuote}
+            isCreating={isCreateSubmitting}
           />
           <ProjectPreQuotesPagination
             projectId={project.id}

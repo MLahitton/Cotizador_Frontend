@@ -24,6 +24,13 @@ export interface PreQuoteDetails {
   updatedAtUtc: string;
 }
 
+export interface CreatedPreQuote {
+  id: string;
+  projectId: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
 export interface GetProjectPreQuotesParameters {
   projectId: string;
   page: number;
@@ -33,5 +40,15 @@ export interface GetProjectPreQuotesParameters {
 export interface PreQuoteLoadError {
   cause: unknown;
 }
+
+export interface CreatePreQuoteError {
+  cause: unknown;
+}
+
+export type CreatePreQuoteResult =
+  | { status: "created"; preQuote: CreatedPreQuote }
+  | { status: "failed" }
+  | { status: "stale" }
+  | { status: "ignored" };
 
 export type ProjectContext = ProjectDetails;

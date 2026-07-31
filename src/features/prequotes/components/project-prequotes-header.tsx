@@ -1,16 +1,24 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FilePlus2 } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { formatProjectStatus } from "@/features/projects/project-detail-formatters";
 import type { ProjectDetails } from "@/features/projects/projects-types";
 import { cn } from "@/lib/utils/cn";
 
 export function ProjectPreQuotesHeader({
   project,
+  onRequestCreate,
+  isCreateDisabled,
+  isCreating,
+  createDisabledReason,
 }: {
   project: ProjectDetails;
+  onRequestCreate: () => void;
+  isCreateDisabled: boolean;
+  isCreating: boolean;
+  createDisabledReason: string | null;
 }) {
   return (
     <header className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -37,6 +45,23 @@ export function ProjectPreQuotesHeader({
             {formatProjectStatus(project.isActive)}
           </Badge>
         </div>
+      </div>
+      <div className="flex w-full shrink-0 flex-col gap-2 lg:w-auto lg:items-end">
+        <Button
+          type="button"
+          variant="primary"
+          disabled={isCreateDisabled}
+          className="w-full lg:w-auto"
+          onClick={onRequestCreate}
+        >
+          <FilePlus2 aria-hidden="true" size={17} strokeWidth={1.75} />
+          {isCreating ? "Creando..." : "Nueva precotización"}
+        </Button>
+        {createDisabledReason ? (
+          <p className="text-sm leading-6 text-foreground-secondary">
+            {createDisabledReason}
+          </p>
+        ) : null}
       </div>
     </header>
   );

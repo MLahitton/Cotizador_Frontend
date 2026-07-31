@@ -1,4 +1,4 @@
-import { Eye, FileText, SearchX } from "lucide-react";
+import { Eye, FilePlus2, FileText, SearchX } from "lucide-react";
 import Link from "next/link";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -15,10 +15,16 @@ export function ProjectPreQuotesTable({
   projectId,
   items,
   onRetry,
+  onRequestCreate,
+  canCreate,
+  isCreating,
 }: {
   projectId: string;
   items: PreQuoteListItem[];
   onRetry: () => void;
+  onRequestCreate: () => void;
+  canCreate: boolean;
+  isCreating: boolean;
 }) {
   return (
     <section aria-labelledby="project-prequotes-table-title">
@@ -69,17 +75,41 @@ export function ProjectPreQuotesTable({
                       No hay precotizaciones registradas
                     </p>
                     <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-foreground-secondary">
-                      Las precotizaciones asociadas a este proyecto aparecerán
-                      aquí cuando existan en el backend.
+                      Crea la primera precotización para comenzar a organizar
+                      sus documentos.
                     </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="mt-5"
-                      onClick={onRetry}
-                    >
-                      Reintentar precotizaciones
-                    </Button>
+                    <div className="mt-5 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+                      {canCreate ? (
+                        <Button
+                          type="button"
+                          variant="primary"
+                          disabled={isCreating}
+                          className="w-full sm:w-auto"
+                          onClick={onRequestCreate}
+                        >
+                          <FilePlus2
+                            aria-hidden="true"
+                            size={17}
+                            strokeWidth={1.75}
+                          />
+                          {isCreating
+                            ? "Creando..."
+                            : "Crear primera precotización"}
+                        </Button>
+                      ) : (
+                        <p className="text-sm text-foreground-secondary">
+                          Activa el proyecto para crear precotizaciones.
+                        </p>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        onClick={onRetry}
+                      >
+                        Actualizar listado
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ) : (
