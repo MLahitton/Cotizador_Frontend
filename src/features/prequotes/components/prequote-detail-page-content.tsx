@@ -100,6 +100,7 @@ export function PreQuoteDetailPageContent({
           <PreQuoteDocumentsSection
             projectId={project.id}
             preQuoteId={preQuote.id}
+            projectIsActive={project.isActive}
             documentsPage={documents.documentsPage}
             error={documents.error}
             isLoading={documents.isLoading}

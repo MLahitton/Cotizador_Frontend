@@ -11,9 +11,13 @@ import type {
   PreQuoteDocumentsPage,
   StructuredExtractionStatus,
   StructuredExtractionSummary,
+  UploadedPreQuoteDocument,
 } from "@/features/prequotes/prequote-documents-types";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
+
+const INVALID_UPLOAD_DOCUMENT_RESPONSE_DETAIL =
+  "El servidor devolvió una respuesta inesperada al registrar el documento.";
 
 const INVALID_DOCUMENTS_RESPONSE_DETAIL =
   "El servidor devolvió una respuesta inesperada al consultar los documentos.";
@@ -221,6 +225,40 @@ function isPreQuoteDocumentsPage(
   );
 }
 
+export class InvalidUploadPreQuoteDocumentResponseError extends Error {
+  constructor() {
+    super(INVALID_UPLOAD_DOCUMENT_RESPONSE_DETAIL);
+    this.name = "InvalidUploadPreQuoteDocumentResponseError";
+  }
+}
+
+export function isInvalidUploadPreQuoteDocumentResponseError(
+  error: unknown,
+): error is InvalidUploadPreQuoteDocumentResponseError {
+  return error instanceof InvalidUploadPreQuoteDocumentResponseError;
+}
+
+function isUploadedPreQuoteDocument(
+  value: unknown,
+  requestedPreQuoteId: string,
+): value is UploadedPreQuoteDocument {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    isValidPreQuoteId(value.id) &&
+    typeof value.preQuoteId === "string" &&
+    isValidPreQuoteId(value.preQuoteId) &&
+    idsMatch(value.preQuoteId, requestedPreQuoteId) &&
+    isNonEmptyString(value.originalFileName) &&
+    isNonEmptyString(value.contentType) &&
+    isPositiveInteger(value.sizeBytes) &&
+    isValidDateTime(value.createdAtUtc)
+  );
+}
+
 export async function getPreQuoteDocuments(
   parameters: GetPreQuoteDocumentsParameters,
 ): Promise<PreQuoteDocumentsPage> {
@@ -240,6 +278,33 @@ export async function getPreQuoteDocuments(
       title: "Respuesta inválida",
       detail: INVALID_DOCUMENTS_RESPONSE_DETAIL,
     });
+  }
+
+  return response;
+}
+
+export async function uploadPreQuoteDocument(
+  preQuoteId: string,
+  file: File,
+): Promise<UploadedPreQuoteDocument> {
+  if (!isValidPreQuoteId(preQuoteId)) {
+    throw new InvalidUploadPreQuoteDocumentResponseError();
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await apiRequest(
+    `/api/v1/prequotes/${encodeURIComponent(preQuoteId)}/documents`,
+    {
+      method: "POST",
+      authenticated: true,
+      body: formData,
+    },
+  );
+
+  if (!isUploadedPreQuoteDocument(response, preQuoteId)) {
+    throw new InvalidUploadPreQuoteDocumentResponseError();
   }
 
   return response;

@@ -2,6 +2,7 @@ import {
   isInvalidCreatePreQuoteResponseError,
   isPreQuoteProjectMismatchError,
 } from "@/features/prequotes/prequotes-api";
+import { isInvalidUploadPreQuoteDocumentResponseError } from "@/features/prequotes/prequote-documents-api";
 import { ApiError } from "@/lib/http/api-error";
 
 export function getProjectContextErrorMessage(error: unknown): string {
@@ -126,5 +127,39 @@ export function getPreQuoteDocumentsErrorMessage(error: unknown): string {
       return "No fue posible consultar los documentos. Inténtalo nuevamente.";
     default:
       return "No fue posible consultar los documentos. Inténtalo nuevamente.";
+  }
+}
+export function getUploadPreQuoteDocumentErrorMessage(error: unknown): string {
+  if (isInvalidUploadPreQuoteDocumentResponseError(error)) {
+    return "El servidor devolvió una respuesta inesperada al registrar el documento.";
+  }
+
+  if (!(error instanceof ApiError)) {
+    return "No fue posible registrar el documento. Inténtalo nuevamente.";
+  }
+
+  switch (error.status) {
+    case 0:
+      return "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.";
+    case 400:
+      return "No fue posible registrar el documento porque la solicitud no es válida.";
+    case 401:
+      return "Tu sesión no es válida o expiró.";
+    case 403:
+      return "No tienes acceso para agregar documentos.";
+    case 404:
+      return "La precotización, el proyecto o el cliente ya no está disponible.";
+    case 409:
+      return "El proyecto o su cliente no permite agregar documentos en su estado actual.";
+    case 413:
+      return "El documento PDF no puede superar 20 MiB.";
+    case 415:
+      return "Selecciona un archivo en formato PDF.";
+    case 422:
+      return "El documento PDF está vacío o no contiene información válida.";
+    case 500:
+      return "No fue posible registrar el documento. Inténtalo nuevamente.";
+    default:
+      return "No fue posible registrar el documento. Inténtalo nuevamente.";
   }
 }

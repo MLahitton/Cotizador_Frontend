@@ -69,6 +69,15 @@ export interface PreQuoteDocumentListItem {
   structuredExtractionSummary: StructuredExtractionSummary | null;
 }
 
+export interface UploadedPreQuoteDocument {
+  id: string;
+  preQuoteId: string;
+  originalFileName: string;
+  contentType: string;
+  sizeBytes: number;
+  createdAtUtc: string;
+}
+
 export interface PreQuoteDocumentsPage {
   items: PreQuoteDocumentListItem[];
   page: number;

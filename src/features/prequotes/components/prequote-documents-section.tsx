@@ -1,5 +1,8 @@
-import { RefreshCw } from "lucide-react";
+"use client";
+
+import { FilePlus2, RefreshCw } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
@@ -7,13 +10,16 @@ import { getPreQuoteDocumentsErrorMessage } from "@/features/prequotes/component
 import { PreQuotesError, PreQuotesLoading } from "@/features/prequotes/components/prequotes-status";
 import { PreQuoteDocumentsPagination } from "@/features/prequotes/components/prequote-documents-pagination";
 import { PreQuoteDocumentsTable } from "@/features/prequotes/components/prequote-documents-table";
+import { UploadPreQuoteDocumentPanel } from "@/features/prequotes/components/upload-prequote-document-panel";
 import type { PreQuoteDocumentsPage } from "@/features/prequotes/prequote-documents-types";
 import type { PreQuoteLoadError } from "@/features/prequotes/prequotes-types";
+import { useUploadPreQuoteDocument } from "@/features/prequotes/use-upload-prequote-document";
 import { cn } from "@/lib/utils/cn";
 
 export function PreQuoteDocumentsSection({
   projectId,
   preQuoteId,
+  projectIsActive,
   documentsPage,
   error,
   isLoading,
@@ -22,12 +28,47 @@ export function PreQuoteDocumentsSection({
 }: {
   projectId: string;
   preQuoteId: string;
+  projectIsActive: boolean;
   documentsPage: PreQuoteDocumentsPage | null;
   error: PreQuoteLoadError | null;
   isLoading: boolean;
   isRefreshing: boolean;
   onRefresh: () => void;
 }) {
+  const [uploadPanelPreQuoteId, setUploadPanelPreQuoteId] = useState<
+    string | null
+  >(null);
+  const upload = useUploadPreQuoteDocument(preQuoteId);
+  const isUploadPanelOpen = uploadPanelPreQuoteId === preQuoteId;
+  const hasDocuments = Boolean(documentsPage && documentsPage.items.length > 0);
+
+  function openUploadPanel() {
+    if (!projectIsActive || upload.isUploading) {
+      return;
+    }
+
+    upload.clearSelection();
+    setUploadPanelPreQuoteId(preQuoteId);
+  }
+
+  function closeUploadPanel() {
+    if (upload.isUploading) {
+      return;
+    }
+
+    upload.clearSelection();
+    setUploadPanelPreQuoteId(null);
+  }
+
+  async function handleUpload() {
+    const result = await upload.upload();
+
+    if (result.status === "uploaded") {
+      setUploadPanelPreQuoteId(null);
+      onRefresh();
+    }
+  }
+
   return (
     <section aria-labelledby="prequote-documents-title" className="space-y-4">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -42,17 +83,49 @@ export function PreQuoteDocumentsSection({
             Documentos existentes asociados a esta precotización.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full sm:w-auto"
-          disabled={isLoading || isRefreshing}
-          onClick={onRefresh}
-        >
-          <RefreshCw aria-hidden="true" size={17} strokeWidth={1.75} />
-          Actualizar documentos
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
+          {hasDocuments ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={!projectIsActive || upload.isUploading}
+              onClick={openUploadPanel}
+            >
+              <FilePlus2 aria-hidden="true" size={17} strokeWidth={1.75} />
+              Agregar documento
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            disabled={isLoading || isRefreshing || upload.isUploading}
+            onClick={onRefresh}
+          >
+            <RefreshCw aria-hidden="true" size={17} strokeWidth={1.75} />
+            Actualizar documentos
+          </Button>
+        </div>
       </div>
+
+      {!projectIsActive ? (
+        <p className="text-sm text-foreground-secondary">
+          Activa el proyecto para agregar documentos.
+        </p>
+      ) : null}
+
+      {isUploadPanelOpen ? (
+        <UploadPreQuoteDocumentPanel
+          selectedFile={upload.selectedFile}
+          validationError={upload.validationError}
+          uploadError={upload.uploadError}
+          isUploading={upload.isUploading}
+          onFileSelect={upload.selectFile}
+          onCancel={closeUploadPanel}
+          onUpload={handleUpload}
+        />
+      ) : null}
 
       {error ? (
         <PreQuotesError
@@ -82,14 +155,31 @@ export function PreQuoteDocumentsSection({
             <div className="text-center">
               <p className="text-sm font-semibold text-foreground">
                 {documentsPage.totalCount === 0
-                  ? "No hay documentos registrados"
+                  ? "Aún no hay documentos asociados a esta precotización."
                   : "No hay documentos en esta página"}
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-foreground-secondary">
                 {documentsPage.totalCount === 0
-                  ? "Los documentos asociados a esta precotización aparecerán aquí cuando existan en el backend."
+                  ? "Agrega el primer PDF para comenzar a preparar la precotización."
                   : "La página solicitada no tiene resultados disponibles."}
               </p>
+              {documentsPage.totalCount === 0 && projectIsActive ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-5"
+                  disabled={upload.isUploading}
+                  onClick={openUploadPanel}
+                >
+                  <FilePlus2 aria-hidden="true" size={17} strokeWidth={1.75} />
+                  Agregar primer documento
+                </Button>
+              ) : null}
+              {documentsPage.totalCount === 0 && !projectIsActive ? (
+                <p className="mt-4 text-sm text-foreground-secondary">
+                  Activa el proyecto para agregar documentos.
+                </p>
+              ) : null}
               {documentsPage.totalCount > 0 ? (
                 <Link
                   href={`/projects/${encodeURIComponent(projectId)}/prequotes/${encodeURIComponent(preQuoteId)}?documentsPage=1`}
