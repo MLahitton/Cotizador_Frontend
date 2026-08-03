@@ -26,6 +26,7 @@ import {
   formatMissingExtractionDetail,
   formatNullableText,
   formatProcessingMethod,
+  formatReviewReason,
   formatRequirementCategory,
 } from "@/features/prequotes/structured-extraction-formatters";
 import type {
@@ -399,7 +400,7 @@ function ItemsSection({ extraction }: { extraction: StructuredExtractionDetails 
                       {item.reviewReasons.map((reason) => (
                         <li key={reason}>
                           <Badge tone="warning" size="sm">
-                            {reason}
+                            {formatReviewReason(reason)}
                           </Badge>
                         </li>
                       ))}
@@ -618,6 +619,16 @@ function EmptyExtractionState({
 }: {
   details: StructuredDocumentExtractionDetailsResponse;
 }) {
+  const latestOutcome = details.latestAttempt?.outcome ?? null;
+  const message =
+    latestOutcome === "FAILED"
+      ? "El procesamiento del documento no pudo completarse y no se generó una extracción."
+      : latestOutcome === "REQUIRES_REVIEW"
+        ? "El documento fue procesado y requiere revisión, pero la extracción no está disponible para mostrarse."
+        : latestOutcome === "COMPLETED"
+          ? "El documento fue procesado, pero la extracción no está disponible para mostrarse."
+          : formatMissingExtractionDetail(details.processingAvailability);
+
   return (
     <Surface>
       <div role="status" className="space-y-3">
@@ -625,7 +636,7 @@ function EmptyExtractionState({
           Documento sin extracción disponible
         </h2>
         <p className="text-sm leading-6 text-foreground-secondary">
-          {formatMissingExtractionDetail(details.processingAvailability)}
+          {message}
         </p>
       </div>
     </Surface>
@@ -633,19 +644,14 @@ function EmptyExtractionState({
 }
 
 export function StructuredExtractionView({
-  project,
-  preQuote,
   details,
 }: {
-  project: ProjectDetails;
-  preQuote: PreQuoteDetails;
   details: StructuredDocumentExtractionDetailsResponse;
 }) {
   const extraction = details.structuredExtraction;
 
   return (
     <div className="min-w-0 space-y-6">
-      <StructuredExtractionHeader project={project} preQuote={preQuote} />
       <DocumentOverview details={details} />
       <LatestAttempt details={details} />
 

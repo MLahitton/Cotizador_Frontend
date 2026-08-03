@@ -33,6 +33,7 @@ function toProblemDetails(value: unknown): ApiProblemDetails | undefined {
   if (typeof value.detail === "string") problem.detail = value.detail;
   if (typeof value.instance === "string") problem.instance = value.instance;
   if ("code" in value) problem.code = value.code;
+  if ("errorCode" in value) problem.errorCode = value.errorCode;
   if (typeof value.traceId === "string") problem.traceId = value.traceId;
 
   if (isRecord(value.errors)) {

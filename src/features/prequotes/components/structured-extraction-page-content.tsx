@@ -1,6 +1,5 @@
 "use client";
 
-import { ApiError } from "@/lib/http/api-error";
 import {
   getPreQuoteDetailsErrorMessage,
   getProjectContextErrorMessage,
@@ -10,38 +9,16 @@ import {
   PreQuotesError,
   PreQuotesLoading,
 } from "@/features/prequotes/components/prequotes-status";
-import { StructuredExtractionView } from "@/features/prequotes/components/structured-extraction-view";
+import { StructuredExtractionErrorState } from "@/features/prequotes/components/structured-extraction-error-state";
+import { StructuredExtractionInvalidDocumentState } from "@/features/prequotes/components/structured-extraction-invalid-document-state";
+import {
+  StructuredExtractionHeader,
+  StructuredExtractionView,
+} from "@/features/prequotes/components/structured-extraction-view";
+import { isValidProjectId } from "@/features/projects/project-identifiers";
+import { isValidPreQuoteId } from "@/features/prequotes/prequote-identifiers";
 import { isPreQuoteProjectMismatchError } from "@/features/prequotes/prequotes-api";
-import { isStructuredDocumentMismatchError } from "@/features/prequotes/structured-extraction-api";
 import { useStructuredExtractionDetails } from "@/features/prequotes/use-structured-extraction-details";
-
-function getExtractionErrorMessage(error: unknown): string {
-  if (isStructuredDocumentMismatchError(error)) {
-    return "El documento solicitado no pertenece a esta precotización.";
-  }
-
-  if (!(error instanceof ApiError)) {
-    return "No fue posible consultar la extracción. Inténtalo nuevamente.";
-  }
-
-  switch (error.status) {
-    case 0:
-      return error.detail ===
-        "El servidor devolvió una respuesta inesperada al consultar la extracción."
-        ? error.detail
-        : "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.";
-    case 400:
-      return "No fue posible consultar la extracción porque la solicitud no es válida.";
-    case 403:
-      return "No tienes acceso para consultar esta extracción.";
-    case 404:
-      return "El documento ya no está disponible.";
-    case 500:
-      return "No fue posible consultar la extracción. Inténtalo nuevamente.";
-    default:
-      return "No fue posible consultar la extracción. Inténtalo nuevamente.";
-  }
-}
 
 function getPreQuoteContextErrorMessage(error: unknown): string {
   if (isPreQuoteProjectMismatchError(error)) {
@@ -52,6 +29,49 @@ function getPreQuoteContextErrorMessage(error: unknown): string {
 }
 
 export function StructuredExtractionPageContent({
+  projectId,
+  preQuoteId,
+  documentId,
+}: {
+  projectId: string;
+  preQuoteId: string;
+  documentId: string;
+}) {
+  const isProjectIdValid = isValidProjectId(projectId);
+  const isPreQuoteIdValid = isValidPreQuoteId(preQuoteId);
+  const isDocumentIdValid = isValidPreQuoteId(documentId);
+
+  if (!isProjectIdValid) {
+    return (
+      <InvalidIdentifierFeedback message="Identificador de proyecto inválido." />
+    );
+  }
+
+  if (!isPreQuoteIdValid) {
+    return (
+      <InvalidIdentifierFeedback message="Identificador de precotización inválido." />
+    );
+  }
+
+  if (!isDocumentIdValid) {
+    return (
+      <StructuredExtractionInvalidDocumentState
+        projectId={projectId}
+        preQuoteId={preQuoteId}
+      />
+    );
+  }
+
+  return (
+    <StructuredExtractionLoadedPageContent
+      projectId={projectId}
+      preQuoteId={preQuoteId}
+      documentId={documentId}
+    />
+  );
+}
+
+function StructuredExtractionLoadedPageContent({
   projectId,
   preQuoteId,
   documentId,
@@ -73,24 +93,7 @@ export function StructuredExtractionPageContent({
     retryProject,
     retryPreQuote,
     retryExtraction,
-    isProjectIdValid,
-    isPreQuoteIdValid,
-    isDocumentIdValid,
   } = useStructuredExtractionDetails(projectId, preQuoteId, documentId);
-
-  if (!isProjectIdValid) {
-    return <InvalidIdentifierFeedback message="Identificador de proyecto inválido." />;
-  }
-
-  if (!isPreQuoteIdValid) {
-    return (
-      <InvalidIdentifierFeedback message="Identificador de precotización inválido." />
-    );
-  }
-
-  if (!isDocumentIdValid) {
-    return <InvalidIdentifierFeedback message="Identificador de documento inválido." />;
-  }
 
   if (isProjectLoading) {
     return <PreQuotesLoading message="Cargando proyecto..." />;
@@ -132,24 +135,24 @@ export function StructuredExtractionPageContent({
 
       {preQuote && !isPreQuoteLoading && !preQuoteError ? (
         <>
+          <StructuredExtractionHeader project={project} preQuote={preQuote} />
+
           {isExtractionLoading ? (
             <PreQuotesLoading message="Cargando extracción..." />
           ) : null}
 
           {extractionError ? (
-            <PreQuotesError
-              title="No fue posible consultar la extracción"
-              message={getExtractionErrorMessage(extractionError.cause)}
+            <StructuredExtractionErrorState
+              project={project}
+              preQuote={preQuote}
+              documentId={documentId}
+              error={extractionError.cause}
               onRetry={retryExtraction}
             />
           ) : null}
 
           {extraction && !isExtractionLoading && !extractionError ? (
-            <StructuredExtractionView
-              project={project}
-              preQuote={preQuote}
-              details={extraction}
-            />
+            <StructuredExtractionView details={extraction} />
           ) : null}
         </>
       ) : null}

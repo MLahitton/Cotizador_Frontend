@@ -28,7 +28,6 @@ import type {
   StructuredSummary,
 } from "@/features/prequotes/structured-extraction-types";
 import { apiRequest } from "@/lib/http/api-client";
-import { ApiError } from "@/lib/http/api-error";
 
 const INVALID_EXTRACTION_RESPONSE_DETAIL =
   "El servidor devolvió una respuesta inesperada al consultar la extracción.";
@@ -78,6 +77,9 @@ const ISSUE_CODES = [
   "MISSING_OR_INVALID_QUANTITY",
   "UNKNOWN_ELEMENT_TYPE",
   "OCR_REVIEW_REQUIRED",
+  "GLASS_TYPE_NOT_IDENTIFIED",
+  "GLASS_TYPE_AMBIGUOUS",
+  "GLASS_TYPE_CONFLICT",
 ] as const;
 const CONFLICT_CODES = [
   "CONFLICTING_PROJECT_NAME",
@@ -450,12 +452,30 @@ function isResponse(
   );
 }
 
-export function isStructuredDocumentMismatchError(error: unknown): boolean {
-  return (
-    error instanceof ApiError &&
-    error.status === 0 &&
-    error.detail === DOCUMENT_MISMATCH_DETAIL
-  );
+export class InvalidStructuredExtractionResponseError extends Error {
+  constructor() {
+    super(INVALID_EXTRACTION_RESPONSE_DETAIL);
+    this.name = "InvalidStructuredExtractionResponseError";
+  }
+}
+
+export class StructuredDocumentPreQuoteMismatchError extends Error {
+  constructor() {
+    super(DOCUMENT_MISMATCH_DETAIL);
+    this.name = "StructuredDocumentPreQuoteMismatchError";
+  }
+}
+
+export function isInvalidStructuredExtractionResponseError(
+  error: unknown,
+): error is InvalidStructuredExtractionResponseError {
+  return error instanceof InvalidStructuredExtractionResponseError;
+}
+
+export function isStructuredDocumentMismatchError(
+  error: unknown,
+): error is StructuredDocumentPreQuoteMismatchError {
+  return error instanceof StructuredDocumentPreQuoteMismatchError;
 }
 
 export async function getStructuredDocumentExtraction(
@@ -475,18 +495,10 @@ export async function getStructuredDocumentExtraction(
       isValidPreQuoteId(response.document.preQuoteId) &&
       !idsMatch(response.document.preQuoteId, preQuoteId)
     ) {
-      throw new ApiError({
-        status: 0,
-        title: "Respuesta inválida",
-        detail: DOCUMENT_MISMATCH_DETAIL,
-      });
+      throw new StructuredDocumentPreQuoteMismatchError();
     }
 
-    throw new ApiError({
-      status: 0,
-      title: "Respuesta inválida",
-      detail: INVALID_EXTRACTION_RESPONSE_DETAIL,
-    });
+    throw new InvalidStructuredExtractionResponseError();
   }
 
   return response;

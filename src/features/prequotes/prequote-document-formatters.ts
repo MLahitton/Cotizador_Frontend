@@ -1,12 +1,21 @@
 import type {
   DocumentProcessingAvailability,
+  DocumentProcessingAttemptSummary,
   DocumentProcessingOutcome,
   DocumentProcessingState,
+  PreQuoteDocumentListItem,
   PdfClassification,
   StructuredExtractionStatus,
 } from "@/features/prequotes/prequote-documents-types";
 
 const BYTE_UNITS = ["B", "KB", "MB"] as const;
+
+export type DocumentProcessingActionKind = "start" | "retry" | "restart";
+
+export interface DocumentProcessingAction {
+  kind: DocumentProcessingActionKind;
+  label: string;
+}
 
 export function formatFileSize(sizeBytes: number): string {
   let value = sizeBytes;
@@ -45,6 +54,69 @@ export function formatProcessingAvailability(
       return "Extracción actual disponible";
     case "AVAILABLE_PREVIOUS":
       return "Extracción anterior disponible";
+  }
+}
+
+export function canStartDocumentProcessing(
+  value: DocumentProcessingAvailability,
+): boolean {
+  return (
+    value === "NOT_PROCESSED" ||
+    value === "FAILED" ||
+    value === "AVAILABLE_PREVIOUS" ||
+    value === "LEGACY_ONLY"
+  );
+}
+
+export function getDocumentProcessingActionLabel(
+  value: DocumentProcessingAvailability,
+): string | null {
+  switch (value) {
+    case "NOT_PROCESSED":
+      return "Procesar documento";
+    case "FAILED":
+    case "AVAILABLE_PREVIOUS":
+      return "Reintentar procesamiento";
+    case "LEGACY_ONLY":
+      return "Procesar nuevamente";
+    case "PENDING":
+    case "PROCESSING":
+    case "AVAILABLE_CURRENT":
+      return null;
+  }
+}
+
+export function isProcessingAttemptActive(
+  latestAttempt: DocumentProcessingAttemptSummary | null,
+): boolean {
+  return (
+    latestAttempt?.processingState === "PENDING" ||
+    latestAttempt?.processingState === "PROCESSING"
+  );
+}
+
+export function getDocumentProcessingAction(
+  document: Pick<
+    PreQuoteDocumentListItem,
+    "latestAttempt" | "processingAvailability"
+  >,
+): DocumentProcessingAction | null {
+  if (isProcessingAttemptActive(document.latestAttempt)) {
+    return null;
+  }
+
+  switch (document.processingAvailability) {
+    case "NOT_PROCESSED":
+      return { kind: "start", label: "Procesar documento" };
+    case "FAILED":
+    case "AVAILABLE_PREVIOUS":
+      return { kind: "retry", label: "Reintentar procesamiento" };
+    case "LEGACY_ONLY":
+      return { kind: "restart", label: "Procesar nuevamente" };
+    case "PENDING":
+    case "PROCESSING":
+    case "AVAILABLE_CURRENT":
+      return null;
   }
 }
 

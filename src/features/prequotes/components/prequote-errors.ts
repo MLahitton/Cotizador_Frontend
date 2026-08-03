@@ -2,8 +2,32 @@ import {
   isInvalidCreatePreQuoteResponseError,
   isPreQuoteProjectMismatchError,
 } from "@/features/prequotes/prequotes-api";
-import { isInvalidUploadPreQuoteDocumentResponseError } from "@/features/prequotes/prequote-documents-api";
+import {
+  isInvalidStartDocumentProcessingResponseError,
+  isInvalidUploadPreQuoteDocumentResponseError,
+} from "@/features/prequotes/prequote-documents-api";
 import { ApiError } from "@/lib/http/api-error";
+
+function getProcessingProblemErrorCode(error: ApiError): string | null {
+  const errorCode = error.problemDetails?.errorCode;
+
+  if (typeof errorCode !== "string") {
+    return null;
+  }
+
+  const normalizedErrorCode = errorCode.trim();
+
+  return normalizedErrorCode.length > 0 ? normalizedErrorCode : null;
+}
+
+export function isStartDocumentProcessingAlreadyActiveError(
+  error: unknown,
+): boolean {
+  return (
+    error instanceof ApiError &&
+    getProcessingProblemErrorCode(error) === "DOCUMENT_PROCESSING_ALREADY_ACTIVE"
+  );
+}
 
 export function getProjectContextErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) {
@@ -129,6 +153,7 @@ export function getPreQuoteDocumentsErrorMessage(error: unknown): string {
       return "No fue posible consultar los documentos. Inténtalo nuevamente.";
   }
 }
+
 export function getUploadPreQuoteDocumentErrorMessage(error: unknown): string {
   if (isInvalidUploadPreQuoteDocumentResponseError(error)) {
     return "El servidor devolvió una respuesta inesperada al registrar el documento.";
@@ -161,5 +186,57 @@ export function getUploadPreQuoteDocumentErrorMessage(error: unknown): string {
       return "No fue posible registrar el documento. Inténtalo nuevamente.";
     default:
       return "No fue posible registrar el documento. Inténtalo nuevamente.";
+  }
+}
+
+export function getStartDocumentProcessingErrorMessage(error: unknown): string {
+  if (isInvalidStartDocumentProcessingResponseError(error)) {
+    return "El servidor devolvió una respuesta inesperada al iniciar el procesamiento.";
+  }
+
+  if (!(error instanceof ApiError)) {
+    return "No fue posible iniciar el procesamiento. Inténtalo nuevamente.";
+  }
+
+  if (error.status === 0) {
+    return "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.";
+  }
+
+  switch (getProcessingProblemErrorCode(error)) {
+    case "DOCUMENT_PROCESSING_INVALID_REQUEST":
+      return "No fue posible iniciar el procesamiento porque la solicitud no es válida.";
+    case "AUTH_UNAUTHORIZED":
+      return "Tu sesión no permite iniciar el procesamiento. Inicia sesión nuevamente.";
+    case "AUTH_USER_INACTIVE":
+      return "Tu usuario no tiene acceso para procesar documentos.";
+    case "PREQUOTE_DOCUMENT_NOT_FOUND":
+      return "El documento ya no está disponible o no tienes acceso a él.";
+    case "PREQUOTE_PROJECT_INACTIVE":
+      return "No se pueden procesar documentos de un proyecto inactivo.";
+    case "PREQUOTE_CLIENT_INACTIVE":
+      return "No se pueden procesar documentos porque el cliente está inactivo.";
+    case "DOCUMENT_PROCESSING_ALREADY_ACTIVE":
+      return "El documento ya tiene un procesamiento en curso. Actualiza los documentos para consultar su estado.";
+    case "DOCUMENT_PROCESSING_QUERY_ERROR":
+      return "No fue posible consultar el documento antes de iniciar el procesamiento.";
+    case "DOCUMENT_PROCESSING_PERSISTENCE_ERROR":
+      return "No fue posible registrar el intento de procesamiento.";
+  }
+
+  switch (error.status) {
+    case 400:
+      return "No fue posible iniciar el procesamiento porque la solicitud no es válida.";
+    case 401:
+      return "Tu sesión no permite iniciar el procesamiento. Inicia sesión nuevamente.";
+    case 403:
+      return "No tienes acceso para procesar este documento.";
+    case 404:
+      return "El documento ya no está disponible o no tienes acceso a él.";
+    case 409:
+      return "No fue posible iniciar el procesamiento por el estado actual del documento, proyecto o cliente.";
+    case 500:
+      return "No fue posible iniciar el procesamiento. Inténtalo nuevamente.";
+    default:
+      return "No fue posible iniciar el procesamiento. Inténtalo nuevamente.";
   }
 }

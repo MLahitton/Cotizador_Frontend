@@ -9,6 +9,7 @@ import type {
   PdfClassification,
   PreQuoteDocumentListItem,
   PreQuoteDocumentsPage,
+  StartedDocumentProcessingAttempt,
   StructuredExtractionStatus,
   StructuredExtractionSummary,
   UploadedPreQuoteDocument,
@@ -18,6 +19,8 @@ import { ApiError } from "@/lib/http/api-error";
 
 const INVALID_UPLOAD_DOCUMENT_RESPONSE_DETAIL =
   "El servidor devolvió una respuesta inesperada al registrar el documento.";
+const INVALID_START_PROCESSING_RESPONSE_DETAIL =
+  "El servidor devolvió una respuesta inesperada al iniciar el procesamiento.";
 
 const INVALID_DOCUMENTS_RESPONSE_DETAIL =
   "El servidor devolvió una respuesta inesperada al consultar los documentos.";
@@ -225,6 +228,80 @@ function isPreQuoteDocumentsPage(
   );
 }
 
+export class InvalidStartDocumentProcessingResponseError extends Error {
+  constructor() {
+    super(INVALID_START_PROCESSING_RESPONSE_DETAIL);
+    this.name = "InvalidStartDocumentProcessingResponseError";
+  }
+}
+
+export function isInvalidStartDocumentProcessingResponseError(
+  error: unknown,
+): error is InvalidStartDocumentProcessingResponseError {
+  return error instanceof InvalidStartDocumentProcessingResponseError;
+}
+
+function isValidAttemptLifecycle(value: {
+  processingState: DocumentProcessingState;
+  outcome: DocumentProcessingOutcome | null;
+  startedAtUtc: string | null;
+  completedAtUtc: string | null;
+}): boolean {
+  if (
+    value.startedAtUtc &&
+    value.completedAtUtc &&
+    Date.parse(value.completedAtUtc) < Date.parse(value.startedAtUtc)
+  ) {
+    return false;
+  }
+
+  switch (value.processingState) {
+    case "PENDING":
+      return value.outcome === null && value.completedAtUtc === null;
+    case "PROCESSING":
+      return (
+        isValidDateTime(value.startedAtUtc) &&
+        value.outcome === null &&
+        value.completedAtUtc === null
+      );
+    case "FINISHED":
+      return value.outcome !== null && isValidDateTime(value.completedAtUtc);
+  }
+}
+
+function isStartedDocumentProcessingAttempt(
+  value: unknown,
+  requestedDocumentId: string,
+): value is StartedDocumentProcessingAttempt {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (
+    typeof value.processingAttemptId !== "string" ||
+    !isValidPreQuoteId(value.processingAttemptId) ||
+    typeof value.documentId !== "string" ||
+    !isValidPreQuoteId(value.documentId) ||
+    !idsMatch(value.documentId, requestedDocumentId) ||
+    !isProcessingState(value.processingState) ||
+    !(value.outcome === null || isProcessingOutcome(value.outcome)) ||
+    !(value.errorCode === null || isNonEmptyString(value.errorCode)) ||
+    !isValidDateTime(value.createdAtUtc) ||
+    !isNullableDateTime(value.startedAtUtc) ||
+    !isNullableDateTime(value.completedAtUtc) ||
+    !("result" in value)
+  ) {
+    return false;
+  }
+
+  return isValidAttemptLifecycle({
+    processingState: value.processingState,
+    outcome: value.outcome,
+    startedAtUtc: value.startedAtUtc,
+    completedAtUtc: value.completedAtUtc,
+  });
+}
+
 export class InvalidUploadPreQuoteDocumentResponseError extends Error {
   constructor() {
     super(INVALID_UPLOAD_DOCUMENT_RESPONSE_DETAIL);
@@ -305,6 +382,28 @@ export async function uploadPreQuoteDocument(
 
   if (!isUploadedPreQuoteDocument(response, preQuoteId)) {
     throw new InvalidUploadPreQuoteDocumentResponseError();
+  }
+
+  return response;
+}
+
+export async function startPreQuoteDocumentProcessing(
+  documentId: string,
+): Promise<StartedDocumentProcessingAttempt> {
+  if (!isValidPreQuoteId(documentId)) {
+    throw new InvalidStartDocumentProcessingResponseError();
+  }
+
+  const response = await apiRequest(
+    `/api/v1/prequote-documents/${encodeURIComponent(documentId)}/processing-attempts`,
+    {
+      method: "POST",
+      authenticated: true,
+    },
+  );
+
+  if (!isStartedDocumentProcessingAttempt(response, documentId)) {
+    throw new InvalidStartDocumentProcessingResponseError();
   }
 
   return response;

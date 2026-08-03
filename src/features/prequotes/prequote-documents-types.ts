@@ -38,6 +38,18 @@ export interface DocumentProcessingAttemptSummary {
   resultMetadata: DocumentExtractionResultMetadata | null;
 }
 
+export interface StartedDocumentProcessingAttempt {
+  processingAttemptId: string;
+  documentId: string;
+  processingState: DocumentProcessingState;
+  outcome: DocumentProcessingOutcome | null;
+  errorCode: string | null;
+  createdAtUtc: string;
+  startedAtUtc: string | null;
+  completedAtUtc: string | null;
+  result: unknown | null;
+}
+
 export interface StructuredExtractionSummary {
   structuredExtractionId: string;
   sourceProcessingAttemptId: string;

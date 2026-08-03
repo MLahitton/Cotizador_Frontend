@@ -6,15 +6,26 @@ import { useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
-import { getPreQuoteDocumentsErrorMessage } from "@/features/prequotes/components/prequote-errors";
+import {
+  getPreQuoteDocumentsErrorMessage,
+  isStartDocumentProcessingAlreadyActiveError,
+} from "@/features/prequotes/components/prequote-errors";
 import { PreQuotesError, PreQuotesLoading } from "@/features/prequotes/components/prequotes-status";
 import { PreQuoteDocumentsPagination } from "@/features/prequotes/components/prequote-documents-pagination";
 import { PreQuoteDocumentsTable } from "@/features/prequotes/components/prequote-documents-table";
 import { UploadPreQuoteDocumentPanel } from "@/features/prequotes/components/upload-prequote-document-panel";
+import {
+  getDocumentProcessingAction,
+  type DocumentProcessingActionKind,
+} from "@/features/prequotes/prequote-document-formatters";
 import type { PreQuoteDocumentsPage } from "@/features/prequotes/prequote-documents-types";
 import type { PreQuoteLoadError } from "@/features/prequotes/prequotes-types";
+import { useStartDocumentProcessing } from "@/features/prequotes/use-start-document-processing";
 import { useUploadPreQuoteDocument } from "@/features/prequotes/use-upload-prequote-document";
 import { cn } from "@/lib/utils/cn";
+
+const STALE_PROCESSING_STATE_MESSAGE =
+  "El estado del documento cambió. Actualiza los documentos para consultar el estado más reciente.";
 
 export function PreQuoteDocumentsSection({
   projectId,
@@ -38,12 +49,47 @@ export function PreQuoteDocumentsSection({
   const [uploadPanelPreQuoteId, setUploadPanelPreQuoteId] = useState<
     string | null
   >(null);
+  const [activeProcessingDocumentId, setActiveProcessingDocumentId] = useState<
+    string | null
+  >(null);
+  const [activeProcessingActionKind, setActiveProcessingActionKind] = useState<
+    DocumentProcessingActionKind | null
+  >(null);
+  const [
+    localProcessingErrorMessage,
+    setLocalProcessingErrorMessage,
+  ] = useState<string | null>(null);
   const upload = useUploadPreQuoteDocument(preQuoteId);
+  const processing = useStartDocumentProcessing(preQuoteId);
   const isUploadPanelOpen = uploadPanelPreQuoteId === preQuoteId;
   const hasDocuments = Boolean(documentsPage && documentsPage.items.length > 0);
+  const isProcessingSubmitting = processing.isSubmitting;
+  const activeProcessingDocument = documentsPage?.items.find(
+    (document) => document.documentId === activeProcessingDocumentId,
+  );
+  const activeProcessingAction = activeProcessingDocument
+    ? getDocumentProcessingAction(activeProcessingDocument)
+    : null;
+  const isActiveProcessingConfirmationCurrent =
+    activeProcessingDocumentId !== null &&
+    activeProcessingAction !== null &&
+    activeProcessingAction.kind === activeProcessingActionKind;
+  const visibleActiveProcessingDocumentId =
+    isActiveProcessingConfirmationCurrent ? activeProcessingDocumentId : null;
+  const visibleLocalProcessingErrorMessage =
+    isActiveProcessingConfirmationCurrent ? localProcessingErrorMessage : null;
+  const hasActiveProcessingConflict =
+    visibleActiveProcessingDocumentId !== null &&
+    processing.targetDocumentId === visibleActiveProcessingDocumentId &&
+    isStartDocumentProcessingAlreadyActiveError(processing.error?.cause);
+  const blockedProcessingDocumentId =
+    visibleActiveProcessingDocumentId !== null &&
+    (visibleLocalProcessingErrorMessage || hasActiveProcessingConflict)
+      ? visibleActiveProcessingDocumentId
+      : null;
 
   function openUploadPanel() {
-    if (!projectIsActive || upload.isUploading) {
+    if (!projectIsActive || upload.isUploading || isProcessingSubmitting) {
       return;
     }
 
@@ -69,6 +115,70 @@ export function PreQuoteDocumentsSection({
     }
   }
 
+  function openProcessingConfirmation(
+    documentId: string,
+    actionKind: DocumentProcessingActionKind,
+  ) {
+    if (!projectIsActive || isProcessingSubmitting) {
+      return;
+    }
+
+    const document = documentsPage?.items.find(
+      (item) => item.documentId === documentId,
+    );
+    const action = document ? getDocumentProcessingAction(document) : null;
+
+    if (!action || action.kind !== actionKind) {
+      return;
+    }
+
+    processing.reset(documentId);
+    setLocalProcessingErrorMessage(null);
+    setActiveProcessingDocumentId(documentId);
+    setActiveProcessingActionKind(action.kind);
+  }
+
+  function closeProcessingConfirmation() {
+    if (isProcessingSubmitting) {
+      return;
+    }
+
+    processing.reset();
+    setActiveProcessingDocumentId(null);
+    setActiveProcessingActionKind(null);
+    setLocalProcessingErrorMessage(null);
+  }
+
+  async function handleStartProcessing(documentId: string) {
+    const document = documentsPage?.items.find(
+      (item) => item.documentId === documentId,
+    );
+    const action = document ? getDocumentProcessingAction(document) : null;
+
+    if (!document) {
+      processing.reset();
+      setActiveProcessingDocumentId(null);
+      setActiveProcessingActionKind(null);
+      setLocalProcessingErrorMessage(null);
+      return;
+    }
+
+    if (!action || action.kind !== activeProcessingActionKind) {
+      setLocalProcessingErrorMessage(STALE_PROCESSING_STATE_MESSAGE);
+      return;
+    }
+
+    setLocalProcessingErrorMessage(null);
+    const result = await processing.start(documentId);
+
+    if (result.status === "started") {
+      setActiveProcessingDocumentId(null);
+      setActiveProcessingActionKind(null);
+      setLocalProcessingErrorMessage(null);
+      onRefresh();
+    }
+  }
+
   return (
     <section aria-labelledby="prequote-documents-title" className="space-y-4">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -89,7 +199,9 @@ export function PreQuoteDocumentsSection({
               type="button"
               variant="outline"
               className="w-full sm:w-auto"
-              disabled={!projectIsActive || upload.isUploading}
+              disabled={
+                !projectIsActive || upload.isUploading || isProcessingSubmitting
+              }
               onClick={openUploadPanel}
             >
               <FilePlus2 aria-hidden="true" size={17} strokeWidth={1.75} />
@@ -100,7 +212,12 @@ export function PreQuoteDocumentsSection({
             type="button"
             variant="outline"
             className="w-full sm:w-auto"
-            disabled={isLoading || isRefreshing || upload.isUploading}
+            disabled={
+              isLoading ||
+              isRefreshing ||
+              upload.isUploading ||
+              isProcessingSubmitting
+            }
             onClick={onRefresh}
           >
             <RefreshCw aria-hidden="true" size={17} strokeWidth={1.75} />
@@ -168,7 +285,7 @@ export function PreQuoteDocumentsSection({
                   type="button"
                   variant="outline"
                   className="mt-5"
-                  disabled={upload.isUploading}
+                  disabled={upload.isUploading || isProcessingSubmitting}
                   onClick={openUploadPanel}
                 >
                   <FilePlus2 aria-hidden="true" size={17} strokeWidth={1.75} />
@@ -199,6 +316,21 @@ export function PreQuoteDocumentsSection({
               items={documentsPage.items}
               projectId={projectId}
               preQuoteId={preQuoteId}
+              projectIsActive={projectIsActive}
+              activeProcessingDocumentId={visibleActiveProcessingDocumentId}
+              submittingProcessingDocumentId={
+                processing.isSubmitting ? processing.targetDocumentId : null
+              }
+              processingError={
+                processing.targetDocumentId === visibleActiveProcessingDocumentId
+                  ? processing.error
+                  : null
+              }
+              localProcessingErrorMessage={visibleLocalProcessingErrorMessage}
+              blockedProcessingDocumentId={blockedProcessingDocumentId}
+              onOpenProcessingConfirmation={openProcessingConfirmation}
+              onCancelProcessingConfirmation={closeProcessingConfirmation}
+              onConfirmProcessing={handleStartProcessing}
             />
             <PreQuoteDocumentsPagination
               projectId={projectId}

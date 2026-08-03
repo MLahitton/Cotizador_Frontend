@@ -102,6 +102,36 @@ export function formatIssueCode(value: StructuredIssueCode): string {
       return "Tipo de elemento no reconocido";
     case "OCR_REVIEW_REQUIRED":
       return "El texto obtenido por OCR requiere revisión";
+    case "GLASS_TYPE_NOT_IDENTIFIED":
+      return "No se pudo identificar el tipo exacto de vidrio.";
+    case "GLASS_TYPE_AMBIGUOUS":
+      return "Se encontraron varias interpretaciones posibles para el vidrio.";
+    case "GLASS_TYPE_CONFLICT":
+      return "Se detectaron especificaciones de vidrio contradictorias.";
+  }
+}
+
+export function formatReviewReason(value: string): string {
+  switch (value) {
+    case "PROJECT_NAME_NOT_FOUND":
+    case "NO_QUOTEABLE_ITEMS_FOUND":
+    case "INCOMPLETE_TABLE_ROW":
+    case "MISSING_ITEM_REFERENCE":
+    case "MISSING_OR_INVALID_MEASUREMENTS":
+    case "MISSING_OR_INVALID_QUANTITY":
+    case "UNKNOWN_ELEMENT_TYPE":
+    case "OCR_REVIEW_REQUIRED":
+    case "GLASS_TYPE_NOT_IDENTIFIED":
+    case "GLASS_TYPE_AMBIGUOUS":
+    case "GLASS_TYPE_CONFLICT":
+      return formatIssueCode(value);
+    default:
+      return value
+        .toLowerCase()
+        .split("_")
+        .filter(Boolean)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(" ");
   }
 }
 

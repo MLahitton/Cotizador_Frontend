@@ -1,9 +1,10 @@
-import { FileText } from "lucide-react";
+import { FileText, Play } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
+import { StartDocumentProcessingConfirmation } from "@/features/prequotes/components/start-document-processing-confirmation";
 import {
   formatContentType,
   formatDuration,
@@ -12,6 +13,8 @@ import {
   formatPdfClassification,
   formatProcessingOutcome,
   formatProcessingState,
+  getDocumentProcessingAction,
+  type DocumentProcessingActionKind,
 } from "@/features/prequotes/prequote-document-formatters";
 import type {
   DocumentProcessingAttemptSummary,
@@ -168,10 +171,31 @@ export function PreQuoteDocumentsTable({
   items,
   projectId,
   preQuoteId,
+  projectIsActive,
+  activeProcessingDocumentId,
+  submittingProcessingDocumentId,
+  processingError,
+  localProcessingErrorMessage,
+  blockedProcessingDocumentId,
+  onOpenProcessingConfirmation,
+  onCancelProcessingConfirmation,
+  onConfirmProcessing,
 }: {
   items: PreQuoteDocumentListItem[];
   projectId: string;
   preQuoteId: string;
+  projectIsActive: boolean;
+  activeProcessingDocumentId: string | null;
+  submittingProcessingDocumentId: string | null;
+  processingError: { cause: unknown } | null;
+  localProcessingErrorMessage: string | null;
+  blockedProcessingDocumentId: string | null;
+  onOpenProcessingConfirmation: (
+    documentId: string,
+    actionKind: DocumentProcessingActionKind,
+  ) => void;
+  onCancelProcessingConfirmation: () => void;
+  onConfirmProcessing: (documentId: string) => void;
 }) {
   return (
     <Surface padding="none" className="min-w-0 overflow-hidden">
@@ -181,7 +205,13 @@ export function PreQuoteDocumentsTable({
       >
         {items.map((document) => {
           const headingId = `prequote-document-${document.documentId}`;
-
+          const processingAction = getDocumentProcessingAction(document);
+          const isConfirmationOpen =
+            activeProcessingDocumentId === document.documentId;
+          const isSubmitting =
+            submittingProcessingDocumentId === document.documentId;
+          const isPrimaryBlocked =
+            blockedProcessingDocumentId === document.documentId;
           return (
             <li key={document.documentId}>
               <article
@@ -242,6 +272,32 @@ export function PreQuoteDocumentsTable({
                   />
                   <ProcessingNote document={document} />
                   <LatestAttemptSummary latestAttempt={document.latestAttempt} />
+                  {processingAction && projectIsActive ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full sm:w-auto"
+                      disabled={
+                        Boolean(submittingProcessingDocumentId) ||
+                        isConfirmationOpen
+                      }
+                      onClick={() =>
+                        onOpenProcessingConfirmation(
+                          document.documentId,
+                          processingAction.kind,
+                        )
+                      }
+                    >
+                      <Play aria-hidden="true" size={16} strokeWidth={1.75} />
+                      {processingAction.label}
+                    </Button>
+                  ) : null}
+                  {processingAction && !projectIsActive ? (
+                    <p className="text-sm text-foreground-secondary">
+                      Activa el proyecto para procesar documentos.
+                    </p>
+                  ) : null}
                 </section>
 
                 <section
@@ -272,6 +328,20 @@ export function PreQuoteDocumentsTable({
                     </Link>
                   ) : null}
                 </section>
+
+                {isConfirmationOpen ? (
+                  <div className="min-w-0 lg:col-span-3">
+                    <StartDocumentProcessingConfirmation
+                      document={document}
+                      isSubmitting={isSubmitting}
+                      error={processingError}
+                      localErrorMessage={localProcessingErrorMessage}
+                      isPrimaryBlocked={isPrimaryBlocked}
+                      onCancel={onCancelProcessingConfirmation}
+                      onConfirm={() => onConfirmProcessing(document.documentId)}
+                    />
+                  </div>
+                ) : null}
               </article>
             </li>
           );
