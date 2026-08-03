@@ -15,15 +15,22 @@ export function BrandLogo({
   priority = false,
 }: BrandLogoProps) {
   return (
-    <Image
-      src={steelAndGlassLogo}
-      alt="Steel and Glass"
-      priority={priority}
+    <span
       className={cn(
-        "object-contain",
-        compact ? "h-8 w-32" : "h-11 w-48",
+        "flex items-center overflow-hidden",
+        compact ? "h-10 w-40" : "h-16 w-full max-w-56",
         className,
       )}
-    />
+    >
+      <Image
+        src={steelAndGlassLogo}
+        alt="Steel and Glass"
+        priority={priority}
+        className={cn(
+          "max-w-none shrink-0 object-contain",
+          compact ? "h-auto w-48" : "h-auto w-64",
+        )}
+      />
+    </span>
   );
 }
