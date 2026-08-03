@@ -4,12 +4,24 @@ import {
 } from "@/features/prequotes/prequote-document-formatters";
 import type {
   EvidenceSourceType,
+  GlassAssignmentScope,
+  GlassReviewReason,
+  GlassValuationReason,
+  GlassValuationStatus,
   RequirementCategory,
   StructuredConflictCode,
   StructuredElementType,
   StructuredExtractionStatus,
   StructuredIssueCode,
 } from "@/features/prequotes/structured-extraction-types";
+
+const AREA_FORMATTER = new Intl.NumberFormat("es-CO", {
+  maximumFractionDigits: 4,
+});
+
+const DECIMAL_FORMATTER = new Intl.NumberFormat("es-CO", {
+  maximumFractionDigits: 2,
+});
 
 export function formatNullableText(value: string | null): string {
   return value?.trim() ? value : "—";
@@ -133,6 +145,170 @@ export function formatReviewReason(value: string): string {
         .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
         .join(" ");
   }
+}
+
+export function formatGlassAssignmentScope(value: GlassAssignmentScope): string {
+  switch (value) {
+    case "ITEM":
+      return "Ítem";
+    case "SECTION":
+      return "Sección";
+    case "GENERAL":
+      return "General";
+    case "UNASSIGNED":
+      return "Sin asignar";
+  }
+}
+
+export function formatGlassAssignmentScopeDescription(
+  value: GlassAssignmentScope,
+): string {
+  switch (value) {
+    case "ITEM":
+      return "Especificación asociada directamente al ítem.";
+    case "SECTION":
+      return "Especificación heredada de la sección del documento.";
+    case "GENERAL":
+      return "Especificación general detectada en el documento.";
+    case "UNASSIGNED":
+      return "No fue posible asociar la especificación a un alcance concreto.";
+  }
+}
+
+export function formatGlassReviewReason(value: GlassReviewReason): string {
+  return formatIssueCode(value);
+}
+
+export function formatGlassValuationStatus(value: GlassValuationStatus): string {
+  switch (value) {
+    case "VALUED":
+      return "Valorado";
+    case "NOT_VALUED":
+      return "No valorado";
+  }
+}
+
+export function formatGlassValuationReason(
+  value: GlassValuationReason,
+): string {
+  switch (value) {
+    case "MISSING_MEASUREMENTS":
+      return "Faltan medidas válidas para calcular el área.";
+    case "MISSING_QUANTITY":
+      return "Falta la cantidad del ítem.";
+    case "GLASS_NOT_NORMALIZED":
+      return "El vidrio no tiene un código normalizado.";
+    case "GLASS_TYPE_NOT_RESOLVED":
+      return "No se pudo resolver el tipo de vidrio en el catálogo.";
+    case "PRICE_RANGE_NOT_AVAILABLE":
+      return "No existe un rango de precio disponible para este vidrio.";
+    case "CURRENCY_MISMATCH":
+      return "Los precios disponibles utilizan monedas incompatibles.";
+  }
+}
+
+export function formatPriceRangeStatus(value: string): string {
+  switch (value) {
+    case "PRELIMINARY":
+      return "Preliminar";
+    case "ACTIVE":
+      return "Activo";
+    case "RETIRED":
+      return "Retirado";
+    default:
+      return value
+        .toLowerCase()
+        .split("_")
+        .filter(Boolean)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(" ");
+  }
+}
+
+export function formatAggregationIssue(value: string | null): string {
+  switch (value) {
+    case "CURRENCY_MISMATCH":
+      return "Los valores disponibles utilizan monedas diferentes.";
+    case null:
+      return "No fue posible consolidar un único rango económico con la información disponible.";
+    default:
+      return "No fue posible consolidar un único rango económico con la información disponible.";
+  }
+}
+
+export function formatAreaSquareMeters(value: number | null): string {
+  if (value === null) {
+    return "—";
+  }
+
+  return `${AREA_FORMATTER.format(value)} m²`;
+}
+
+function sanitizeCurrencyCode(value: string | null): string | null {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && /^[A-Z]{3}$/.test(normalized) ? normalized : null;
+}
+
+export function formatMoneyAmount(
+  value: number | null,
+  currency: string | null,
+): string {
+  if (value === null) {
+    return "—";
+  }
+
+  const sanitizedCurrency = sanitizeCurrencyCode(currency);
+  if (!sanitizedCurrency) {
+    return currency?.trim()
+      ? `${DECIMAL_FORMATTER.format(value)} ${currency.trim()}`
+      : DECIMAL_FORMATTER.format(value);
+  }
+
+  try {
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: sanitizedCurrency,
+      maximumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    }).format(value);
+  } catch {
+    return `${DECIMAL_FORMATTER.format(value)} ${sanitizedCurrency}`;
+  }
+}
+
+export function formatMoneyRange(
+  minimum: number | null,
+  maximum: number | null,
+  currency: string | null,
+): string {
+  if (minimum !== null && maximum !== null) {
+    if (minimum === maximum) {
+      return formatMoneyAmount(minimum, currency);
+    }
+
+    return `${formatMoneyAmount(minimum, currency)} – ${formatMoneyAmount(
+      maximum,
+      currency,
+    )}`;
+  }
+
+  if (minimum !== null) {
+    return `Desde ${formatMoneyAmount(minimum, currency)}`;
+  }
+
+  if (maximum !== null) {
+    return `Hasta ${formatMoneyAmount(maximum, currency)}`;
+  }
+
+  return "Sin rango económico disponible.";
+}
+
+export function formatPricePerSquareMeterRange(
+  minimum: number | null,
+  maximum: number | null,
+  currency: string | null,
+): string {
+  const range = formatMoneyRange(minimum, maximum, currency);
+  return range === "Sin rango económico disponible." ? range : `${range} por m²`;
 }
 
 export function formatConflictCode(value: StructuredConflictCode): string {

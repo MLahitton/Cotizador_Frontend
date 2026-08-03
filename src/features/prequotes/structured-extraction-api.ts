@@ -9,6 +9,10 @@ import type {
 } from "@/features/prequotes/prequote-documents-types";
 import type {
   EvidenceSourceType,
+  GlassAssignmentScope,
+  GlassReviewReason,
+  GlassValuationReason,
+  GlassValuationStatus,
   RequirementCategory,
   StructuredConflict,
   StructuredConflictCode,
@@ -22,6 +26,8 @@ import type {
   StructuredIssue,
   StructuredIssueCode,
   StructuredItem,
+  StructuredItemGlass,
+  StructuredItemGlassValuation,
   StructuredProcessingMetadata,
   StructuredProject,
   StructuredRequirement,
@@ -52,6 +58,26 @@ const PROCESSING_OUTCOMES = [
 const PDF_CLASSIFICATIONS = ["PDF_TEXT", "PDF_SCANNED", "PDF_MIXED"] as const;
 const EVIDENCE_SOURCE_TYPES = ["NATIVE", "OCR"] as const;
 const STRUCTURED_STATUSES = ["COMPLETED", "REQUIRES_REVIEW"] as const;
+const GLASS_ASSIGNMENT_SCOPES = [
+  "ITEM",
+  "SECTION",
+  "GENERAL",
+  "UNASSIGNED",
+] as const;
+const GLASS_REVIEW_REASONS = [
+  "GLASS_TYPE_NOT_IDENTIFIED",
+  "GLASS_TYPE_AMBIGUOUS",
+  "GLASS_TYPE_CONFLICT",
+] as const;
+const GLASS_VALUATION_STATUSES = ["VALUED", "NOT_VALUED"] as const;
+const GLASS_VALUATION_REASONS = [
+  "MISSING_MEASUREMENTS",
+  "MISSING_QUANTITY",
+  "GLASS_NOT_NORMALIZED",
+  "GLASS_TYPE_NOT_RESOLVED",
+  "PRICE_RANGE_NOT_AVAILABLE",
+  "CURRENCY_MISMATCH",
+] as const;
 const ELEMENT_TYPES = [
   "WINDOW",
   "DOOR",
@@ -87,6 +113,9 @@ const CONFLICT_CODES = [
   "CONFLICTING_LOCATION",
   "DUPLICATE_ITEM_REFERENCE",
 ] as const;
+const CONTRACT_GUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -111,6 +140,23 @@ function isNullableString(value: unknown): value is string | null {
   return typeof value === "string" || value === null;
 }
 
+function isValidContractGuid(value: unknown): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const normalizedValue = value.trim();
+
+  return (
+    CONTRACT_GUID_PATTERN.test(normalizedValue) &&
+    normalizedValue.toLowerCase() !== EMPTY_GUID
+  );
+}
+
+function isNullableContractGuid(value: unknown): value is string | null {
+  return value === null || isValidContractGuid(value);
+}
+
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
@@ -121,6 +167,16 @@ function isPositiveInteger(value: unknown): value is number {
 
 function isPositiveNullableInteger(value: unknown): value is number | null {
   return value === null || isPositiveInteger(value);
+}
+
+function isNonNegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function isNonNegativeNullableFiniteNumber(
+  value: unknown,
+): value is number | null {
+  return value === null || isNonNegativeFiniteNumber(value);
 }
 
 function isValidDateTime(value: unknown): value is string {
@@ -161,6 +217,22 @@ function isEvidenceSourceType(value: unknown): value is EvidenceSourceType {
 
 function isStructuredStatus(value: unknown): value is StructuredExtractionStatus {
   return isStringIn(value, STRUCTURED_STATUSES);
+}
+
+function isGlassAssignmentScope(value: unknown): value is GlassAssignmentScope {
+  return isStringIn(value, GLASS_ASSIGNMENT_SCOPES);
+}
+
+function isGlassReviewReason(value: unknown): value is GlassReviewReason {
+  return isStringIn(value, GLASS_REVIEW_REASONS);
+}
+
+function isGlassValuationStatus(value: unknown): value is GlassValuationStatus {
+  return isStringIn(value, GLASS_VALUATION_STATUSES);
+}
+
+function isGlassValuationReason(value: unknown): value is GlassValuationReason {
+  return isStringIn(value, GLASS_VALUATION_REASONS);
 }
 
 function isElementType(value: unknown): value is StructuredElementType {
@@ -232,6 +304,70 @@ function isEvidenceArray(value: unknown): value is StructuredEvidence[] {
   return Array.isArray(value) && value.every(isEvidence);
 }
 
+function isStructuredItemGlass(value: unknown): value is StructuredItemGlass {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isNullableContractGuid(value.glassTypeId) &&
+    (value.rawSpecification === null ||
+      isNonEmptyString(value.rawSpecification)) &&
+    (value.normalizedCode === null || isNonEmptyString(value.normalizedCode)) &&
+    isGlassAssignmentScope(value.assignmentScope) &&
+    typeof value.requiresReview === "boolean" &&
+    Array.isArray(value.reviewReasons) &&
+    value.reviewReasons.every(isGlassReviewReason) &&
+    isNumberArray(value.sourcePages) &&
+    isEvidenceArray(value.evidence)
+  );
+}
+
+function isStructuredItemGlassValuation(
+  value: unknown,
+): value is StructuredItemGlassValuation {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (
+    !(
+      isGlassValuationStatus(value.status) &&
+      (value.reason === null || isGlassValuationReason(value.reason)) &&
+      isNullableContractGuid(value.glassTypeId) &&
+      isNullableContractGuid(value.glassPriceRangeVersionId) &&
+      (value.priceRangeVersion === null ||
+        isPositiveInteger(value.priceRangeVersion)) &&
+      (value.priceRangeStatus === null ||
+        isNonEmptyString(value.priceRangeStatus)) &&
+      (value.currency === null || isNonEmptyString(value.currency)) &&
+      isNonNegativeNullableFiniteNumber(value.unitAreaSquareMeters) &&
+      isNonNegativeNullableFiniteNumber(value.totalAreaSquareMeters) &&
+      isNonNegativeNullableFiniteNumber(value.minimumPricePerSquareMeter) &&
+      isNonNegativeNullableFiniteNumber(value.maximumPricePerSquareMeter) &&
+      isNonNegativeNullableFiniteNumber(value.minimumAmount) &&
+      isNonNegativeNullableFiniteNumber(value.maximumAmount) &&
+      isValidDateTime(value.calculatedAtUtc)
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    value.minimumPricePerSquareMeter !== null &&
+    value.maximumPricePerSquareMeter !== null &&
+    value.minimumPricePerSquareMeter > value.maximumPricePerSquareMeter
+  ) {
+    return false;
+  }
+
+  return !(
+    value.minimumAmount !== null &&
+    value.maximumAmount !== null &&
+    value.minimumAmount > value.maximumAmount
+  );
+}
+
 function isStructuredProject(value: unknown): value is StructuredProject {
   if (!isRecord(value)) {
     return false;
@@ -261,6 +397,26 @@ function isRequirement(value: unknown): value is StructuredRequirement {
 
 function isItem(value: unknown): value is StructuredItem {
   if (!isRecord(value)) {
+    return false;
+  }
+
+  if (
+    !(
+      !("glass" in value) ||
+      value.glass === null ||
+      isStructuredItemGlass(value.glass)
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    !(
+      !("valuation" in value) ||
+      value.valuation === null ||
+      isStructuredItemGlassValuation(value.valuation)
+    )
+  ) {
     return false;
   }
 
@@ -332,13 +488,118 @@ function isSummary(value: unknown): value is StructuredSummary {
     return false;
   }
 
-  return (
-    isNonNegativeInteger(value.itemCount) &&
-    isNonNegativeInteger(value.documentReferenceCount) &&
-    isNonNegativeInteger(value.itemsRequiringReview) &&
-    isNonNegativeInteger(value.knownQuoteableUnitCount) &&
-    isNonNegativeInteger(value.issueCount) &&
-    isNonNegativeInteger(value.conflictCount)
+  if (
+    !(
+      isNonNegativeInteger(value.itemCount) &&
+      isNonNegativeInteger(value.documentReferenceCount) &&
+      isNonNegativeInteger(value.itemsRequiringReview) &&
+      isNonNegativeInteger(value.knownQuoteableUnitCount) &&
+      isNonNegativeInteger(value.issueCount) &&
+      isNonNegativeInteger(value.conflictCount)
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    "identifiedGlassItemCount" in value &&
+    !(
+      value.identifiedGlassItemCount === null ||
+      (isNonNegativeInteger(value.identifiedGlassItemCount) &&
+        value.identifiedGlassItemCount <= value.itemCount)
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    "glassItemsRequiringReview" in value &&
+    !(
+      value.glassItemsRequiringReview === null ||
+      (isNonNegativeInteger(value.glassItemsRequiringReview) &&
+        value.glassItemsRequiringReview <= value.itemCount)
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    "valuedItemCount" in value &&
+    !(
+      isNonNegativeInteger(value.valuedItemCount) &&
+      value.valuedItemCount <= value.itemCount
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    "notValuedItemCount" in value &&
+    !(
+      isNonNegativeInteger(value.notValuedItemCount) &&
+      value.notValuedItemCount <= value.itemCount
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    "valuedItemCount" in value &&
+    "notValuedItemCount" in value &&
+    isNonNegativeInteger(value.valuedItemCount) &&
+    isNonNegativeInteger(value.notValuedItemCount) &&
+    value.valuedItemCount + value.notValuedItemCount > value.itemCount
+  ) {
+    return false;
+  }
+
+  if (
+    "totalGlassAreaSquareMeters" in value &&
+    !isNonNegativeFiniteNumber(value.totalGlassAreaSquareMeters)
+  ) {
+    return false;
+  }
+
+  if (
+    "minimumGlassAmount" in value &&
+    !isNonNegativeNullableFiniteNumber(value.minimumGlassAmount)
+  ) {
+    return false;
+  }
+
+  if (
+    "maximumGlassAmount" in value &&
+    !isNonNegativeNullableFiniteNumber(value.maximumGlassAmount)
+  ) {
+    return false;
+  }
+
+  if (
+    "minimumGlassAmount" in value &&
+    "maximumGlassAmount" in value &&
+    value.minimumGlassAmount !== null &&
+    value.maximumGlassAmount !== null &&
+    isNonNegativeFiniteNumber(value.minimumGlassAmount) &&
+    isNonNegativeFiniteNumber(value.maximumGlassAmount) &&
+    value.minimumGlassAmount > value.maximumGlassAmount
+  ) {
+    return false;
+  }
+
+  if (
+    "currency" in value &&
+    !(value.currency === null || isNonEmptyString(value.currency))
+  ) {
+    return false;
+  }
+
+  if ("isAggregable" in value && typeof value.isAggregable !== "boolean") {
+    return false;
+  }
+
+  return !(
+    "aggregationIssue" in value &&
+    !(value.aggregationIssue === null || isNonEmptyString(value.aggregationIssue))
   );
 }
 

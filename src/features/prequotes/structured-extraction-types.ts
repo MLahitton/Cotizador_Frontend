@@ -42,10 +42,55 @@ export type StructuredConflictCode =
 
 export type StructuredExtractionStatus = "COMPLETED" | "REQUIRES_REVIEW";
 
+export type GlassAssignmentScope = "ITEM" | "SECTION" | "GENERAL" | "UNASSIGNED";
+
+export type GlassReviewReason =
+  | "GLASS_TYPE_NOT_IDENTIFIED"
+  | "GLASS_TYPE_AMBIGUOUS"
+  | "GLASS_TYPE_CONFLICT";
+
+export type GlassValuationStatus = "VALUED" | "NOT_VALUED";
+
+export type GlassValuationReason =
+  | "MISSING_MEASUREMENTS"
+  | "MISSING_QUANTITY"
+  | "GLASS_NOT_NORMALIZED"
+  | "GLASS_TYPE_NOT_RESOLVED"
+  | "PRICE_RANGE_NOT_AVAILABLE"
+  | "CURRENCY_MISMATCH";
+
 export interface StructuredEvidence {
   pageNumber: number;
   sourceType: EvidenceSourceType;
   text: string;
+}
+
+export interface StructuredItemGlass {
+  glassTypeId: string | null;
+  rawSpecification: string | null;
+  normalizedCode: string | null;
+  assignmentScope: GlassAssignmentScope;
+  requiresReview: boolean;
+  reviewReasons: GlassReviewReason[];
+  sourcePages: number[];
+  evidence: StructuredEvidence[];
+}
+
+export interface StructuredItemGlassValuation {
+  status: GlassValuationStatus;
+  reason: GlassValuationReason | null;
+  glassTypeId: string | null;
+  glassPriceRangeVersionId: string | null;
+  priceRangeVersion: number | null;
+  priceRangeStatus: string | null;
+  currency: string | null;
+  unitAreaSquareMeters: number | null;
+  totalAreaSquareMeters: number | null;
+  minimumPricePerSquareMeter: number | null;
+  maximumPricePerSquareMeter: number | null;
+  minimumAmount: number | null;
+  maximumAmount: number | null;
+  calculatedAtUtc: string;
 }
 
 export interface StructuredProject {
@@ -76,6 +121,8 @@ export interface StructuredItem {
   reviewReasons: string[];
   sourcePages: number[];
   evidence: StructuredEvidence[];
+  glass?: StructuredItemGlass | null;
+  valuation?: StructuredItemGlassValuation | null;
 }
 
 export interface StructuredDocumentReference {
@@ -111,6 +158,16 @@ export interface StructuredSummary {
   knownQuoteableUnitCount: number;
   issueCount: number;
   conflictCount: number;
+  identifiedGlassItemCount?: number | null;
+  glassItemsRequiringReview?: number | null;
+  valuedItemCount?: number;
+  notValuedItemCount?: number;
+  totalGlassAreaSquareMeters?: number;
+  minimumGlassAmount?: number | null;
+  maximumGlassAmount?: number | null;
+  currency?: string | null;
+  isAggregable?: boolean;
+  aggregationIssue?: string | null;
 }
 
 export interface StructuredProcessingMetadata {

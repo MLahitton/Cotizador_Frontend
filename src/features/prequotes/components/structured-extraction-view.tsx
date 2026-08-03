@@ -12,11 +12,13 @@ import {
   formatProcessingState,
 } from "@/features/prequotes/prequote-document-formatters";
 import { ProcessingAvailabilityBadge } from "@/features/prequotes/components/prequote-document-status";
+import { StructuredGlassSummary } from "@/features/prequotes/components/structured-glass-summary";
 import {
   SourcePages,
   StructuredEvidenceList,
 } from "@/features/prequotes/components/structured-evidence-list";
 import { StructuredExtractionStatusBadge } from "@/features/prequotes/components/structured-extraction-status";
+import { StructuredItemGlassDetails } from "@/features/prequotes/components/structured-item-glass-details";
 import { formatPreQuoteDateTime } from "@/features/prequotes/prequote-formatters";
 import {
   formatConflictCode,
@@ -406,6 +408,7 @@ function ItemsSection({ extraction }: { extraction: StructuredExtractionDetails 
                       ))}
                     </ul>
                   ) : null}
+                  <StructuredItemGlassDetails item={item} />
                   <div className="mt-4">
                     <StructuredEvidenceList evidence={item.evidence} />
                   </div>
@@ -503,7 +506,7 @@ function IssuesSection({ extraction }: { extraction: StructuredExtractionDetails
                     {issue.message}
                   </p>
                   <dl className="grid gap-4 sm:grid-cols-3">
-                    <DetailField label="Código" value={issue.code} />
+                    <DetailField label="Tipo" value={formatIssueCode(issue.code)} />
                     <DetailField
                       label="Ítem relacionado"
                       value={issue.itemSequence === null ? "—" : String(issue.itemSequence)}
@@ -556,7 +559,10 @@ function ConflictsSection({
                     {conflict.message}
                   </p>
                   <dl className="grid gap-4 sm:grid-cols-3">
-                    <DetailField label="Código" value={conflict.code} />
+                    <DetailField
+                      label="Tipo"
+                      value={formatConflictCode(conflict.code)}
+                    />
                     <DetailField
                       label="Ítems relacionados"
                       value={
@@ -658,6 +664,7 @@ export function StructuredExtractionView({
       {extraction ? (
         <>
           <SummarySection extraction={extraction} />
+          <StructuredGlassSummary summary={extraction.summary} />
           <DetectedProjectSection extraction={extraction} />
           <RequirementsSection extraction={extraction} />
           <ItemsSection extraction={extraction} />
