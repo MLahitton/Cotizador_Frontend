@@ -3,6 +3,7 @@ import {
   Files,
   FileText,
   FolderKanban,
+  Layers3,
   LayoutDashboard,
   Settings,
   Users,
@@ -38,6 +39,13 @@ export const appNavigationItems: AppNavigationItem[] = [
     label: "Proyectos",
     href: "/projects",
     icon: FolderKanban,
+    disabled: false,
+  },
+  {
+    id: "glass-catalog",
+    label: "Catálogo de vidrios",
+    href: "/catalogs/glass-types",
+    icon: Layers3,
     disabled: false,
   },
   {
