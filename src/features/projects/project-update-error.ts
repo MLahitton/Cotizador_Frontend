@@ -1,5 +1,5 @@
 import { PROJECT_ERROR_CODES } from "@/features/projects/project-error-codes";
-import { getProblemDetailsCode } from "@/features/projects/problem-details-code";
+import { getApiErrorCode } from "@/lib/errors/api-error-code";
 import { ApiError } from "@/lib/http/api-error";
 
 export type ProjectUpdateErrorKind =
@@ -83,7 +83,7 @@ export function classifyProjectUpdateError(
     };
   }
 
-  const code = getProblemDetailsCode(error.problemDetails);
+  const code = getApiErrorCode(error);
   switch (code) {
     case PROJECT_ERROR_CODES.invalidRequest:
       return {
@@ -125,6 +125,21 @@ export function classifyProjectUpdateError(
         kind: "persistence-error",
         message:
           "No fue posible guardar los cambios del proyecto. Inténtalo nuevamente.",
+      };
+    case PROJECT_ERROR_CODES.methodNotAllowed:
+      return {
+        kind: "unknown",
+        message: "La operación solicitada no está disponible.",
+      };
+    case PROJECT_ERROR_CODES.payloadTooLarge:
+      return {
+        kind: "unknown",
+        message: "La solicitud supera el tamaño permitido por el servidor.",
+      };
+    case PROJECT_ERROR_CODES.internalServerError:
+      return {
+        kind: "unknown",
+        message: "No fue posible completar la operación. Inténtalo nuevamente.",
       };
     default:
       return classifyByStatus(error.status);

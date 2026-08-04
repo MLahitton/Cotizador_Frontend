@@ -6,11 +6,13 @@ import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import type { ProjectDetails } from "@/features/projects/projects-types";
+import { PREQUOTE_ERROR_CODES } from "@/features/prequotes/prequote-error-codes";
 import type { PreQuoteDetails } from "@/features/prequotes/prequotes-types";
 import {
   isInvalidStructuredExtractionResponseError,
   isStructuredDocumentMismatchError,
 } from "@/features/prequotes/structured-extraction-api";
+import { API_ERROR_CODES, getApiErrorCode } from "@/lib/errors/api-error-code";
 import { ApiError } from "@/lib/http/api-error";
 import { cn } from "@/lib/utils/cn";
 
@@ -25,6 +27,26 @@ function getStructuredExtractionErrorMessage(error: unknown): string {
 
   if (!(error instanceof ApiError)) {
     return "No fue posible consultar la extracción. Inténtalo nuevamente.";
+  }
+
+  switch (getApiErrorCode(error)) {
+    case PREQUOTE_ERROR_CODES.structuredExtractionInvalidRequest:
+      return "No fue posible consultar la extracción porque la solicitud no es válida.";
+    case PREQUOTE_ERROR_CODES.unauthorized:
+      return "Tu sesión no es válida o expiró.";
+    case PREQUOTE_ERROR_CODES.inactiveUser:
+      return "No tienes acceso para consultar esta extracción.";
+    case PREQUOTE_ERROR_CODES.processingDocumentNotFound:
+    case PREQUOTE_ERROR_CODES.structuredExtractionNotFound:
+      return "No se encontró una extracción disponible para este documento o el documento ya no está accesible.";
+    case PREQUOTE_ERROR_CODES.structuredExtractionQueryError:
+      return "No fue posible consultar la extracción. Inténtalo nuevamente.";
+    case API_ERROR_CODES.methodNotAllowed:
+      return "La operación solicitada no está disponible.";
+    case API_ERROR_CODES.payloadTooLarge:
+      return "La solicitud supera el tamaño permitido por el servidor.";
+    case API_ERROR_CODES.internalServerError:
+      return "No fue posible consultar la extracción. Inténtalo nuevamente.";
   }
 
   switch (error.status) {

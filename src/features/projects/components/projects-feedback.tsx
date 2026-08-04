@@ -2,6 +2,8 @@ import { CircleAlert, LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
+import { PROJECT_ERROR_CODES } from "@/features/projects/project-error-codes";
+import { API_ERROR_CODES, getApiErrorCode } from "@/lib/errors/api-error-code";
 import { ApiError } from "@/lib/http/api-error";
 
 function getProjectsErrorContent(error: unknown): {
@@ -13,6 +15,45 @@ function getProjectsErrorContent(error: unknown): {
       title: "No fue posible consultar los proyectos",
       message: "No fue posible obtener la información. Intenta nuevamente.",
     };
+  }
+
+  switch (getApiErrorCode(error)) {
+    case PROJECT_ERROR_CODES.invalidRequest:
+      return {
+        title: "Solicitud inválida",
+        message:
+          "Los parámetros utilizados para consultar proyectos no son válidos.",
+      };
+    case PROJECT_ERROR_CODES.unauthorized:
+      return {
+        title: "Sesión no válida",
+        message: "Tu sesión no es válida o expiró.",
+      };
+    case PROJECT_ERROR_CODES.inactiveUser:
+      return {
+        title: "Acceso no permitido",
+        message: "No tienes permiso para consultar proyectos.",
+      };
+    case PROJECT_ERROR_CODES.queryError:
+      return {
+        title: "No fue posible consultar los proyectos",
+        message: "No fue posible obtener la información. Intenta nuevamente.",
+      };
+    case API_ERROR_CODES.methodNotAllowed:
+      return {
+        title: "Operación no disponible",
+        message: "La operación solicitada no está disponible.",
+      };
+    case API_ERROR_CODES.payloadTooLarge:
+      return {
+        title: "Solicitud demasiado grande",
+        message: "La solicitud supera el tamaño permitido por el servidor.",
+      };
+    case API_ERROR_CODES.internalServerError:
+      return {
+        title: "No fue posible consultar los proyectos",
+        message: "No fue posible obtener la información. Intenta nuevamente.",
+      };
   }
 
   switch (error.status) {

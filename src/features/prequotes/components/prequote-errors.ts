@@ -6,237 +6,359 @@ import {
   isInvalidStartDocumentProcessingResponseError,
   isInvalidUploadPreQuoteDocumentResponseError,
 } from "@/features/prequotes/prequote-documents-api";
+import { PREQUOTE_ERROR_CODES } from "@/features/prequotes/prequote-error-codes";
+import { API_ERROR_CODES, getApiErrorCode } from "@/lib/errors/api-error-code";
 import { ApiError } from "@/lib/http/api-error";
 
-function getProcessingProblemErrorCode(error: ApiError): string | null {
-  const errorCode = error.problemDetails?.errorCode;
-
-  if (typeof errorCode !== "string") {
-    return null;
-  }
-
-  const normalizedErrorCode = errorCode.trim();
-
-  return normalizedErrorCode.length > 0 ? normalizedErrorCode : null;
+function getStatusFallbackMessage(
+  error: ApiError,
+  messages: Partial<Record<number, string>>,
+  fallbackMessage: string,
+): string {
+  return messages[error.status] ?? fallbackMessage;
 }
 
 export function isStartDocumentProcessingAlreadyActiveError(
   error: unknown,
 ): boolean {
-  return (
-    error instanceof ApiError &&
-    getProcessingProblemErrorCode(error) === "DOCUMENT_PROCESSING_ALREADY_ACTIVE"
-  );
+  return getApiErrorCode(error) === PREQUOTE_ERROR_CODES.processingAlreadyActive;
 }
 
 export function getProjectContextErrorMessage(error: unknown): string {
+  const fallbackMessage =
+    "No fue posible consultar el proyecto. Inténtalo nuevamente.";
+
   if (!(error instanceof ApiError)) {
-    return "No fue posible consultar el proyecto. Inténtalo nuevamente.";
+    return fallbackMessage;
   }
 
-  switch (error.status) {
-    case 0:
-      return "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.";
-    case 400:
+  switch (getApiErrorCode(error)) {
+    case "PROJECT_INVALID_REQUEST":
       return "No fue posible consultar el proyecto porque la solicitud no es válida.";
-    case 401:
-      return "Tu sesión no es válida o expiró.";
-    case 403:
-      return "No tienes acceso para consultar este proyecto.";
-    case 404:
+    case "PROJECT_NOT_FOUND":
       return "El proyecto ya no está disponible.";
-    case 500:
-      return "No fue posible consultar el proyecto. Inténtalo nuevamente.";
-    default:
-      return "No fue posible consultar el proyecto. Inténtalo nuevamente.";
+    case "PROJECT_QUERY_ERROR":
+      return fallbackMessage;
+    case API_ERROR_CODES.unauthorized:
+      return "Tu sesión no es válida o expiró.";
+    case API_ERROR_CODES.inactiveUser:
+      return "No tienes acceso para consultar este proyecto.";
+    case API_ERROR_CODES.methodNotAllowed:
+      return "La operación solicitada no está disponible.";
+    case API_ERROR_CODES.payloadTooLarge:
+      return "La solicitud supera el tamaño permitido por el servidor.";
+    case API_ERROR_CODES.internalServerError:
+      return fallbackMessage;
   }
+
+  return getStatusFallbackMessage(
+    error,
+    {
+      0: "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.",
+      400: "No fue posible consultar el proyecto porque la solicitud no es válida.",
+      401: "Tu sesión no es válida o expiró.",
+      403: "No tienes acceso para consultar este proyecto.",
+      404: "El proyecto ya no está disponible.",
+      500: fallbackMessage,
+    },
+    fallbackMessage,
+  );
 }
 
 export function getProjectPreQuotesErrorMessage(error: unknown): string {
+  const fallbackMessage =
+    "No fue posible consultar las precotizaciones. Inténtalo nuevamente.";
+
   if (!(error instanceof ApiError)) {
-    return "No fue posible consultar las precotizaciones. Inténtalo nuevamente.";
+    return fallbackMessage;
   }
 
-  switch (error.status) {
-    case 0:
-      return "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.";
-    case 400:
+  switch (getApiErrorCode(error)) {
+    case PREQUOTE_ERROR_CODES.listInvalidRequest:
       return "No fue posible consultar las precotizaciones porque la solicitud no es válida.";
-    case 401:
+    case PREQUOTE_ERROR_CODES.unauthorized:
       return "Tu sesión no es válida o expiró.";
-    case 403:
+    case PREQUOTE_ERROR_CODES.inactiveUser:
       return "No tienes acceso para consultar las precotizaciones.";
-    case 404:
+    case PREQUOTE_ERROR_CODES.projectNotFound:
       return "El proyecto ya no está disponible.";
-    case 500:
-      return "No fue posible consultar las precotizaciones. Inténtalo nuevamente.";
-    default:
-      return "No fue posible consultar las precotizaciones. Inténtalo nuevamente.";
+    case PREQUOTE_ERROR_CODES.listQueryError:
+      return fallbackMessage;
+    case API_ERROR_CODES.methodNotAllowed:
+      return "La operación solicitada no está disponible.";
+    case API_ERROR_CODES.payloadTooLarge:
+      return "La solicitud supera el tamaño permitido por el servidor.";
+    case API_ERROR_CODES.internalServerError:
+      return fallbackMessage;
   }
+
+  return getStatusFallbackMessage(
+    error,
+    {
+      0: "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.",
+      400: "No fue posible consultar las precotizaciones porque la solicitud no es válida.",
+      401: "Tu sesión no es válida o expiró.",
+      403: "No tienes acceso para consultar las precotizaciones.",
+      404: "El proyecto ya no está disponible.",
+      500: fallbackMessage,
+    },
+    fallbackMessage,
+  );
 }
 
 export function getCreatePreQuoteErrorMessage(error: unknown): string {
+  const fallbackMessage =
+    "No fue posible crear la precotización. Inténtalo nuevamente.";
+
   if (isInvalidCreatePreQuoteResponseError(error)) {
     return "El servidor devolvió una respuesta inesperada al crear la precotización.";
   }
 
   if (!(error instanceof ApiError)) {
-    return "No fue posible crear la precotización. Inténtalo nuevamente.";
+    return fallbackMessage;
   }
 
-  switch (error.status) {
-    case 0:
-      return "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.";
-    case 400:
+  switch (getApiErrorCode(error)) {
+    case PREQUOTE_ERROR_CODES.invalidRequest:
       return "No fue posible crear la precotización porque la solicitud no es válida.";
-    case 401:
-      return "Tu sesión no es válida o expiró.";
-    case 403:
-      return "No tienes acceso para crear precotizaciones.";
-    case 404:
-      return "El proyecto o su cliente ya no está disponible.";
-    case 409:
-      return "El proyecto o su cliente no permite crear precotizaciones en su estado actual.";
-    case 500:
-      return "No fue posible crear la precotización. Inténtalo nuevamente.";
-    default:
-      return "No fue posible crear la precotización. Inténtalo nuevamente.";
+    case PREQUOTE_ERROR_CODES.unauthorized:
+      return "Tu sesión no permite crear precotizaciones. Inicia sesión nuevamente.";
+    case PREQUOTE_ERROR_CODES.inactiveUser:
+      return "Tu usuario no tiene acceso para crear precotizaciones.";
+    case PREQUOTE_ERROR_CODES.projectNotFound:
+      return "El proyecto ya no está disponible.";
+    case PREQUOTE_ERROR_CODES.projectInactive:
+      return "No se pueden crear precotizaciones para un proyecto inactivo.";
+    case PREQUOTE_ERROR_CODES.clientNotFound:
+      return "El cliente del proyecto ya no está disponible.";
+    case PREQUOTE_ERROR_CODES.clientInactive:
+      return "No se pueden crear precotizaciones porque el cliente está inactivo.";
+    case PREQUOTE_ERROR_CODES.queryError:
+      return "No fue posible consultar el proyecto antes de crear la precotización.";
+    case PREQUOTE_ERROR_CODES.persistenceError:
+      return "No fue posible registrar la precotización.";
+    case API_ERROR_CODES.methodNotAllowed:
+      return "La operación solicitada no está disponible.";
+    case API_ERROR_CODES.payloadTooLarge:
+      return "La solicitud supera el tamaño permitido por el servidor.";
+    case API_ERROR_CODES.internalServerError:
+      return fallbackMessage;
   }
+
+  return getStatusFallbackMessage(
+    error,
+    {
+      0: "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.",
+      400: "No fue posible crear la precotización porque la solicitud no es válida.",
+      401: "Tu sesión no permite crear precotizaciones. Inicia sesión nuevamente.",
+      403: "No tienes acceso para crear precotizaciones.",
+      404: "El proyecto o su cliente ya no está disponible.",
+      409: "El proyecto o su cliente no permite crear precotizaciones en su estado actual.",
+      500: fallbackMessage,
+    },
+    fallbackMessage,
+  );
 }
 
 export function getPreQuoteDetailsErrorMessage(error: unknown): string {
+  const fallbackMessage =
+    "No fue posible consultar la precotización. Inténtalo nuevamente.";
+
   if (isPreQuoteProjectMismatchError(error)) {
     return "La precotización solicitada no pertenece a este proyecto.";
   }
 
   if (!(error instanceof ApiError)) {
-    return "No fue posible consultar la precotización. Inténtalo nuevamente.";
+    return fallbackMessage;
   }
 
-  switch (error.status) {
-    case 0:
-      return "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.";
-    case 400:
+  switch (getApiErrorCode(error)) {
+    case PREQUOTE_ERROR_CODES.invalidRequest:
       return "No fue posible consultar la precotización porque la solicitud no es válida.";
-    case 401:
+    case PREQUOTE_ERROR_CODES.unauthorized:
       return "Tu sesión no es válida o expiró.";
-    case 403:
+    case PREQUOTE_ERROR_CODES.inactiveUser:
       return "No tienes acceso para consultar esta precotización.";
-    case 404:
+    case PREQUOTE_ERROR_CODES.notFound:
       return "La precotización ya no está disponible.";
-    case 500:
-      return "No fue posible consultar la precotización. Inténtalo nuevamente.";
-    default:
-      return "No fue posible consultar la precotización. Inténtalo nuevamente.";
+    case PREQUOTE_ERROR_CODES.queryError:
+      return fallbackMessage;
+    case API_ERROR_CODES.methodNotAllowed:
+      return "La operación solicitada no está disponible.";
+    case API_ERROR_CODES.payloadTooLarge:
+      return "La solicitud supera el tamaño permitido por el servidor.";
+    case API_ERROR_CODES.internalServerError:
+      return fallbackMessage;
   }
+
+  return getStatusFallbackMessage(
+    error,
+    {
+      0: "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.",
+      400: "No fue posible consultar la precotización porque la solicitud no es válida.",
+      401: "Tu sesión no es válida o expiró.",
+      403: "No tienes acceso para consultar esta precotización.",
+      404: "La precotización ya no está disponible.",
+      500: fallbackMessage,
+    },
+    fallbackMessage,
+  );
 }
 
 export function getPreQuoteDocumentsErrorMessage(error: unknown): string {
+  const fallbackMessage =
+    "No fue posible consultar los documentos. Inténtalo nuevamente.";
+
   if (!(error instanceof ApiError)) {
-    return "No fue posible consultar los documentos. Inténtalo nuevamente.";
+    return fallbackMessage;
   }
 
-  switch (error.status) {
-    case 0:
-      return "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.";
-    case 400:
+  switch (getApiErrorCode(error)) {
+    case PREQUOTE_ERROR_CODES.documentsInvalidRequest:
       return "No fue posible consultar los documentos porque la solicitud no es válida.";
-    case 401:
+    case PREQUOTE_ERROR_CODES.unauthorized:
       return "Tu sesión no es válida o expiró.";
-    case 403:
+    case PREQUOTE_ERROR_CODES.inactiveUser:
       return "No tienes acceso para consultar los documentos.";
-    case 404:
+    case PREQUOTE_ERROR_CODES.notFound:
       return "La precotización ya no está disponible.";
-    case 500:
-      return "No fue posible consultar los documentos. Inténtalo nuevamente.";
-    default:
-      return "No fue posible consultar los documentos. Inténtalo nuevamente.";
+    case PREQUOTE_ERROR_CODES.documentsQueryError:
+      return fallbackMessage;
+    case API_ERROR_CODES.methodNotAllowed:
+      return "La operación solicitada no está disponible.";
+    case API_ERROR_CODES.payloadTooLarge:
+      return "La solicitud supera el tamaño permitido por el servidor.";
+    case API_ERROR_CODES.internalServerError:
+      return fallbackMessage;
   }
+
+  return getStatusFallbackMessage(
+    error,
+    {
+      0: "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.",
+      400: "No fue posible consultar los documentos porque la solicitud no es válida.",
+      401: "Tu sesión no es válida o expiró.",
+      403: "No tienes acceso para consultar los documentos.",
+      404: "La precotización ya no está disponible.",
+      500: fallbackMessage,
+    },
+    fallbackMessage,
+  );
 }
 
 export function getUploadPreQuoteDocumentErrorMessage(error: unknown): string {
+  const fallbackMessage =
+    "No fue posible registrar el documento. Inténtalo nuevamente.";
+
   if (isInvalidUploadPreQuoteDocumentResponseError(error)) {
     return "El servidor devolvió una respuesta inesperada al registrar el documento.";
   }
 
   if (!(error instanceof ApiError)) {
-    return "No fue posible registrar el documento. Inténtalo nuevamente.";
+    return fallbackMessage;
   }
 
-  switch (error.status) {
-    case 0:
-      return "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.";
-    case 400:
+  switch (getApiErrorCode(error)) {
+    case PREQUOTE_ERROR_CODES.documentInvalidRequest:
       return "No fue posible registrar el documento porque la solicitud no es válida.";
-    case 401:
-      return "Tu sesión no es válida o expiró.";
-    case 403:
-      return "No tienes acceso para agregar documentos.";
-    case 404:
-      return "La precotización, el proyecto o el cliente ya no está disponible.";
-    case 409:
-      return "El proyecto o su cliente no permite agregar documentos en su estado actual.";
-    case 413:
-      return "El documento PDF no puede superar 20 MiB.";
-    case 415:
+    case PREQUOTE_ERROR_CODES.documentUnsupportedFileType:
       return "Selecciona un archivo en formato PDF.";
-    case 422:
+    case PREQUOTE_ERROR_CODES.documentEmptyFile:
       return "El documento PDF está vacío o no contiene información válida.";
-    case 500:
-      return "No fue posible registrar el documento. Inténtalo nuevamente.";
-    default:
-      return "No fue posible registrar el documento. Inténtalo nuevamente.";
+    case PREQUOTE_ERROR_CODES.documentFileTooLarge:
+      return "El documento PDF no puede superar 20 MiB.";
+    case PREQUOTE_ERROR_CODES.unauthorized:
+      return "Tu sesión no permite agregar documentos. Inicia sesión nuevamente.";
+    case PREQUOTE_ERROR_CODES.inactiveUser:
+      return "Tu usuario no tiene acceso para agregar documentos.";
+    case PREQUOTE_ERROR_CODES.documentPreQuoteNotFound:
+      return "La precotización, el proyecto o el cliente ya no está disponible.";
+    case PREQUOTE_ERROR_CODES.documentProjectInactive:
+      return "No se pueden agregar documentos a un proyecto inactivo.";
+    case PREQUOTE_ERROR_CODES.documentClientInactive:
+      return "No se pueden agregar documentos porque el cliente está inactivo.";
+    case PREQUOTE_ERROR_CODES.documentStorageError:
+      return "No fue posible almacenar el documento.";
+    case PREQUOTE_ERROR_CODES.documentPersistenceError:
+      return "No fue posible registrar el documento.";
+    case API_ERROR_CODES.unsupportedMediaType:
+      return "Selecciona un archivo en formato PDF.";
+    case API_ERROR_CODES.methodNotAllowed:
+      return "La operación solicitada no está disponible.";
+    case API_ERROR_CODES.payloadTooLarge:
+      return "El documento PDF no puede superar 20 MiB.";
+    case API_ERROR_CODES.internalServerError:
+      return fallbackMessage;
   }
+
+  return getStatusFallbackMessage(
+    error,
+    {
+      0: "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.",
+      400: "No fue posible registrar el documento porque la solicitud no es válida.",
+      401: "Tu sesión no es válida o expiró.",
+      403: "No tienes acceso para agregar documentos.",
+      404: "La precotización, el proyecto o el cliente ya no está disponible.",
+      409: "El proyecto o su cliente no permite agregar documentos en su estado actual.",
+      413: "El documento PDF no puede superar 20 MiB.",
+      415: "Selecciona un archivo en formato PDF.",
+      422: "El documento PDF está vacío o no contiene información válida.",
+      500: fallbackMessage,
+    },
+    fallbackMessage,
+  );
 }
 
 export function getStartDocumentProcessingErrorMessage(error: unknown): string {
+  const fallbackMessage =
+    "No fue posible iniciar el procesamiento. Inténtalo nuevamente.";
+
   if (isInvalidStartDocumentProcessingResponseError(error)) {
     return "El servidor devolvió una respuesta inesperada al iniciar el procesamiento.";
   }
 
   if (!(error instanceof ApiError)) {
-    return "No fue posible iniciar el procesamiento. Inténtalo nuevamente.";
+    return fallbackMessage;
   }
 
-  if (error.status === 0) {
-    return "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.";
-  }
-
-  switch (getProcessingProblemErrorCode(error)) {
-    case "DOCUMENT_PROCESSING_INVALID_REQUEST":
+  switch (getApiErrorCode(error)) {
+    case PREQUOTE_ERROR_CODES.processingInvalidRequest:
       return "No fue posible iniciar el procesamiento porque la solicitud no es válida.";
-    case "AUTH_UNAUTHORIZED":
+    case PREQUOTE_ERROR_CODES.unauthorized:
       return "Tu sesión no permite iniciar el procesamiento. Inicia sesión nuevamente.";
-    case "AUTH_USER_INACTIVE":
+    case PREQUOTE_ERROR_CODES.inactiveUser:
       return "Tu usuario no tiene acceso para procesar documentos.";
-    case "PREQUOTE_DOCUMENT_NOT_FOUND":
+    case PREQUOTE_ERROR_CODES.processingDocumentNotFound:
       return "El documento ya no está disponible o no tienes acceso a él.";
-    case "PREQUOTE_PROJECT_INACTIVE":
+    case PREQUOTE_ERROR_CODES.processingProjectInactive:
       return "No se pueden procesar documentos de un proyecto inactivo.";
-    case "PREQUOTE_CLIENT_INACTIVE":
+    case PREQUOTE_ERROR_CODES.processingClientInactive:
       return "No se pueden procesar documentos porque el cliente está inactivo.";
-    case "DOCUMENT_PROCESSING_ALREADY_ACTIVE":
+    case PREQUOTE_ERROR_CODES.processingAlreadyActive:
       return "El documento ya tiene un procesamiento en curso. Actualiza los documentos para consultar su estado.";
-    case "DOCUMENT_PROCESSING_QUERY_ERROR":
+    case PREQUOTE_ERROR_CODES.processingQueryError:
       return "No fue posible consultar el documento antes de iniciar el procesamiento.";
-    case "DOCUMENT_PROCESSING_PERSISTENCE_ERROR":
+    case PREQUOTE_ERROR_CODES.processingPersistenceError:
       return "No fue posible registrar el intento de procesamiento.";
+    case API_ERROR_CODES.methodNotAllowed:
+      return "La operación solicitada no está disponible.";
+    case API_ERROR_CODES.payloadTooLarge:
+      return "La solicitud supera el tamaño permitido por el servidor.";
+    case API_ERROR_CODES.internalServerError:
+      return fallbackMessage;
   }
 
-  switch (error.status) {
-    case 400:
-      return "No fue posible iniciar el procesamiento porque la solicitud no es válida.";
-    case 401:
-      return "Tu sesión no permite iniciar el procesamiento. Inicia sesión nuevamente.";
-    case 403:
-      return "No tienes acceso para procesar este documento.";
-    case 404:
-      return "El documento ya no está disponible o no tienes acceso a él.";
-    case 409:
-      return "No fue posible iniciar el procesamiento por el estado actual del documento, proyecto o cliente.";
-    case 500:
-      return "No fue posible iniciar el procesamiento. Inténtalo nuevamente.";
-    default:
-      return "No fue posible iniciar el procesamiento. Inténtalo nuevamente.";
-  }
+  return getStatusFallbackMessage(
+    error,
+    {
+      0: "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.",
+      400: "No fue posible iniciar el procesamiento porque la solicitud no es válida.",
+      401: "Tu sesión no permite iniciar el procesamiento. Inicia sesión nuevamente.",
+      403: "No tienes acceso para procesar este documento.",
+      404: "El documento ya no está disponible o no tienes acceso a él.",
+      409: "No fue posible iniciar el procesamiento por el estado actual del documento, proyecto o cliente.",
+      500: fallbackMessage,
+    },
+    fallbackMessage,
+  );
 }

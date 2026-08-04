@@ -3,7 +3,9 @@ import Link from "next/link";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
+import { PROJECT_ERROR_CODES } from "@/features/projects/project-error-codes";
 import type { ProjectDetailsLoadError } from "@/features/projects/use-project-details";
+import { API_ERROR_CODES, getApiErrorCode } from "@/lib/errors/api-error-code";
 import { ApiError } from "@/lib/http/api-error";
 import { cn } from "@/lib/utils/cn";
 
@@ -22,6 +24,65 @@ function getProjectErrorContent(error: ProjectDetailsLoadError): {
       canRetry: true,
       isNotFound: false,
     };
+  }
+
+  switch (getApiErrorCode(cause)) {
+    case PROJECT_ERROR_CODES.invalidRequest:
+      return {
+        title: "Solicitud inválida",
+        message: "No fue posible consultar el proyecto solicitado.",
+        canRetry: true,
+        isNotFound: false,
+      };
+    case PROJECT_ERROR_CODES.unauthorized:
+      return {
+        title: "Sesión no válida",
+        message: "Tu sesión no es válida o expiró.",
+        canRetry: true,
+        isNotFound: false,
+      };
+    case PROJECT_ERROR_CODES.inactiveUser:
+      return {
+        title: "Acceso no permitido",
+        message: "No tienes permiso para consultar este proyecto.",
+        canRetry: true,
+        isNotFound: false,
+      };
+    case PROJECT_ERROR_CODES.projectNotFound:
+      return {
+        title: "Proyecto no encontrado",
+        message: "No existe un proyecto con el identificador indicado.",
+        canRetry: false,
+        isNotFound: true,
+      };
+    case PROJECT_ERROR_CODES.queryError:
+      return {
+        title: "No fue posible consultar el proyecto",
+        message: "Intenta nuevamente en unos minutos.",
+        canRetry: true,
+        isNotFound: false,
+      };
+    case API_ERROR_CODES.methodNotAllowed:
+      return {
+        title: "Operación no disponible",
+        message: "La operación solicitada no está disponible.",
+        canRetry: true,
+        isNotFound: false,
+      };
+    case API_ERROR_CODES.payloadTooLarge:
+      return {
+        title: "Solicitud demasiado grande",
+        message: "La solicitud supera el tamaño permitido por el servidor.",
+        canRetry: true,
+        isNotFound: false,
+      };
+    case API_ERROR_CODES.internalServerError:
+      return {
+        title: "No fue posible consultar el proyecto",
+        message: "Intenta nuevamente en unos minutos.",
+        canRetry: true,
+        isNotFound: false,
+      };
   }
 
   switch (cause.status) {

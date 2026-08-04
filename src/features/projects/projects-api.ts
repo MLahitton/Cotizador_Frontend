@@ -138,6 +138,19 @@ function isRequestedProjectDetails(
   );
 }
 
+export class InvalidProjectActivationResponseError extends Error {
+  constructor() {
+    super("No fue posible confirmar el nuevo estado del proyecto.");
+    this.name = "InvalidProjectActivationResponseError";
+  }
+}
+
+export function isInvalidProjectActivationResponseError(
+  error: unknown,
+): error is InvalidProjectActivationResponseError {
+  return error instanceof InvalidProjectActivationResponseError;
+}
+
 function isValidDateTime(value: string): boolean {
   return Number.isFinite(Date.parse(value));
 }
@@ -296,12 +309,7 @@ export async function setProjectActivation(
   );
 
   if (!isRequestedProjectDetails(response, projectId, request.isActive)) {
-    throw new ApiError({
-      status: 0,
-      title: "Respuesta invalida",
-      detail:
-        "No fue posible confirmar el nuevo estado del proyecto.",
-    });
+    throw new InvalidProjectActivationResponseError();
   }
 
   return response;

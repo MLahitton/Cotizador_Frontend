@@ -3,7 +3,10 @@ import Link from "next/link";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
+import { PROJECT_ERROR_CODES } from "@/features/projects/project-error-codes";
+import { isInvalidProjectActivationResponseError } from "@/features/projects/projects-api";
 import type { ProjectActivationError } from "@/features/projects/use-set-project-activation";
+import { API_ERROR_CODES, getApiErrorCode } from "@/lib/errors/api-error-code";
 import { ApiError } from "@/lib/http/api-error";
 import { cn } from "@/lib/utils/cn";
 
@@ -38,6 +41,13 @@ function getActivationErrorContent(error: ProjectActivationError): {
 } {
   const cause = error.cause;
 
+  if (isInvalidProjectActivationResponseError(cause)) {
+    return {
+      message: "No fue posible confirmar el nuevo estado del proyecto.",
+      isNotFound: false,
+    };
+  }
+
   if (!(cause instanceof ApiError)) {
     return {
       message: "No fue posible cambiar el estado del proyecto. Intentalo nuevamente.",
@@ -45,14 +55,56 @@ function getActivationErrorContent(error: ProjectActivationError): {
     };
   }
 
-  if (
-    cause.status === 0 &&
-    cause.detail === "No fue posible confirmar el nuevo estado del proyecto."
-  ) {
-    return {
-      message: "No fue posible confirmar el nuevo estado del proyecto.",
-      isNotFound: false,
-    };
+  switch (getApiErrorCode(cause)) {
+    case PROJECT_ERROR_CODES.invalidRequest:
+      return {
+        message:
+          "No fue posible cambiar el estado del proyecto porque la solicitud no es válida.",
+        isNotFound: false,
+      };
+    case PROJECT_ERROR_CODES.unauthorized:
+      return {
+        message: "Tu sesión no es válida o expiró.",
+        isNotFound: false,
+      };
+    case PROJECT_ERROR_CODES.inactiveUser:
+      return {
+        message: "No tienes permisos para cambiar el estado de este proyecto.",
+        isNotFound: false,
+      };
+    case PROJECT_ERROR_CODES.projectNotFound:
+      return {
+        message: "El proyecto ya no está disponible.",
+        isNotFound: true,
+      };
+    case PROJECT_ERROR_CODES.queryError:
+      return {
+        message:
+          "No fue posible consultar el proyecto para cambiar su estado. Inténtalo nuevamente.",
+        isNotFound: false,
+      };
+    case PROJECT_ERROR_CODES.persistenceError:
+      return {
+        message:
+          "No fue posible cambiar el estado del proyecto. Inténtalo nuevamente.",
+        isNotFound: false,
+      };
+    case API_ERROR_CODES.methodNotAllowed:
+      return {
+        message: "La operación solicitada no está disponible.",
+        isNotFound: false,
+      };
+    case API_ERROR_CODES.payloadTooLarge:
+      return {
+        message: "La solicitud supera el tamaño permitido por el servidor.",
+        isNotFound: false,
+      };
+    case API_ERROR_CODES.internalServerError:
+      return {
+        message:
+          "No fue posible cambiar el estado del proyecto. Inténtalo nuevamente.",
+        isNotFound: false,
+      };
   }
 
   switch (cause.status) {

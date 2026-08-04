@@ -33,6 +33,19 @@ export function isInvalidCreatePreQuoteResponseError(
   return error instanceof InvalidCreatePreQuoteResponseError;
 }
 
+export class PreQuoteProjectMismatchError extends Error {
+  constructor() {
+    super(PREQUOTE_PROJECT_MISMATCH_DETAIL);
+    this.name = "PreQuoteProjectMismatchError";
+  }
+}
+
+export function isPreQuoteProjectMismatchError(
+  error: unknown,
+): error is PreQuoteProjectMismatchError {
+  return error instanceof PreQuoteProjectMismatchError;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -137,20 +150,8 @@ function isCreatedPreQuote(
   );
 }
 
-export function createPreQuoteProjectMismatchError(): ApiError {
-  return new ApiError({
-    status: 0,
-    title: "Respuesta inválida",
-    detail: PREQUOTE_PROJECT_MISMATCH_DETAIL,
-  });
-}
-
-export function isPreQuoteProjectMismatchError(error: unknown): boolean {
-  return (
-    error instanceof ApiError &&
-    error.status === 0 &&
-    error.detail === PREQUOTE_PROJECT_MISMATCH_DETAIL
-  );
+export function createPreQuoteProjectMismatchError(): PreQuoteProjectMismatchError {
+  return new PreQuoteProjectMismatchError();
 }
 
 export async function getProjectPreQuotes(
