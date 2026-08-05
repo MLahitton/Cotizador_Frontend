@@ -18,6 +18,7 @@ import type {
   PreQuoteDraftSummary,
   PreQuoteDraftValuationInvalidationReason,
   PreQuoteDraftValuationReason,
+  UpdatePreQuoteDraftRequest,
 } from "@/features/prequotes/prequote-draft-types";
 import { apiRequest } from "@/lib/http/api-client";
 
@@ -25,6 +26,9 @@ const INVALID_DRAFT_RESPONSE_MESSAGE =
   "El servidor devolvió una respuesta inesperada al consultar el borrador.";
 const INVALID_CREATE_DRAFT_RESPONSE_MESSAGE =
   "El servidor devolvió una respuesta inesperada al crear el borrador.";
+
+const INVALID_UPDATE_DRAFT_RESPONSE_MESSAGE =
+  "El servidor devolvio una respuesta inesperada al actualizar el borrador.";
 
 const CONTRACT_GUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -123,6 +127,13 @@ export class InvalidCreatePreQuoteDraftResponseError extends Error {
   }
 }
 
+export class InvalidUpdatePreQuoteDraftResponseError extends Error {
+  constructor() {
+    super(INVALID_UPDATE_DRAFT_RESPONSE_MESSAGE);
+    this.name = "InvalidUpdatePreQuoteDraftResponseError";
+  }
+}
+
 export function isInvalidPreQuoteDraftResponseError(
   error: unknown,
 ): error is InvalidPreQuoteDraftResponseError {
@@ -133,6 +144,12 @@ export function isInvalidCreatePreQuoteDraftResponseError(
   error: unknown,
 ): error is InvalidCreatePreQuoteDraftResponseError {
   return error instanceof InvalidCreatePreQuoteDraftResponseError;
+}
+
+export function isInvalidUpdatePreQuoteDraftResponseError(
+  error: unknown,
+): error is InvalidUpdatePreQuoteDraftResponseError {
+  return error instanceof InvalidUpdatePreQuoteDraftResponseError;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -776,6 +793,94 @@ function normalizeDraftDetails(
   };
 }
 
+function hasUniqueNullableIds(values: (string | null)[]): boolean {
+  const persistedIds = values.filter((value): value is string => value !== null);
+  return (
+    new Set(persistedIds.map((value) => value.toLowerCase())).size ===
+    persistedIds.length
+  );
+}
+
+function hasUniqueIds(values: string[]): boolean {
+  return new Set(values.map((value) => value.toLowerCase())).size === values.length;
+}
+
+function hasConsecutiveRequestSequences(values: { sequence: number }[]): boolean {
+  return values.every((value, index) => value.sequence === index + 1);
+}
+
+function isValidUpdateRequest(request: UpdatePreQuoteDraftRequest): boolean {
+  return (
+    isPositiveInteger(request.expectedVersion) &&
+    isRecord(request.project) &&
+    isNullableString(request.project.name) &&
+    isNullableString(request.project.clientName) &&
+    isNullableString(request.project.location) &&
+    Array.isArray(request.items) &&
+    Array.isArray(request.requirements) &&
+    Array.isArray(request.documentReferences) &&
+    Array.isArray(request.issues) &&
+    Array.isArray(request.conflicts) &&
+    hasConsecutiveRequestSequences(request.items) &&
+    hasConsecutiveRequestSequences(request.requirements) &&
+    hasConsecutiveRequestSequences(request.documentReferences) &&
+    hasUniqueNullableIds(request.items.map((item) => item.draftItemId)) &&
+    hasUniqueNullableIds(
+      request.requirements.map((requirement) => requirement.draftRequirementId),
+    ) &&
+    hasUniqueNullableIds(
+      request.documentReferences.map(
+        (reference) => reference.draftDocumentReferenceId,
+      ),
+    ) &&
+    hasUniqueIds(request.issues.map((issue) => issue.draftIssueId)) &&
+    hasUniqueIds(request.conflicts.map((conflict) => conflict.draftConflictId)) &&
+    request.items.every(
+      (item) =>
+        isNullableContractGuid(item.draftItemId) &&
+        isPositiveInteger(item.sequence) &&
+        isNullableString(item.reference) &&
+        isNonEmptyString(item.description) &&
+        isStringIn(item.elementType, ELEMENT_TYPES) &&
+        isNullableString(item.rawMeasurements) &&
+        isPositiveNullableInteger(item.widthMillimeters) &&
+        isPositiveNullableInteger(item.heightMillimeters) &&
+        isPositiveNullableInteger(item.quantity) &&
+        typeof item.isIncluded === "boolean",
+    ) &&
+    request.requirements.every(
+      (requirement) =>
+        isNullableContractGuid(requirement.draftRequirementId) &&
+        isPositiveInteger(requirement.sequence) &&
+        isStringIn(requirement.category, REQUIREMENT_CATEGORIES) &&
+        typeof requirement.value === "string" &&
+        typeof requirement.isIncluded === "boolean",
+    ) &&
+    request.documentReferences.every(
+      (reference) =>
+        isNullableContractGuid(reference.draftDocumentReferenceId) &&
+        isPositiveInteger(reference.sequence) &&
+        isNullableString(reference.reference) &&
+        isNonEmptyString(reference.description) &&
+        isNullableString(reference.detail) &&
+        isPositiveNullableInteger(reference.quantity) &&
+        typeof reference.isIncluded === "boolean",
+    ) &&
+    request.issues.every(
+      (issue) =>
+        isValidContractGuid(issue.draftIssueId) &&
+        isStringIn(issue.resolutionStatus, RESOLUTION_STATUSES) &&
+        isNullableString(issue.resolutionNote),
+    ) &&
+    request.conflicts.every(
+      (conflict) =>
+        isValidContractGuid(conflict.draftConflictId) &&
+        isStringIn(conflict.resolutionStatus, RESOLUTION_STATUSES) &&
+        isNullableString(conflict.resolutionNote),
+    )
+  );
+}
+
 export function isValidPreQuoteDraftContractGuid(value: string): boolean {
   return isValidContractGuid(value);
 }
@@ -824,6 +929,31 @@ export async function createPreQuoteDraft(
 
   if (!draft) {
     throw new InvalidCreatePreQuoteDraftResponseError();
+  }
+
+  return draft;
+}
+
+export async function updatePreQuoteDraft(
+  preQuoteId: string,
+  request: UpdatePreQuoteDraftRequest,
+): Promise<PreQuoteDraftDetails> {
+  if (!isValidPreQuoteId(preQuoteId) || !isValidUpdateRequest(request)) {
+    throw new InvalidUpdatePreQuoteDraftResponseError();
+  }
+
+  const response = await apiRequest(
+    `/api/v1/prequotes/${encodeURIComponent(preQuoteId)}/draft`,
+    {
+      method: "PUT",
+      authenticated: true,
+      body: request,
+    },
+  );
+  const draft = normalizeDraftDetails(response, preQuoteId);
+
+  if (!draft) {
+    throw new InvalidUpdatePreQuoteDraftResponseError();
   }
 
   return draft;

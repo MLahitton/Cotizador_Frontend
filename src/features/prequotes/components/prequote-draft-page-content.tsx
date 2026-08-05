@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowLeft, CircleAlert } from "lucide-react";
+import { ArrowLeft, CircleAlert, Pencil } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import {
   getPreQuoteDraftErrorContent,
   getProjectContextErrorMessage,
 } from "@/features/prequotes/components/prequote-errors";
+import { PreQuoteDraftEditor } from "@/features/prequotes/components/prequote-draft-editor";
 import { PreQuoteDraftFindingsSection } from "@/features/prequotes/components/prequote-draft-findings-section";
 import { PreQuoteDraftItemsSection } from "@/features/prequotes/components/prequote-draft-items-section";
 import { PreQuoteDraftReferencesSection } from "@/features/prequotes/components/prequote-draft-references-section";
@@ -324,26 +326,91 @@ function PreQuoteDraftView({
   projectId,
   preQuoteId,
   draft,
+  onDraftUpdated,
+  onReloadDraft,
 }: {
   projectId: string;
   preQuoteId: string;
   draft: PreQuoteDraftDetails;
+  onDraftUpdated: (draft: PreQuoteDraftDetails) => void;
+  onReloadDraft: () => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const canEdit = draft.status !== "APPROVED";
+
+  const handleUpdated = (updatedDraft: PreQuoteDraftDetails) => {
+    onDraftUpdated(updatedDraft);
+    setIsEditing(false);
+    setSuccessMessage(`Cambios guardados. Versión ${updatedDraft.version}.`);
+  };
+
+  const handleDiscardAndReload = () => {
+    setIsEditing(false);
+    setSuccessMessage(null);
+    onReloadDraft();
+  };
+
   return (
     <div className="min-w-0 space-y-6">
       <DraftHeader projectId={projectId} preQuoteId={preQuoteId} draft={draft} />
       <DraftLocalNavigation />
-      <GeneralInformation draft={draft} />
-      <OperationalSummary draft={draft} />
-      <EconomicSummary draft={draft} />
-      <PreQuoteDraftItemsSection items={draft.items} />
-      <PreQuoteDraftRequirementsSection requirements={draft.requirements} />
-      <PreQuoteDraftReferencesSection references={draft.documentReferences} />
-      <PreQuoteDraftFindingsSection
-        issues={draft.issues}
-        conflicts={draft.conflicts}
-        summary={draft.summary}
-      />
+      <Surface>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div aria-live="polite" className="min-w-0">
+            {successMessage ? (
+              <p className="text-sm font-semibold text-success">{successMessage}</p>
+            ) : (
+              <p className="text-sm text-foreground-secondary">
+                {isEditing
+                  ? "Modo edicion activo."
+                  : "El borrador esta en modo solo lectura."}
+              </p>
+            )}
+          </div>
+          {!isEditing && canEdit ? (
+            <Button
+              type="button"
+              variant="primary"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setSuccessMessage(null);
+                setIsEditing(true);
+              }}
+            >
+              <Pencil aria-hidden="true" size={16} strokeWidth={1.75} />
+              Editar borrador
+            </Button>
+          ) : null}
+        </div>
+      </Surface>
+      {isEditing ? (
+        <>
+          <OperationalSummary draft={draft} />
+          <EconomicSummary draft={draft} />
+          <PreQuoteDraftEditor
+            draft={draft}
+            preQuoteId={preQuoteId}
+            onCancel={() => setIsEditing(false)}
+            onUpdated={handleUpdated}
+            onDiscardAndReload={handleDiscardAndReload}
+          />
+        </>
+      ) : (
+        <>
+          <GeneralInformation draft={draft} />
+          <OperationalSummary draft={draft} />
+          <EconomicSummary draft={draft} />
+          <PreQuoteDraftItemsSection items={draft.items} />
+          <PreQuoteDraftRequirementsSection requirements={draft.requirements} />
+          <PreQuoteDraftReferencesSection references={draft.documentReferences} />
+          <PreQuoteDraftFindingsSection
+            issues={draft.issues}
+            conflicts={draft.conflicts}
+            summary={draft.summary}
+          />
+        </>
+      )}
       <OriginInformation draft={draft} />
     </div>
   );
@@ -470,6 +537,10 @@ export function PreQuoteDraftPageContent({
       projectId={project.id}
       preQuoteId={preQuote.id}
       draft={draft.draft}
+      onDraftUpdated={(updatedDraft) => {
+        draft.acceptAuthoritativeDraft(updatedDraft);
+      }}
+      onReloadDraft={draft.retry}
     />
   );
 }

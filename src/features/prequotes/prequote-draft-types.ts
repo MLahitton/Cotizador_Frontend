@@ -64,6 +64,65 @@ export interface CreatePreQuoteDraftRequest {
   sourceStructuredExtractionId: string;
 }
 
+export interface UpdatePreQuoteDraftProjectRequest {
+  name: string | null;
+  clientName: string | null;
+  location: string | null;
+}
+
+export interface UpdatePreQuoteDraftItemRequest {
+  draftItemId: string | null;
+  sequence: number;
+  reference: string | null;
+  description: string;
+  elementType: PreQuoteDraftElementType;
+  rawMeasurements: string | null;
+  widthMillimeters: number | null;
+  heightMillimeters: number | null;
+  quantity: number | null;
+  isIncluded: boolean;
+}
+
+export interface UpdatePreQuoteDraftRequirementRequest {
+  draftRequirementId: string | null;
+  sequence: number;
+  category: PreQuoteDraftRequirementCategory;
+  value: string;
+  isIncluded: boolean;
+}
+
+export interface UpdatePreQuoteDraftDocumentReferenceRequest {
+  draftDocumentReferenceId: string | null;
+  sequence: number;
+  reference: string | null;
+  description: string;
+  detail: string | null;
+  quantity: number | null;
+  isIncluded: boolean;
+}
+
+export interface UpdatePreQuoteDraftIssueResolutionRequest {
+  draftIssueId: string;
+  resolutionStatus: PreQuoteDraftResolutionStatus;
+  resolutionNote: string | null;
+}
+
+export interface UpdatePreQuoteDraftConflictResolutionRequest {
+  draftConflictId: string;
+  resolutionStatus: PreQuoteDraftResolutionStatus;
+  resolutionNote: string | null;
+}
+
+export interface UpdatePreQuoteDraftRequest {
+  expectedVersion: number;
+  project: UpdatePreQuoteDraftProjectRequest;
+  items: UpdatePreQuoteDraftItemRequest[];
+  requirements: UpdatePreQuoteDraftRequirementRequest[];
+  documentReferences: UpdatePreQuoteDraftDocumentReferenceRequest[];
+  issues: UpdatePreQuoteDraftIssueResolutionRequest[];
+  conflicts: UpdatePreQuoteDraftConflictResolutionRequest[];
+}
+
 export interface PreQuoteDraftItemGlassEvidence {
   sequence: number;
   pageNumber: number;
@@ -244,9 +303,20 @@ export interface CreatePreQuoteDraftError {
   cause: unknown;
 }
 
+export interface UpdatePreQuoteDraftError {
+  cause: unknown;
+}
+
 export type CreatePreQuoteDraftResult =
   | { status: "created"; draft: PreQuoteDraftDetails }
   | { status: "already-exists" }
+  | { status: "failed" }
+  | { status: "ignored" }
+  | { status: "stale" };
+
+export type UpdatePreQuoteDraftResult =
+  | { status: "updated"; draft: PreQuoteDraftDetails }
+  | { status: "version-conflict" }
   | { status: "failed" }
   | { status: "ignored" }
   | { status: "stale" };

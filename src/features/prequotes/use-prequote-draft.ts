@@ -83,6 +83,24 @@ export function usePreQuoteDraft(preQuoteId: string, enabled = true) {
     setReloadKey((current) => current + 1);
   }, []);
 
+  const acceptAuthoritativeDraft = useCallback(
+    (updatedDraft: PreQuoteDraftDetails) => {
+      if (!idsMatch(updatedDraft.preQuoteId, preQuoteId)) {
+        return false;
+      }
+
+      requestIdRef.current += 1;
+      setState({
+        key,
+        status: "success",
+        data: updatedDraft,
+        error: null,
+      });
+      return true;
+    },
+    [key, preQuoteId],
+  );
+
   const renderableState =
     state.key === key
       ? state
@@ -102,5 +120,6 @@ export function usePreQuoteDraft(preQuoteId: string, enabled = true) {
     isLoading: renderableState.status === "loading",
     isNotFound: renderableState.status === "not-found",
     retry,
+    acceptAuthoritativeDraft,
   };
 }
