@@ -35,14 +35,32 @@ const RESOLUTION_STATUSES = [
   "DISMISSED",
 ] as const satisfies readonly PreQuoteDraftResolutionStatus[];
 
-function isPositiveIntegerText(value: string): boolean {
+export type NullablePositiveIntegerInput =
+  | { kind: "empty"; value: null }
+  | { kind: "valid"; value: number }
+  | { kind: "invalid"; value: null };
+
+export function parseNullablePositiveIntegerInput(
+  value: string,
+): NullablePositiveIntegerInput {
   const trimmed = value.trim();
-  return /^\d+$/.test(trimmed) && Number(trimmed) > 0;
+
+  if (trimmed.length === 0) {
+    return { kind: "empty", value: null };
+  }
+
+  if (!/^\d+$/.test(trimmed)) {
+    return { kind: "invalid", value: null };
+  }
+
+  const parsed = Number(trimmed);
+  return Number.isSafeInteger(parsed) && parsed > 0
+    ? { kind: "valid", value: parsed }
+    : { kind: "invalid", value: null };
 }
 
 function hasIntegerError(value: string): boolean {
-  const trimmed = value.trim();
-  return trimmed.length > 0 && !isPositiveIntegerText(trimmed);
+  return parseNullablePositiveIntegerInput(value).kind === "invalid";
 }
 
 function hasDuplicates(values: string[]): boolean {
@@ -89,16 +107,18 @@ function validateFindings(
   expectedIds: string[],
 ): void {
   if (!persistedIdsArePreserved(expectedIds, findings.map((finding) => finding.id))) {
-    errors[`${prefix}.form`] = "La coleccion no conserva todos los identificadores existentes.";
+    errors[`${prefix}.form`] =
+      "La colección no conserva todos los identificadores existentes.";
   }
 
   findings.forEach((finding, index) => {
     if (!isValidPreQuoteDraftContractGuid(finding.id)) {
-      errors[`${prefix}.${index}.id`] = "El identificador no es valido.";
+      errors[`${prefix}.${index}.id`] = "El identificador no es válido.";
     }
 
     if (!RESOLUTION_STATUSES.includes(finding.resolutionStatus)) {
-      errors[`${prefix}.${index}.resolutionStatus`] = "Selecciona un estado valido.";
+      errors[`${prefix}.${index}.resolutionStatus`] =
+        "Selecciona un estado válido.";
     }
 
     if (
@@ -129,7 +149,7 @@ export function validateDraftEditModel(
       model.items.map((item) => item.draftItemId),
     )
   ) {
-    errors["items.form"] = "Todos los items existentes deben conservarse.";
+    errors["items.form"] = "Todos los ítems existentes deben conservarse.";
   }
 
   model.items.forEach((item, index) => {
@@ -138,7 +158,7 @@ export function validateDraftEditModel(
     addLengthError(errors, `items.${index}.rawMeasurements`, item.rawMeasurements, 500);
 
     if (item.description.trim().length === 0) {
-      errors[`items.${index}.description`] = "La descripcion es obligatoria.";
+      errors[`items.${index}.description`] = "La descripción es obligatoria.";
     }
 
     if (!ELEMENT_TYPES.includes(item.elementType as PreQuoteDraftElementType)) {
@@ -171,16 +191,18 @@ export function validateDraftEditModel(
       model.requirements.map((requirement) => requirement.draftRequirementId),
     )
   ) {
-    errors["requirements.form"] = "Todos los requisitos existentes deben conservarse.";
+    errors["requirements.form"] =
+      "Todos los requisitos existentes deben conservarse.";
   }
 
   model.requirements.forEach((requirement, index) => {
     if (!REQUIREMENT_CATEGORIES.includes(requirement.category as PreQuoteDraftRequirementCategory)) {
-      errors[`requirements.${index}.category`] = "Selecciona una categoria.";
+      errors[`requirements.${index}.category`] = "Selecciona una categoría.";
     }
 
     if (requirement.isIncluded && requirement.value.trim().length === 0) {
-      errors[`requirements.${index}.value`] = "El valor es obligatorio si esta incluido.";
+      errors[`requirements.${index}.value`] =
+        "El valor es obligatorio si está incluido.";
     }
 
     addLengthError(errors, `requirements.${index}.value`, requirement.value, 1000);
@@ -194,7 +216,8 @@ export function validateDraftEditModel(
       model.references.map((reference) => reference.draftDocumentReferenceId),
     )
   ) {
-    errors["references.form"] = "Todas las referencias existentes deben conservarse.";
+    errors["references.form"] =
+      "Todas las referencias existentes deben conservarse.";
   }
 
   model.references.forEach((reference, index) => {
@@ -203,7 +226,8 @@ export function validateDraftEditModel(
     addLengthError(errors, `references.${index}.detail`, reference.detail, 2000);
 
     if (reference.description.trim().length === 0) {
-      errors[`references.${index}.description`] = "La descripcion es obligatoria.";
+      errors[`references.${index}.description`] =
+        "La descripción es obligatoria.";
     }
 
     if (hasIntegerError(reference.quantity)) {

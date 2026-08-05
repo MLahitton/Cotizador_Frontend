@@ -317,6 +317,7 @@ export type CreatePreQuoteDraftResult =
 export type UpdatePreQuoteDraftResult =
   | { status: "updated"; draft: PreQuoteDraftDetails }
   | { status: "version-conflict" }
+  | { status: "already-approved" }
   | { status: "failed" }
   | { status: "ignored" }
   | { status: "stale" };

@@ -2,7 +2,10 @@
 
 import { useCallback, useRef, useState } from "react";
 
-import { updatePreQuoteDraft } from "@/features/prequotes/prequote-draft-api";
+import {
+  isInvalidUpdatePreQuoteDraftResponseError,
+  updatePreQuoteDraft,
+} from "@/features/prequotes/prequote-draft-api";
 import type {
   UpdatePreQuoteDraftError,
   UpdatePreQuoteDraftRequest,
@@ -24,30 +27,35 @@ export interface UseUpdatePreQuoteDraftResult {
 
 export function isPreQuoteDraftVersionConflict(error: unknown): boolean {
   return (
-    error instanceof ApiError &&
-    (error.status === 409 ||
-      getApiErrorCode(error) === PREQUOTE_ERROR_CODES.draftVersionConflict) &&
     getApiErrorCode(error) === PREQUOTE_ERROR_CODES.draftVersionConflict
   );
 }
 
+export function isPreQuoteDraftAlreadyApproved(error: unknown): boolean {
+  return getApiErrorCode(error) === PREQUOTE_ERROR_CODES.draftAlreadyApproved;
+}
+
 export function getUpdatePreQuoteDraftErrorMessage(error: unknown): string {
   const fallbackMessage =
-    "No fue posible guardar los cambios del borrador. Intentalo nuevamente.";
+    "No fue posible guardar los cambios del borrador. Inténtalo nuevamente.";
+
+  if (isInvalidUpdatePreQuoteDraftResponseError(error)) {
+    return "El servidor devolvió una respuesta inesperada al actualizar el borrador.";
+  }
 
   const code = getApiErrorCode(error);
 
   switch (code) {
     case PREQUOTE_ERROR_CODES.draftInvalidRequest:
-      return "La solicitud de actualizacion del borrador no es valida.";
+      return "La solicitud de actualización del borrador no es válida.";
     case PREQUOTE_ERROR_CODES.draftNotFound:
-      return "El borrador ya no esta disponible.";
+      return "El borrador ya no está disponible.";
     case PREQUOTE_ERROR_CODES.draftVersionConflict:
-      return "El borrador fue modificado por otra sesion. Revisa tus cambios antes de continuar.";
+      return "El borrador fue modificado por otra sesión. Revisa tus cambios antes de continuar.";
     case PREQUOTE_ERROR_CODES.draftProjectInactive:
-      return "El proyecto esta inactivo y no permite actualizar el borrador.";
+      return "El proyecto está inactivo y no permite actualizar el borrador.";
     case PREQUOTE_ERROR_CODES.draftClientInactive:
-      return "El cliente esta inactivo y no permite actualizar el borrador.";
+      return "El cliente está inactivo y no permite actualizar el borrador.";
     case PREQUOTE_ERROR_CODES.draftAlreadyApproved:
       return "El borrador ya fue aprobado y no puede modificarse.";
     case PREQUOTE_ERROR_CODES.draftInvalidContent:
@@ -57,13 +65,13 @@ export function getUpdatePreQuoteDraftErrorMessage(error: unknown): string {
     case PREQUOTE_ERROR_CODES.draftPersistenceError:
       return "No fue posible persistir los cambios del borrador.";
     case API_ERROR_CODES.unauthorized:
-      return "Tu sesion no permite guardar estos cambios.";
+      return "Tu sesión no permite guardar estos cambios.";
     case API_ERROR_CODES.inactiveUser:
       return "Tu usuario no tiene acceso para guardar estos cambios.";
     case API_ERROR_CODES.methodNotAllowed:
-      return "La operacion solicitada no esta disponible.";
+      return "La operación solicitada no está disponible.";
     case API_ERROR_CODES.payloadTooLarge:
-      return "La solicitud supera el tamano permitido por el servidor.";
+      return "La solicitud supera el tamaño permitido por el servidor.";
     case API_ERROR_CODES.internalServerError:
       return fallbackMessage;
   }
@@ -71,19 +79,19 @@ export function getUpdatePreQuoteDraftErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     switch (error.status) {
       case 0:
-        return "No fue posible conectar con el servidor. Verifica la conexion e intentalo nuevamente.";
+        return "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.";
       case 400:
-        return "La solicitud de actualizacion del borrador no es valida.";
+        return "La solicitud de actualización del borrador no es válida.";
       case 401:
-        return "Tu sesion no permite guardar estos cambios.";
+        return "Tu sesión no permite guardar estos cambios.";
       case 403:
         return "No tienes acceso para guardar este borrador.";
       case 404:
-        return "El borrador ya no esta disponible.";
+        return "El borrador ya no está disponible.";
       case 409:
         return "No fue posible guardar por el estado actual del borrador.";
       case 413:
-        return "La solicitud supera el tamano permitido por el servidor.";
+        return "La solicitud supera el tamaño permitido por el servidor.";
       case 500:
         return fallbackMessage;
     }
@@ -143,6 +151,10 @@ export function useUpdatePreQuoteDraft(): UseUpdatePreQuoteDraftResult {
 
         if (isPreQuoteDraftVersionConflict(cause)) {
           return { status: "version-conflict" };
+        }
+
+        if (isPreQuoteDraftAlreadyApproved(cause)) {
+          return { status: "already-approved" };
         }
 
         return { status: "failed" };

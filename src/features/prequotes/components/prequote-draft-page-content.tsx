@@ -363,8 +363,8 @@ function PreQuoteDraftView({
             ) : (
               <p className="text-sm text-foreground-secondary">
                 {isEditing
-                  ? "Modo edicion activo."
-                  : "El borrador esta en modo solo lectura."}
+                  ? "Modo edición activo."
+                  : "El borrador está en modo solo lectura."}
               </p>
             )}
           </div>

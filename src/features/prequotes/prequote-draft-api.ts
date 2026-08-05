@@ -28,7 +28,7 @@ const INVALID_CREATE_DRAFT_RESPONSE_MESSAGE =
   "El servidor devolvió una respuesta inesperada al crear el borrador.";
 
 const INVALID_UPDATE_DRAFT_RESPONSE_MESSAGE =
-  "El servidor devolvio una respuesta inesperada al actualizar el borrador.";
+  "El servidor devolvió una respuesta inesperada al actualizar el borrador.";
 
 const CONTRACT_GUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
