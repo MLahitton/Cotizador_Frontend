@@ -11,6 +11,10 @@ import {
   getPreQuoteDraftErrorContent,
   getProjectContextErrorMessage,
 } from "@/features/prequotes/components/prequote-errors";
+import { PreQuoteDraftFindingsSection } from "@/features/prequotes/components/prequote-draft-findings-section";
+import { PreQuoteDraftItemsSection } from "@/features/prequotes/components/prequote-draft-items-section";
+import { PreQuoteDraftReferencesSection } from "@/features/prequotes/components/prequote-draft-references-section";
+import { PreQuoteDraftRequirementsSection } from "@/features/prequotes/components/prequote-draft-requirements-section";
 import {
   InvalidIdentifierFeedback,
   PreQuotesError,
@@ -160,6 +164,33 @@ function DraftHeader({
   );
 }
 
+function DraftLocalNavigation() {
+  const links = [
+    ["Resumen", "#draft-summary"],
+    ["Ítems", "#draft-items"],
+    ["Requisitos", "#draft-requirements"],
+    ["Referencias", "#draft-references"],
+    ["Hallazgos", "#draft-findings"],
+  ] as const;
+
+  return (
+    <nav
+      aria-label="Secciones del borrador"
+      className="flex flex-wrap gap-2 rounded-sm border border-border-subtle bg-surface-subtle p-3"
+    >
+      {links.map(([label, href]) => (
+        <a
+          key={href}
+          href={href}
+          className="rounded-sm px-3 py-2 text-sm font-semibold text-foreground-secondary hover:bg-brand-soft hover:text-foreground"
+        >
+          {label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 function GeneralInformation({ draft }: { draft: PreQuoteDraftDetails }) {
   return (
     <Surface padding="none" className="min-w-0 overflow-hidden">
@@ -227,7 +258,7 @@ function OperationalSummary({ draft }: { draft: PreQuoteDraftDetails }) {
       ];
 
   return (
-    <Surface padding="none" className="min-w-0 overflow-hidden">
+    <Surface padding="none" className="min-w-0 overflow-hidden" id="draft-summary">
       <section className="p-5 sm:p-6" aria-labelledby="draft-operational-title">
         <h2
           id="draft-operational-title"
@@ -301,10 +332,19 @@ function PreQuoteDraftView({
   return (
     <div className="min-w-0 space-y-6">
       <DraftHeader projectId={projectId} preQuoteId={preQuoteId} draft={draft} />
+      <DraftLocalNavigation />
       <GeneralInformation draft={draft} />
-      <OriginInformation draft={draft} />
       <OperationalSummary draft={draft} />
       <EconomicSummary draft={draft} />
+      <PreQuoteDraftItemsSection items={draft.items} />
+      <PreQuoteDraftRequirementsSection requirements={draft.requirements} />
+      <PreQuoteDraftReferencesSection references={draft.documentReferences} />
+      <PreQuoteDraftFindingsSection
+        issues={draft.issues}
+        conflicts={draft.conflicts}
+        summary={draft.summary}
+      />
+      <OriginInformation draft={draft} />
     </div>
   );
 }

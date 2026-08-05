@@ -85,6 +85,15 @@ export function PreQuoteDraftEntrySection({
   const getError = draft.error
     ? getPreQuoteDraftErrorContent(draft.error.cause)
     : null;
+  const draftSourceMessage =
+    draft.draft && extraction
+      ? idsMatch(
+          draft.draft.sourceStructuredExtractionId,
+          extraction.structuredExtractionId,
+        )
+        ? "Este borrador fue creado desde esta extracción."
+        : "Esta precotización ya tiene un borrador creado desde otra extracción."
+      : null;
 
   const handleCreate = async () => {
     if (!extraction || ineligibleReason || createDraft.isSubmitting) {
@@ -131,6 +140,11 @@ export function PreQuoteDraftEntrySection({
                 ? "El borrador ya está listo para consulta read-only."
                 : "Genera un borrador inicial desde la extracción estructurada actual."}
             </p>
+            {draftSourceMessage ? (
+              <p className="mt-2 text-sm leading-6 text-foreground-secondary">
+                {draftSourceMessage}
+              </p>
+            ) : null}
           </div>
 
           {draft.draft ? (
