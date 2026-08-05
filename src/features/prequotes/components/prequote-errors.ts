@@ -3,12 +3,30 @@ import {
   isPreQuoteProjectMismatchError,
 } from "@/features/prequotes/prequotes-api";
 import {
+  isInvalidCreatePreQuoteDraftResponseError,
+  isInvalidPreQuoteDraftResponseError,
+} from "@/features/prequotes/prequote-draft-api";
+import {
   isInvalidStartDocumentProcessingResponseError,
   isInvalidUploadPreQuoteDocumentResponseError,
 } from "@/features/prequotes/prequote-documents-api";
 import { PREQUOTE_ERROR_CODES } from "@/features/prequotes/prequote-error-codes";
 import { API_ERROR_CODES, getApiErrorCode } from "@/lib/errors/api-error-code";
 import { ApiError } from "@/lib/http/api-error";
+
+export type PreQuoteDraftErrorKind =
+  | "not-found"
+  | "already-exists"
+  | "project-inactive"
+  | "client-inactive"
+  | "query-error"
+  | "persistence-error"
+  | "unknown";
+
+export interface PreQuoteDraftErrorContent {
+  kind: PreQuoteDraftErrorKind;
+  message: string;
+}
 
 function getStatusFallbackMessage(
   error: ApiError,
@@ -361,4 +379,175 @@ export function getStartDocumentProcessingErrorMessage(error: unknown): string {
     },
     fallbackMessage,
   );
+}
+
+export function getPreQuoteDraftErrorContent(
+  error: unknown,
+): PreQuoteDraftErrorContent {
+  const fallbackMessage =
+    "No fue posible consultar el borrador. Inténtalo nuevamente.";
+
+  if (isInvalidPreQuoteDraftResponseError(error)) {
+    return {
+      kind: "unknown",
+      message:
+        "El servidor devolvió una respuesta inesperada al consultar el borrador.",
+    };
+  }
+
+  if (!(error instanceof ApiError)) {
+    return { kind: "unknown", message: fallbackMessage };
+  }
+
+  switch (getApiErrorCode(error)) {
+    case PREQUOTE_ERROR_CODES.draftInvalidRequest:
+      return {
+        kind: "unknown",
+        message: "No fue posible consultar el borrador solicitado.",
+      };
+    case PREQUOTE_ERROR_CODES.unauthorized:
+      return {
+        kind: "unknown",
+        message: "Tu sesión no es válida o expiró.",
+      };
+    case PREQUOTE_ERROR_CODES.inactiveUser:
+      return {
+        kind: "unknown",
+        message: "No tienes acceso para consultar este borrador.",
+      };
+    case PREQUOTE_ERROR_CODES.draftNotFound:
+      return {
+        kind: "not-found",
+        message: "El borrador no está disponible.",
+      };
+    case PREQUOTE_ERROR_CODES.draftQueryError:
+      return {
+        kind: "query-error",
+        message: "No fue posible consultar el borrador.",
+      };
+    case API_ERROR_CODES.methodNotAllowed:
+      return {
+        kind: "unknown",
+        message: "La operación solicitada no está disponible.",
+      };
+    case API_ERROR_CODES.payloadTooLarge:
+      return {
+        kind: "unknown",
+        message: "La solicitud supera el tamaño permitido por el servidor.",
+      };
+    case API_ERROR_CODES.internalServerError:
+      return { kind: "unknown", message: fallbackMessage };
+  }
+
+  return {
+    kind: error.status === 404 ? "not-found" : "unknown",
+    message: getStatusFallbackMessage(
+      error,
+      {
+        0: "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.",
+        400: "No fue posible consultar el borrador solicitado.",
+        401: "Tu sesión no es válida o expiró.",
+        403: "No tienes acceso para consultar este borrador.",
+        404: "El borrador no está disponible.",
+        500: fallbackMessage,
+      },
+      fallbackMessage,
+    ),
+  };
+}
+
+export function getCreatePreQuoteDraftErrorContent(
+  error: unknown,
+): PreQuoteDraftErrorContent {
+  const fallbackMessage =
+    "No fue posible crear el borrador. Inténtalo nuevamente.";
+
+  if (isInvalidCreatePreQuoteDraftResponseError(error)) {
+    return {
+      kind: "unknown",
+      message:
+        "El servidor devolvió una respuesta inesperada al crear el borrador.",
+    };
+  }
+
+  if (!(error instanceof ApiError)) {
+    return { kind: "unknown", message: fallbackMessage };
+  }
+
+  switch (getApiErrorCode(error)) {
+    case PREQUOTE_ERROR_CODES.draftInvalidRequest:
+      return {
+        kind: "unknown",
+        message: "No fue posible crear el borrador porque la solicitud no es válida.",
+      };
+    case PREQUOTE_ERROR_CODES.unauthorized:
+      return {
+        kind: "unknown",
+        message: "Tu sesión no permite crear el borrador. Inicia sesión nuevamente.",
+      };
+    case PREQUOTE_ERROR_CODES.inactiveUser:
+      return {
+        kind: "unknown",
+        message: "Tu usuario no tiene acceso para crear borradores.",
+      };
+    case PREQUOTE_ERROR_CODES.draftNotFound:
+      return {
+        kind: "not-found",
+        message: "No fue posible preparar el borrador solicitado.",
+      };
+    case PREQUOTE_ERROR_CODES.draftProjectInactive:
+      return {
+        kind: "project-inactive",
+        message: "No se puede crear el borrador porque el proyecto está inactivo.",
+      };
+    case PREQUOTE_ERROR_CODES.draftClientInactive:
+      return {
+        kind: "client-inactive",
+        message: "No se puede crear el borrador porque el cliente está inactivo.",
+      };
+    case PREQUOTE_ERROR_CODES.draftAlreadyExists:
+      return {
+        kind: "already-exists",
+        message: "El borrador ya existe.",
+      };
+    case PREQUOTE_ERROR_CODES.draftQueryError:
+      return {
+        kind: "query-error",
+        message: "No fue posible consultar la información para crear el borrador.",
+      };
+    case PREQUOTE_ERROR_CODES.draftPersistenceError:
+      return {
+        kind: "persistence-error",
+        message: "No fue posible guardar el borrador.",
+      };
+    case API_ERROR_CODES.methodNotAllowed:
+      return {
+        kind: "unknown",
+        message: "La operación solicitada no está disponible.",
+      };
+    case API_ERROR_CODES.payloadTooLarge:
+      return {
+        kind: "unknown",
+        message: "La solicitud supera el tamaño permitido por el servidor.",
+      };
+    case API_ERROR_CODES.internalServerError:
+      return { kind: "unknown", message: fallbackMessage };
+  }
+
+  return {
+    kind: "unknown",
+    message: getStatusFallbackMessage(
+      error,
+      {
+        0: "No fue posible conectar con el servidor. Verifica la conexión e inténtalo nuevamente.",
+        400: "No fue posible crear el borrador porque la solicitud no es válida.",
+        401: "Tu sesión no permite crear el borrador. Inicia sesión nuevamente.",
+        403: "No tienes acceso para crear borradores.",
+        404: "No fue posible preparar el borrador solicitado.",
+        409: "No fue posible crear el borrador por el estado actual de la información.",
+        500: fallbackMessage,
+      },
+      fallbackMessage,
+    ),
+  };
 }

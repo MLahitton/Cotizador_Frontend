@@ -12,6 +12,7 @@ import {
   formatProcessingState,
 } from "@/features/prequotes/prequote-document-formatters";
 import { ProcessingAvailabilityBadge } from "@/features/prequotes/components/prequote-document-status";
+import { PreQuoteDraftEntrySection } from "@/features/prequotes/components/prequote-draft-entry-section";
 import { StructuredGlassSummary } from "@/features/prequotes/components/structured-glass-summary";
 import {
   SourcePages,
@@ -650,8 +651,12 @@ function EmptyExtractionState({
 }
 
 export function StructuredExtractionView({
+  project,
+  preQuote,
   details,
 }: {
+  project: ProjectDetails;
+  preQuote: PreQuoteDetails;
   details: StructuredDocumentExtractionDetailsResponse;
 }) {
   const extraction = details.structuredExtraction;
@@ -663,6 +668,11 @@ export function StructuredExtractionView({
 
       {extraction ? (
         <>
+          <PreQuoteDraftEntrySection
+            project={project}
+            preQuote={preQuote}
+            details={details}
+          />
           <SummarySection extraction={extraction} />
           <StructuredGlassSummary summary={extraction.summary} />
           <DetectedProjectSection extraction={extraction} />

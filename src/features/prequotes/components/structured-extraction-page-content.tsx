@@ -152,7 +152,11 @@ function StructuredExtractionLoadedPageContent({
           ) : null}
 
           {extraction && !isExtractionLoading && !extractionError ? (
-            <StructuredExtractionView details={extraction} />
+            <StructuredExtractionView
+              project={project}
+              preQuote={preQuote}
+              details={extraction}
+            />
           ) : null}
         </>
       ) : null}
