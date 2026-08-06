@@ -59,6 +59,12 @@ const ELEMENT_TYPES = [
   "SHOWER_DIVISION",
   "OTHER",
 ] as const;
+const TECHNICAL_CLASSIFICATION_SOURCES = [
+  "EXPLICIT",
+  "ALIAS",
+  "INFERRED",
+  "UNRESOLVED",
+] as const;
 const CONFIDENCE_LEVELS = ["LOW", "MEDIUM", "GOOD", "HIGH"] as const;
 const REQUIREMENT_CATEGORIES = [
   "GLASS_SPECIFICATION",
@@ -120,17 +126,6 @@ const INVALIDATION_REASON_ALIASES = {
   QUANTITY_CHANGED: "QUANTITY_CHANGED",
   QuantityChanged: "QUANTITY_CHANGED",
 } as const satisfies Record<string, PreQuoteDraftValuationInvalidationReason>;
-
-const TECHNICAL_SOURCE_ALIASES = {
-  EXPLICIT: "EXPLICIT",
-  Explicit: "EXPLICIT",
-  ALIAS: "ALIAS",
-  Alias: "ALIAS",
-  INFERRED: "INFERRED",
-  Inferred: "INFERRED",
-  UNRESOLVED: "UNRESOLVED",
-  Unresolved: "UNRESOLVED",
-} as const satisfies Record<string, TechnicalClassificationSource>;
 
 export class InvalidPreQuoteDraftResponseError extends Error {
   constructor() {
@@ -268,6 +263,18 @@ function normalizeStringArray(value: unknown): string[] | null {
     : null;
 }
 
+function normalizeNullableStringArray(
+  value: unknown,
+): string[] | null | false {
+  if (value === null) {
+    return null;
+  }
+
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? value
+    : false;
+}
+
 function normalizeTechnicalSource(
   value: unknown,
 ): TechnicalClassificationSource | null | false {
@@ -275,7 +282,7 @@ function normalizeTechnicalSource(
     return null;
   }
 
-  return normalizeFromAliases(value, TECHNICAL_SOURCE_ALIASES) ?? false;
+  return isStringIn(value, TECHNICAL_CLASSIFICATION_SOURCES) ? value : false;
 }
 
 function isConfidenceLevel(
@@ -472,8 +479,8 @@ function normalizeValuation(
           INVALIDATION_REASON_ALIASES,
         );
   const systemSource = normalizeTechnicalSource(value.systemSource);
-  const assumptions = normalizeStringArray(value.assumptions);
-  const missingData = normalizeStringArray(value.missingData);
+  const assumptions = normalizeNullableStringArray(value.assumptions);
+  const missingData = normalizeNullableStringArray(value.missingData);
 
   if (
     !isValidContractGuid(value.sourceStructuredItemValuationId) ||
@@ -526,8 +533,8 @@ function normalizeValuation(
     !isNullableString(value.pricingProfileVersion) ||
     !isNullableNonNegativeInteger(value.confidenceScore) ||
     !isNullableConfidenceLevel(value.confidenceLevel) ||
-    !assumptions ||
-    !missingData ||
+    assumptions === false ||
+    missingData === false ||
     !(value.requiresReview === null || typeof value.requiresReview === "boolean") ||
     !isNullableDateTime(value.calculatedAtUtc)
   ) {

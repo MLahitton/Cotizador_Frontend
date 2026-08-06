@@ -187,9 +187,9 @@ function GlassCatalogTable({ items }: { items: GlassCatalogItem[] }) {
                 {item.currentPriceRange ? (
                   <GlassRangeStatusBadge status={item.currentPriceRange.status} />
                 ) : (
-                  <Badge tone="neutral" size="sm">
+                  <span className="text-sm text-foreground-secondary">
                     Sin rango vigente
-                  </Badge>
+                  </span>
                 )}
               </td>
               <td className="px-4 py-4 align-top text-sm text-foreground-secondary">
@@ -228,9 +228,9 @@ function GlassCatalogMobileList({ items }: { items: GlassCatalogItem[] }) {
               {item.currentPriceRange ? (
                 <GlassRangeStatusBadge status={item.currentPriceRange.status} />
               ) : (
-                <Badge tone="neutral" size="sm">
+                <span className="text-sm text-foreground-secondary">
                   Sin rango vigente
-                </Badge>
+                </span>
               )}
             </div>
             {item.description ? (

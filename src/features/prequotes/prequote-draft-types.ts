@@ -201,8 +201,8 @@ export interface PreQuoteDraftItemValuation {
   pricingProfileVersion: string | null;
   confidenceScore: number | null;
   confidenceLevel: PreQuotePricingConfidenceLevel | null;
-  assumptions: string[];
-  missingData: string[];
+  assumptions: string[] | null;
+  missingData: string[] | null;
   requiresReview: boolean | null;
   calculatedAtUtc: string | null;
 }
