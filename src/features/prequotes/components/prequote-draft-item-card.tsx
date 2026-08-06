@@ -16,6 +16,7 @@ import {
   formatPreQuoteDraftNumber,
   formatPreQuoteDraftOrigin,
   formatPreQuoteDraftPages,
+  formatPreQuotePricingConfidenceLevel,
   formatPreQuoteDraftQuantity,
   formatPreQuoteDraftReviewReason,
   formatPreQuoteDraftValuationReason,
@@ -257,6 +258,10 @@ function DraftItemValuation({
         <DetailValue
           label="Motivo"
           value={formatPreQuoteDraftValuationReason(valuation.reason)}
+        />
+        <DetailValue
+          label="Confianza de la valoración"
+          value={formatPreQuotePricingConfidenceLevel(valuation.confidenceLevel)}
         />
         <DetailValue
           label="Medidas utilizadas"

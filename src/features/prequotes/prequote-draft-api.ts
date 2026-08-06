@@ -212,12 +212,13 @@ function isNullableFiniteNumber(value: unknown): value is number | null {
   return value === null || (typeof value === "number" && Number.isFinite(value));
 }
 
-function isNullableNonNegativeFiniteNumber(
-  value: unknown,
-): value is number | null {
+function isNullableTechnicalConfidence(value: unknown): value is number | null {
   return (
     value === null ||
-    (typeof value === "number" && Number.isFinite(value) && value >= 0)
+    (typeof value === "number" &&
+      Number.isFinite(value) &&
+      value >= 0 &&
+      value <= 1)
   );
 }
 
@@ -421,15 +422,15 @@ function normalizeTechnicalSnapshot(
     !isNullableString(value.systemCode) ||
     !isNullableString(value.systemOriginalText) ||
     systemSource === false ||
-    !isNullableNonNegativeFiniteNumber(value.systemConfidence) ||
+    !isNullableTechnicalConfidence(value.systemConfidence) ||
     !isNullableString(value.frameCode) ||
     !isNullableString(value.frameOriginalText) ||
     frameSource === false ||
-    !isNullableNonNegativeFiniteNumber(value.frameConfidence) ||
+    !isNullableTechnicalConfidence(value.frameConfidence) ||
     !isNullableString(value.finishCode) ||
     !isNullableString(value.finishOriginalText) ||
     finishSource === false ||
-    !isNullableNonNegativeFiniteNumber(value.finishConfidence) ||
+    !isNullableTechnicalConfidence(value.finishConfidence) ||
     typeof value.requiresReview !== "boolean" ||
     !reviewReasons
   ) {

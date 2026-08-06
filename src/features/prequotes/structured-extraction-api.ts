@@ -190,6 +190,16 @@ function isNonNegativeNullableFiniteNumber(
   return value === null || isNonNegativeFiniteNumber(value);
 }
 
+function isNullableTechnicalConfidence(value: unknown): value is number | null {
+  return (
+    value === null ||
+    (typeof value === "number" &&
+      Number.isFinite(value) &&
+      value >= 0 &&
+      value <= 1)
+  );
+}
+
 function isValidDateTime(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
@@ -342,15 +352,15 @@ function isStructuredItemTechnicalClassification(
     isNullableString(value.systemCode) &&
     isNullableString(value.systemOriginalText) &&
     isNullableTechnicalClassificationSource(value.systemSource) &&
-    isNonNegativeNullableFiniteNumber(value.systemConfidence) &&
+    isNullableTechnicalConfidence(value.systemConfidence) &&
     isNullableString(value.frameCode) &&
     isNullableString(value.frameOriginalText) &&
     isNullableTechnicalClassificationSource(value.frameSource) &&
-    isNonNegativeNullableFiniteNumber(value.frameConfidence) &&
+    isNullableTechnicalConfidence(value.frameConfidence) &&
     isNullableString(value.finishCode) &&
     isNullableString(value.finishOriginalText) &&
     isNullableTechnicalClassificationSource(value.finishSource) &&
-    isNonNegativeNullableFiniteNumber(value.finishConfidence) &&
+    isNullableTechnicalConfidence(value.finishConfidence) &&
     typeof value.requiresReview === "boolean" &&
     isStringArray(value.reviewReasons)
   );

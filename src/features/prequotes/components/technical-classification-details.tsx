@@ -94,12 +94,10 @@ export function TechnicalClassificationDetails({
   classification,
   className,
   idPrefix,
-  sourceClassificationId,
 }: {
   classification: StructuredItemTechnicalClassification | null;
   className?: string;
   idPrefix: string;
-  sourceClassificationId?: string | null;
 }) {
   const titleId = `${idPrefix}-technical-classification-title`;
 
@@ -181,11 +179,6 @@ export function TechnicalClassificationDetails({
         <ReviewReasons classification={classification} />
       </div>
 
-      {sourceClassificationId ? (
-        <p className="mt-4 break-words text-xs text-foreground-secondary">
-          Clasificación fuente: {sourceClassificationId}
-        </p>
-      ) : null}
     </section>
   );
 }
