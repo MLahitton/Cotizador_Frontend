@@ -1,6 +1,7 @@
 import { CircleAlert } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { TechnicalClassificationDetails } from "@/features/prequotes/components/technical-classification-details";
 import {
   formatNullableDraftText,
   formatPreQuoteDraftArea,
@@ -17,8 +18,6 @@ import {
   formatPreQuoteDraftPages,
   formatPreQuoteDraftQuantity,
   formatPreQuoteDraftReviewReason,
-  formatPreQuotePricingConfidenceLevel,
-  formatPreQuoteTechnicalSource,
   formatPreQuoteDraftValuationReason,
   formatPreQuoteDraftValuationStatus,
 } from "@/features/prequotes/prequote-draft-formatters";
@@ -408,6 +407,12 @@ export function PreQuoteDraftItemCard({ item }: { item: PreQuoteDraftItem }) {
         <DraftItemValuation valuation={item.valuation} />
       </div>
 
+      <TechnicalClassificationDetails
+        idPrefix={`draft-item-${item.id}`}
+        classification={item.technicalSnapshot}
+        className="mt-4"
+      />
+
       <details className="mt-4 rounded-sm border border-border-subtle bg-surface-subtle p-3">
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
           Trazabilidad técnica
@@ -418,30 +423,14 @@ export function PreQuoteDraftItemCard({ item }: { item: PreQuoteDraftItem }) {
             label="Ítem estructurado fuente"
             value={formatNullableDraftText(item.sourceStructuredItemId)}
           />
-          <DetailValue
-            label="Sistema técnico"
-            value={formatNullableDraftText(item.technicalSnapshot?.systemCode ?? null)}
-          />
-          <DetailValue
-            label="Fuente del sistema"
-            value={formatPreQuoteTechnicalSource(
-              item.technicalSnapshot?.systemSource ?? null,
-            )}
-          />
-          <DetailValue
-            label="Marco"
-            value={formatNullableDraftText(item.technicalSnapshot?.frameCode ?? null)}
-          />
-          <DetailValue
-            label="Acabado"
-            value={formatNullableDraftText(item.technicalSnapshot?.finishCode ?? null)}
-          />
-          <DetailValue
-            label="Confianza valoración"
-            value={formatPreQuotePricingConfidenceLevel(
-              item.valuation?.confidenceLevel ?? null,
-            )}
-          />
+          {item.technicalSnapshot ? (
+            <DetailValue
+              label="Clasificación técnica fuente"
+              value={
+                item.technicalSnapshot.sourceStructuredItemTechnicalClassificationId
+              }
+            />
+          ) : null}
         </dl>
       </details>
     </article>

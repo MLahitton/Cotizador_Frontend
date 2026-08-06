@@ -4,6 +4,7 @@ import type { BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Surface } from "@/components/ui/surface";
+import { TechnicalClassificationDetails } from "@/features/prequotes/components/technical-classification-details";
 import {
   FieldError,
   joinDescribedBy,
@@ -273,6 +274,11 @@ export function PreQuoteDraftItemEditor({
             </p>
           </div>
         </div>
+
+        <TechnicalClassificationDetails
+          idPrefix={`${prefix}.technical`}
+          classification={source?.technicalSnapshot ?? null}
+        />
       </article>
     </Surface>
   );

@@ -11,11 +11,6 @@ import type {
   PreQuoteDraftValuationReason,
   PreQuoteDraftValuationStatus,
 } from "@/features/prequotes/prequote-draft-types";
-import type {
-  PreQuotePricingConfidenceLevel,
-  TechnicalClassificationSource,
-} from "@/features/prequotes/prequote-technical-types";
-
 const EMPTY_VALUE = "-";
 
 const dateFormatter = new Intl.DateTimeFormat("es-CO", {
@@ -163,40 +158,6 @@ export function formatPreQuoteDraftValuationStatus(
       return "No cotizable";
     case "REQUIRES_REVIEW":
       return "Requiere revisión";
-  }
-}
-
-export function formatPreQuoteTechnicalSource(
-  value: TechnicalClassificationSource | null,
-): string {
-  switch (value) {
-    case "EXPLICIT":
-      return "Explícito";
-    case "ALIAS":
-      return "Alias";
-    case "INFERRED":
-      return "Inferido";
-    case "UNRESOLVED":
-      return "No resuelto";
-    case null:
-      return EMPTY_VALUE;
-  }
-}
-
-export function formatPreQuotePricingConfidenceLevel(
-  value: PreQuotePricingConfidenceLevel | null,
-): string {
-  switch (value) {
-    case "LOW":
-      return "Baja";
-    case "MEDIUM":
-      return "Media";
-    case "GOOD":
-      return "Buena";
-    case "HIGH":
-      return "Alta";
-    case null:
-      return EMPTY_VALUE;
   }
 }
 

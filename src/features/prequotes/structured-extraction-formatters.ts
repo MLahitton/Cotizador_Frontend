@@ -2,9 +2,7 @@ import {
   formatDuration,
   formatProcessingAvailability,
 } from "@/features/prequotes/prequote-document-formatters";
-import type {
-  TechnicalClassificationSource,
-} from "@/features/prequotes/prequote-technical-types";
+export { formatTechnicalClassificationSource } from "@/features/prequotes/prequote-technical-formatters";
 import type {
   EvidenceSourceType,
   GlassAssignmentScope,
@@ -209,23 +207,6 @@ export function formatGlassValuationReason(
       return "No existe un rango de precio disponible para este vidrio.";
     case "CURRENCY_MISMATCH":
       return "Los precios disponibles utilizan monedas incompatibles.";
-  }
-}
-
-export function formatTechnicalClassificationSource(
-  value: TechnicalClassificationSource | null,
-): string {
-  switch (value) {
-    case "EXPLICIT":
-      return "Explícito";
-    case "ALIAS":
-      return "Alias";
-    case "INFERRED":
-      return "Inferido";
-    case "UNRESOLVED":
-      return "No resuelto";
-    case null:
-      return "—";
   }
 }
 
