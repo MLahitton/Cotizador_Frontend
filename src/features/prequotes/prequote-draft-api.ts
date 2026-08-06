@@ -226,6 +226,18 @@ function isNullableNonNegativeInteger(value: unknown): value is number | null {
   return value === null || isNonNegativeInteger(value);
 }
 
+function isNullablePricingConfidenceScore(
+  value: unknown,
+): value is number | null {
+  return (
+    value === null ||
+    (typeof value === "number" &&
+      Number.isInteger(value) &&
+      value >= 0 &&
+      value <= 100)
+  );
+}
+
 function isValidDateTime(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
@@ -532,7 +544,7 @@ function normalizeValuation(
     !isNullableFiniteNumber(value.itemExpectedAmount) ||
     !isNullableFiniteNumber(value.itemMaximumAmount) ||
     !isNullableString(value.pricingProfileVersion) ||
-    !isNullableNonNegativeInteger(value.confidenceScore) ||
+    !isNullablePricingConfidenceScore(value.confidenceScore) ||
     !isNullableConfidenceLevel(value.confidenceLevel) ||
     assumptions === false ||
     missingData === false ||
