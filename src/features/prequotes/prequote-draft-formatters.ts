@@ -11,9 +11,7 @@ import type {
   PreQuoteDraftValuationReason,
   PreQuoteDraftValuationStatus,
 } from "@/features/prequotes/prequote-draft-types";
-import type {
-  PreQuotePricingConfidenceLevel,
-} from "@/features/prequotes/prequote-technical-types";
+import type { PreQuotePricingConfidenceLevel } from "@/features/prequotes/prequote-technical-types";
 const EMPTY_VALUE = "-";
 
 const dateFormatter = new Intl.DateTimeFormat("es-CO", {
@@ -152,11 +150,11 @@ export function formatPreQuoteDraftValuationStatus(
 ): string {
   switch (value) {
     case "PENDING":
-      return "Pendiente de valoración";
+      return "Pendiente";
     case "VALUED":
-      return "Valoración vigente";
+      return "Valorado";
     case "STALE":
-      return "Valoración desactualizada";
+      return "Desactualizado";
     case "NOT_PRICEABLE":
       return "No cotizable";
     case "REQUIRES_REVIEW":
@@ -178,6 +176,59 @@ export function formatPreQuotePricingConfidenceLevel(
       return "Alta";
     case null:
       return EMPTY_VALUE;
+  }
+}
+
+export function formatPreQuoteDraftFactor(value: number | null): string {
+  return value === null ? EMPTY_VALUE : `${numberFormatter.format(value)}x`;
+}
+
+export function formatPreQuoteDraftConfidenceScore(value: number | null): string {
+  return value === null ? EMPTY_VALUE : `${numberFormatter.format(value)} / 100`;
+}
+
+export function formatPreQuoteDraftNullableReview(value: boolean | null): string {
+  if (value === null) {
+    return "No informado";
+  }
+
+  return value ? "Requiere revisión" : "Sin revisión pendiente";
+}
+
+export function formatPreQuoteDraftPriceRangeVersion(
+  value: number | null,
+): string {
+  return value === null ? EMPTY_VALUE : numberFormatter.format(value);
+}
+
+export function formatPreQuotePricingNoteCode(code: string): string {
+  switch (code) {
+    case "ALUMINUM_BASE_RATE_NOT_CONFIGURED":
+      return "La tarifa base de aluminio no está configurada.";
+    case "PROJECT_LOCATION_NOT_CONFIRMED":
+      return "La ubicación del proyecto no está confirmada.";
+    case "TRANSPORT_NOT_CONFIRMED":
+      return "El transporte no está confirmado.";
+    case "PRELIMINARY_RANGE_NOT_CONTRACTUAL":
+      return "El rango económico es preliminar y no contractual.";
+    case "UNKNOWN_ELEMENT_TYPE_LABOR_PROFILE_ASSUMED":
+      return "El perfil de mano de obra fue asumido por tipo de elemento desconocido.";
+    case "SG45_ASSEMBLY_ONLY_LOW_RATE_CONFIRMED":
+      return "La tarifa baja de ensamble SG45 fue confirmada para el cálculo.";
+    case "ASSEMBLY_PROFILE_ESTIMATED_BY_ELEMENT_TYPE":
+      return "El perfil de ensamble fue estimado por tipo de elemento.";
+    case "UNKNOWN_FINISH_FACTOR_APPLIED":
+      return "Se aplicó un factor de acabado por acabado no confirmado.";
+    case "ACCESSORY_FACTOR_ESTIMATED_BY_UNKNOWN_ELEMENT_TYPE":
+      return "El factor de accesorios fue estimado por tipo de elemento desconocido.";
+    case "FRAME_NOT_CONFIRMED":
+      return "El marco no está confirmado.";
+    case "LEAF_COUNT_NOT_AVAILABLE":
+      return "La cantidad de hojas no está disponible.";
+    case "FINISH_NOT_CONFIRMED":
+      return "El acabado no está confirmado.";
+    default:
+      return "Condición económica pendiente de interpretación.";
   }
 }
 

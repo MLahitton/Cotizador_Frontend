@@ -1,33 +1,23 @@
-import { CircleAlert } from "lucide-react";
-
 import { Badge } from "@/components/ui/badge";
+import { PreQuoteDraftItemValuation } from "@/features/prequotes/components/prequote-draft-item-valuation";
 import { TechnicalClassificationDetails } from "@/features/prequotes/components/technical-classification-details";
 import {
   formatNullableDraftText,
-  formatPreQuoteDraftArea,
   formatPreQuoteDraftAssignmentScope,
-  formatPreQuoteDraftDateTime,
   formatPreQuoteDraftDimension,
   formatPreQuoteDraftElementType,
   formatPreQuoteDraftEvidenceSource,
   formatPreQuoteDraftInclusion,
-  formatPreQuoteDraftInvalidationReason,
-  formatPreQuoteDraftMoney,
   formatPreQuoteDraftNumber,
   formatPreQuoteDraftOrigin,
   formatPreQuoteDraftPages,
-  formatPreQuotePricingConfidenceLevel,
   formatPreQuoteDraftQuantity,
   formatPreQuoteDraftReviewReason,
-  formatPreQuoteDraftValuationReason,
-  formatPreQuoteDraftValuationStatus,
 } from "@/features/prequotes/prequote-draft-formatters";
 import type {
   PreQuoteDraftItem,
   PreQuoteDraftItemGlass,
   PreQuoteDraftItemGlassEvidence,
-  PreQuoteDraftItemValuation,
-  PreQuoteDraftValuationStatus,
 } from "@/features/prequotes/prequote-draft-types";
 
 function DetailValue({ label, value }: { label: string; value: string }) {
@@ -41,18 +31,6 @@ function DetailValue({ label, value }: { label: string; value: string }) {
       </dd>
     </div>
   );
-}
-
-function statusTone(status: PreQuoteDraftValuationStatus) {
-  if (status === "VALUED") {
-    return "success";
-  }
-
-  if (status === "NOT_PRICEABLE") {
-    return "neutral";
-  }
-
-  return "warning";
 }
 
 function DraftEvidenceList({
@@ -198,145 +176,6 @@ function DraftItemGlass({ glass }: { glass: PreQuoteDraftItemGlass | null }) {
   );
 }
 
-function DraftItemValuation({
-  valuation,
-}: {
-  valuation: PreQuoteDraftItemValuation | null;
-}) {
-  if (valuation === null) {
-    return (
-      <section
-        className="rounded-sm border border-border-subtle bg-surface-subtle p-4"
-        aria-labelledby="draft-item-valuation-empty-title"
-      >
-        <h4
-          id="draft-item-valuation-empty-title"
-          className="text-sm font-semibold text-foreground"
-        >
-          Valoración
-        </h4>
-        <p className="mt-3 text-sm leading-6 text-foreground-secondary">
-          No hay una valoración registrada para este ítem.
-        </p>
-      </section>
-    );
-  }
-
-  return (
-    <section
-      className="rounded-sm border border-border-subtle bg-surface-subtle p-4"
-      aria-labelledby={`draft-item-valuation-${valuation.sourceStructuredItemValuationId}-title`}
-    >
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <h4
-          id={`draft-item-valuation-${valuation.sourceStructuredItemValuationId}-title`}
-          className="text-sm font-semibold text-foreground"
-        >
-          Valoración
-        </h4>
-        <Badge tone={statusTone(valuation.status)} size="sm">
-          {formatPreQuoteDraftValuationStatus(valuation.status)}
-        </Badge>
-      </div>
-
-      {valuation.status === "STALE" ? (
-        <div className="mt-3 flex items-start gap-3 rounded-sm border border-warning bg-warning-soft p-3 text-warning">
-          <CircleAlert
-            aria-hidden="true"
-            className="mt-0.5 shrink-0"
-            size={18}
-            strokeWidth={1.75}
-          />
-          <p className="text-sm leading-6">
-            Las medidas o la cantidad cambiaron. La valoración registrada ya no
-            está vigente y deberá recalcularse en una fase posterior.
-          </p>
-        </div>
-      ) : null}
-
-      <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-        <DetailValue
-          label="Motivo"
-          value={formatPreQuoteDraftValuationReason(valuation.reason)}
-        />
-        <DetailValue
-          label="Confianza de la valoración"
-          value={formatPreQuotePricingConfidenceLevel(valuation.confidenceLevel)}
-        />
-        <DetailValue
-          label="Medidas utilizadas"
-          value={`${formatPreQuoteDraftDimension(
-            valuation.widthMillimetersUsed,
-          )} × ${formatPreQuoteDraftDimension(valuation.heightMillimetersUsed)}`}
-        />
-        <DetailValue
-          label="Cantidad utilizada"
-          value={formatPreQuoteDraftQuantity(valuation.quantityUsed)}
-        />
-        <DetailValue
-          label="Área unitaria"
-          value={formatPreQuoteDraftArea(valuation.unitAreaSquareMeters)}
-        />
-        <DetailValue
-          label="Área total"
-          value={formatPreQuoteDraftArea(valuation.totalAreaSquareMeters)}
-        />
-        <DetailValue
-          label="Precio registrado por m²"
-          value={formatPreQuoteDraftMoney(
-            valuation.unitPricePerSquareMeter,
-            valuation.currency,
-          )}
-        />
-        <DetailValue
-          label="Precio esperado por m²"
-          value={formatPreQuoteDraftMoney(
-            valuation.glassExpectedPricePerSquareMeter,
-            valuation.currency,
-          )}
-        />
-        <DetailValue
-          label="Valor unitario registrado"
-          value={formatPreQuoteDraftMoney(valuation.unitAmount, valuation.currency)}
-        />
-        <DetailValue
-          label="Valor total registrado"
-          value={formatPreQuoteDraftMoney(valuation.totalAmount, valuation.currency)}
-        />
-        <DetailValue
-          label="Valor esperado del ítem"
-          value={formatPreQuoteDraftMoney(
-            valuation.itemExpectedAmount,
-            valuation.currency,
-          )}
-        />
-        <DetailValue
-          label="Moneda"
-          value={formatNullableDraftText(valuation.currency)}
-        />
-        <DetailValue
-          label="Fecha de valoración"
-          value={formatPreQuoteDraftDateTime(valuation.valuedAtUtc)}
-        />
-        <DetailValue
-          label="Cálculo técnico"
-          value={formatPreQuoteDraftDateTime(valuation.calculatedAtUtc)}
-        />
-        <DetailValue
-          label="Fecha de invalidación"
-          value={formatPreQuoteDraftDateTime(valuation.invalidatedAtUtc)}
-        />
-        <DetailValue
-          label="Motivo de invalidación"
-          value={formatPreQuoteDraftInvalidationReason(
-            valuation.invalidationReason,
-          )}
-        />
-      </dl>
-    </section>
-  );
-}
-
 function isItemComplete(item: PreQuoteDraftItem): boolean {
   return (
     !item.isIncluded ||
@@ -409,7 +248,11 @@ export function PreQuoteDraftItemCard({ item }: { item: PreQuoteDraftItem }) {
 
       <div className="mt-5 grid gap-4 xl:grid-cols-2">
         <DraftItemGlass glass={item.glass} />
-        <DraftItemValuation valuation={item.valuation} />
+        <PreQuoteDraftItemValuation
+          idPrefix={`draft-item-${item.id}`}
+          valuation={item.valuation}
+          variant="full"
+        />
       </div>
 
       <TechnicalClassificationDetails

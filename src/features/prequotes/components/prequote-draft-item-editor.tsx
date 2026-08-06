@@ -4,6 +4,7 @@ import type { BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Surface } from "@/components/ui/surface";
+import { PreQuoteDraftItemValuation } from "@/features/prequotes/components/prequote-draft-item-valuation";
 import { TechnicalClassificationDetails } from "@/features/prequotes/components/technical-classification-details";
 import {
   FieldError,
@@ -14,11 +15,8 @@ import {
 import type { DraftEditItemModel } from "@/features/prequotes/prequote-draft-edit-types";
 import { parseNullablePositiveIntegerInput } from "@/features/prequotes/prequote-draft-edit-validation";
 import {
-  formatPreQuoteDraftDimension,
   formatPreQuoteDraftElementType,
-  formatPreQuoteDraftMoney,
   formatPreQuoteDraftQuantity,
-  formatPreQuoteDraftValuationStatus,
 } from "@/features/prequotes/prequote-draft-formatters";
 import type {
   PreQuoteDraftDetails,
@@ -265,14 +263,11 @@ export function PreQuoteDraftItemEditor({
                 : "No hay información de vidrio registrada para este ítem."}
             </p>
           </div>
-          <div className="rounded-sm border border-border-subtle bg-surface-subtle p-4">
-            <h4 className="text-sm font-semibold text-foreground">Valoración read-only</h4>
-            <p className="mt-2 text-sm leading-6 text-foreground-secondary">
-              {source?.valuation
-                ? `${formatPreQuoteDraftValuationStatus(source.valuation.status)} · ${formatPreQuoteDraftMoney(source.valuation.itemExpectedAmount ?? source.valuation.totalAmount, source.valuation.currency)} · ${formatPreQuoteDraftDimension(source.valuation.widthMillimetersUsed)} x ${formatPreQuoteDraftDimension(source.valuation.heightMillimetersUsed)} · Cantidad ${formatPreQuoteDraftQuantity(source.valuation.quantityUsed)}`
-                : "No hay una valoración registrada para este ítem."}
-            </p>
-          </div>
+          <PreQuoteDraftItemValuation
+            idPrefix={`${prefix}-valuation`}
+            valuation={source?.valuation ?? null}
+            variant="compact"
+          />
         </div>
 
         <TechnicalClassificationDetails
