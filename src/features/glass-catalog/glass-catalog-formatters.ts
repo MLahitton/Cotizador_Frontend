@@ -8,13 +8,17 @@ import type {
   GlassPriceRangeStatus,
 } from "./glass-catalog-types";
 
-export type GlassCatalogStatusFilter = GlassPriceRangeStatus | "ALL";
+export type GlassCatalogStatusFilter =
+  | GlassPriceRangeStatus
+  | "ALL"
+  | "NO_CURRENT_RANGE";
 
 export function formatGlassPriceRange(
   priceRange: GlassPriceRange,
 ): string {
   return formatPricePerSquareMeterRange(
     priceRange.minimumPricePerSquareMeter,
+    priceRange.expectedAmountPerM2,
     priceRange.maximumPricePerSquareMeter,
     priceRange.currency,
   );

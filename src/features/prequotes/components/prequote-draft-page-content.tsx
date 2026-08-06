@@ -286,6 +286,7 @@ function EconomicSummary({ draft }: { draft: PreQuoteDraftDetails }) {
     ["Valorados", summary.valuedItemCount],
     ["Pendientes", summary.pendingValuationItemCount],
     ["Desactualizados", summary.staleValuationItemCount],
+    ["No cotizables", summary.notPriceableItemCount],
     ["Requieren revisión", summary.itemsRequiringReviewCount],
   ] as const;
 
@@ -300,6 +301,20 @@ function EconomicSummary({ draft }: { draft: PreQuoteDraftDetails }) {
             {formatEconomicCompleteness(summary.isEconomicallyComplete)}
           </Badge>
         </div>
+        {summary.hasLimitedPricingScope ? (
+          <div className="mt-4 flex items-start gap-3 rounded-sm border border-warning bg-warning-soft p-3 text-warning">
+            <CircleAlert
+              aria-hidden="true"
+              className="mt-0.5 shrink-0"
+              size={18}
+              strokeWidth={1.75}
+            />
+            <p className="text-sm leading-6">
+              La valoración tiene alcance limitado porque algunos ítems no son
+              cotizables o requieren datos adicionales.
+            </p>
+          </div>
+        ) : null}
         <dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {metrics.map(([label, value]) => (
             <Metric key={label} label={label} value={formatPreQuoteDraftNumber(value)} />
@@ -311,6 +326,10 @@ function EconomicSummary({ draft }: { draft: PreQuoteDraftDetails }) {
           <Metric
             label="Subtotal registrado en el borrador"
             value={formatPreQuoteDraftMoney(summary.glassSubtotal, summary.currency)}
+          />
+          <Metric
+            label="Total esperado"
+            value={formatPreQuoteDraftMoney(summary.finalExpected, summary.currency)}
           />
           <Metric
             label="Moneda"

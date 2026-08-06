@@ -99,8 +99,10 @@ function isGlassPriceRange(value: unknown): value is GlassPriceRange {
     !isContractGuid(value.glassPriceRangeVersionId) ||
     !isPositiveInteger(value.version) ||
     !isPositiveFiniteNumber(value.minimumPricePerSquareMeter) ||
+    !isPositiveFiniteNumber(value.expectedAmountPerM2) ||
     !isPositiveFiniteNumber(value.maximumPricePerSquareMeter) ||
-    value.minimumPricePerSquareMeter > value.maximumPricePerSquareMeter ||
+    value.minimumPricePerSquareMeter > value.expectedAmountPerM2 ||
+    value.expectedAmountPerM2 > value.maximumPricePerSquareMeter ||
     !isCurrency(value.currency) ||
     !isGlassPriceRangeStatus(value.status) ||
     !isValidDateTime(value.validFromUtc) ||
@@ -123,7 +125,8 @@ function isGlassCatalogItem(value: unknown): value is GlassCatalogItem {
     isNonEmptyString(value.name) &&
     (typeof value.description === "string" || value.description === null) &&
     typeof value.isActive === "boolean" &&
-    isGlassPriceRange(value.currentPriceRange)
+    (value.currentPriceRange === null ||
+      isGlassPriceRange(value.currentPriceRange))
   );
 }
 

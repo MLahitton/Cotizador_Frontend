@@ -40,13 +40,15 @@ const statusFilters: Array<{
   { label: "Preliminar", value: "PRELIMINARY" },
   { label: "Activo", value: "ACTIVE" },
   { label: "Retirado", value: "RETIRED" },
+  { label: "Sin rango vigente", value: "NO_CURRENT_RANGE" },
 ];
 
 function parseStatusFilter(value: string): GlassCatalogStatusFilter {
   if (
     value === "PRELIMINARY" ||
     value === "ACTIVE" ||
-    value === "RETIRED"
+    value === "RETIRED" ||
+    value === "NO_CURRENT_RANGE"
   ) {
     return value;
   }
@@ -151,7 +153,7 @@ function GlassCatalogTable({ items }: { items: GlassCatalogItem[] }) {
         </thead>
         <tbody className="divide-y divide-border-subtle">
           {items.map((item) => (
-            <tr key={`${item.code}-${item.currentPriceRange.version}`} className="bg-surface">
+            <tr key={item.glassTypeId} className="bg-surface">
               <td className="px-4 py-4 align-top">
                 <p className="break-words font-semibold text-foreground">
                   {item.name}
@@ -171,20 +173,34 @@ function GlassCatalogTable({ items }: { items: GlassCatalogItem[] }) {
               </td>
               <td className="px-4 py-4 align-top text-sm font-medium text-foreground">
                 <span className="block break-words">
-                  {formatGlassPriceRange(item.currentPriceRange)}
+                  {item.currentPriceRange
+                    ? formatGlassPriceRange(item.currentPriceRange)
+                    : "Sin rango vigente"}
                 </span>
               </td>
               <td className="px-4 py-4 align-top text-sm text-foreground-secondary">
-                {formatGlassCurrency(item.currentPriceRange.currency)}
+                {item.currentPriceRange
+                  ? formatGlassCurrency(item.currentPriceRange.currency)
+                  : "-"}
               </td>
               <td className="px-4 py-4 align-top">
-                <GlassRangeStatusBadge status={item.currentPriceRange.status} />
+                {item.currentPriceRange ? (
+                  <GlassRangeStatusBadge status={item.currentPriceRange.status} />
+                ) : (
+                  <Badge tone="neutral" size="sm">
+                    Sin rango vigente
+                  </Badge>
+                )}
               </td>
               <td className="px-4 py-4 align-top text-sm text-foreground-secondary">
-                {formatGlassPriceRangeVersion(item.currentPriceRange.version)}
+                {item.currentPriceRange
+                  ? formatGlassPriceRangeVersion(item.currentPriceRange.version)
+                  : "-"}
               </td>
               <td className="px-4 py-4 align-top text-sm leading-6 text-foreground-secondary">
-                {formatGlassValidity(item.currentPriceRange)}
+                {item.currentPriceRange
+                  ? formatGlassValidity(item.currentPriceRange)
+                  : "-"}
               </td>
             </tr>
           ))}
@@ -198,7 +214,7 @@ function GlassCatalogMobileList({ items }: { items: GlassCatalogItem[] }) {
   return (
     <ul className="space-y-3 lg:hidden" aria-label="Catálogo de vidrios">
       {items.map((item) => (
-        <li key={`${item.code}-${item.currentPriceRange.version}`}>
+        <li key={item.glassTypeId}>
           <Surface className="space-y-4">
             <div className="flex min-w-0 items-start justify-between gap-3">
               <div className="min-w-0">
@@ -209,7 +225,13 @@ function GlassCatalogMobileList({ items }: { items: GlassCatalogItem[] }) {
                   {item.code}
                 </p>
               </div>
-              <GlassRangeStatusBadge status={item.currentPriceRange.status} />
+              {item.currentPriceRange ? (
+                <GlassRangeStatusBadge status={item.currentPriceRange.status} />
+              ) : (
+                <Badge tone="neutral" size="sm">
+                  Sin rango vigente
+                </Badge>
+              )}
             </div>
             {item.description ? (
               <p className="break-words text-sm leading-6 text-foreground-secondary">
@@ -222,7 +244,9 @@ function GlassCatalogMobileList({ items }: { items: GlassCatalogItem[] }) {
                   Rango por m²
                 </dt>
                 <dd className="mt-1 break-words font-medium text-foreground">
-                  {formatGlassPriceRange(item.currentPriceRange)}
+                  {item.currentPriceRange
+                    ? formatGlassPriceRange(item.currentPriceRange)
+                    : "Sin rango vigente"}
                 </dd>
               </div>
               <div>
@@ -230,7 +254,9 @@ function GlassCatalogMobileList({ items }: { items: GlassCatalogItem[] }) {
                   Moneda
                 </dt>
                 <dd className="mt-1 text-foreground">
-                  {formatGlassCurrency(item.currentPriceRange.currency)}
+                  {item.currentPriceRange
+                    ? formatGlassCurrency(item.currentPriceRange.currency)
+                    : "-"}
                 </dd>
               </div>
               <div>
@@ -238,7 +264,9 @@ function GlassCatalogMobileList({ items }: { items: GlassCatalogItem[] }) {
                   Versión
                 </dt>
                 <dd className="mt-1 text-foreground">
-                  {formatGlassPriceRangeVersion(item.currentPriceRange.version)}
+                  {item.currentPriceRange
+                    ? formatGlassPriceRangeVersion(item.currentPriceRange.version)
+                    : "-"}
                 </dd>
               </div>
               <div>
@@ -246,7 +274,9 @@ function GlassCatalogMobileList({ items }: { items: GlassCatalogItem[] }) {
                   Vigencia
                 </dt>
                 <dd className="mt-1 break-words leading-6 text-foreground">
-                  {formatGlassValidity(item.currentPriceRange)}
+                  {item.currentPriceRange
+                    ? formatGlassValidity(item.currentPriceRange)
+                    : "-"}
                 </dd>
               </div>
               <div>
@@ -254,7 +284,9 @@ function GlassCatalogMobileList({ items }: { items: GlassCatalogItem[] }) {
                   Estado del rango
                 </dt>
                 <dd className="mt-1 text-foreground">
-                  {formatGlassPriceRangeStatus(item.currentPriceRange.status)}
+                  {item.currentPriceRange
+                    ? formatGlassPriceRangeStatus(item.currentPriceRange.status)
+                    : "Sin rango vigente"}
                 </dd>
               </div>
             </dl>
@@ -276,7 +308,9 @@ export function GlassCatalogPageContent() {
       items.filter(
         (item) =>
           (statusFilter === "ALL" ||
-            item.currentPriceRange.status === statusFilter) &&
+            (statusFilter === "NO_CURRENT_RANGE"
+              ? item.currentPriceRange === null
+              : item.currentPriceRange?.status === statusFilter)) &&
           matchesGlassCatalogSearch(item, search),
       ),
     [items, search, statusFilter],

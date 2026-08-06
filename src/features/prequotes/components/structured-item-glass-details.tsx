@@ -14,6 +14,7 @@ import {
   formatNullableText,
   formatPricePerSquareMeterRange,
   formatPriceRangeStatus,
+  formatTechnicalClassificationSource,
 } from "@/features/prequotes/structured-extraction-formatters";
 import { formatPreQuoteDateTime } from "@/features/prequotes/prequote-formatters";
 import type { StructuredItem } from "@/features/prequotes/structured-extraction-types";
@@ -43,6 +44,10 @@ function hasGlassContract(item: StructuredItem): boolean {
 
 function hasValuationContract(item: StructuredItem): boolean {
   return "valuation" in item;
+}
+
+function hasTechnicalClassificationContract(item: StructuredItem): boolean {
+  return "technicalClassification" in item;
 }
 
 function GlassStatusBadge({ item }: { item: StructuredItem }) {
@@ -86,13 +91,18 @@ function ValuationStatusBadge({
 export function StructuredItemGlassDetails({ item }: { item: StructuredItem }) {
   const shouldRenderGlass = hasGlassContract(item);
   const shouldRenderValuation = hasValuationContract(item);
+  const shouldRenderTechnicalClassification =
+    hasTechnicalClassificationContract(item);
 
-  if (!shouldRenderGlass && !shouldRenderValuation) {
+  if (!shouldRenderGlass && !shouldRenderValuation && !shouldRenderTechnicalClassification) {
     return null;
   }
 
   const glass = shouldRenderGlass ? item.glass ?? null : null;
   const valuation = shouldRenderValuation ? item.valuation ?? null : null;
+  const technicalClassification = shouldRenderTechnicalClassification
+    ? item.technicalClassification ?? null
+    : null;
 
   return (
     <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -217,6 +227,7 @@ export function StructuredItemGlassDetails({ item }: { item: StructuredItem }) {
                   label="Precio por m²"
                   value={formatPricePerSquareMeterRange(
                     valuation.minimumPricePerSquareMeter,
+                    valuation.expectedPricePerSquareMeter,
                     valuation.maximumPricePerSquareMeter,
                     valuation.currency,
                   )}
@@ -225,6 +236,13 @@ export function StructuredItemGlassDetails({ item }: { item: StructuredItem }) {
                   label="Monto mínimo"
                   value={formatMoneyAmount(
                     valuation.minimumAmount,
+                    valuation.currency,
+                  )}
+                />
+                <DetailValue
+                  label="Monto esperado"
+                  value={formatMoneyAmount(
+                    valuation.expectedAmount,
                     valuation.currency,
                   )}
                 />
@@ -261,6 +279,60 @@ export function StructuredItemGlassDetails({ item }: { item: StructuredItem }) {
                 />
               </dl>
             </>
+          )}
+        </section>
+      ) : null}
+
+      {shouldRenderTechnicalClassification ? (
+        <section
+          aria-labelledby={`item-${item.sequence}-technical-title`}
+          className="min-w-0 rounded-sm border border-border-subtle bg-surface-subtle p-4 lg:col-span-2"
+        >
+          <h4
+            id={`item-${item.sequence}-technical-title`}
+            className="text-sm font-semibold text-foreground"
+          >
+            Clasificación técnica
+          </h4>
+          {technicalClassification === null ? (
+            <p className="mt-3 text-sm leading-6 text-foreground-secondary">
+              No hay clasificación técnica registrada para este ítem.
+            </p>
+          ) : (
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <DetailValue
+                label="Sistema"
+                value={formatNullableText(technicalClassification.systemCode)}
+              />
+              <DetailValue
+                label="Fuente sistema"
+                value={formatTechnicalClassificationSource(
+                  technicalClassification.systemSource,
+                )}
+              />
+              <DetailValue
+                label="Texto sistema"
+                value={formatNullableText(
+                  technicalClassification.systemOriginalText,
+                )}
+              />
+              <DetailValue
+                label="Marco"
+                value={formatNullableText(technicalClassification.frameCode)}
+              />
+              <DetailValue
+                label="Acabado"
+                value={formatNullableText(technicalClassification.finishCode)}
+              />
+              <DetailValue
+                label="Revisión"
+                value={
+                  technicalClassification.requiresReview
+                    ? "Requiere revisión"
+                    : "Sin revisión pendiente"
+                }
+              />
+            </dl>
           )}
         </section>
       ) : null}

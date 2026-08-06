@@ -2,6 +2,7 @@ import type {
   DocumentProcessingAttemptSummary,
   DocumentProcessingAvailability,
 } from "@/features/prequotes/prequote-documents-types";
+import type { StructuredItemTechnicalClassification } from "@/features/prequotes/prequote-technical-types";
 
 export type EvidenceSourceType = "NATIVE" | "OCR";
 
@@ -12,6 +13,7 @@ export type StructuredElementType =
   | "PARTITION"
   | "RAILING"
   | "SKYLIGHT"
+  | "SHOWER_DIVISION"
   | "OTHER";
 
 export type RequirementCategory =
@@ -87,8 +89,10 @@ export interface StructuredItemGlassValuation {
   unitAreaSquareMeters: number | null;
   totalAreaSquareMeters: number | null;
   minimumPricePerSquareMeter: number | null;
+  expectedPricePerSquareMeter: number | null;
   maximumPricePerSquareMeter: number | null;
   minimumAmount: number | null;
+  expectedAmount: number | null;
   maximumAmount: number | null;
   calculatedAtUtc: string;
 }
@@ -123,6 +127,7 @@ export interface StructuredItem {
   evidence: StructuredEvidence[];
   glass?: StructuredItemGlass | null;
   valuation?: StructuredItemGlassValuation | null;
+  technicalClassification?: StructuredItemTechnicalClassification | null;
 }
 
 export interface StructuredDocumentReference {

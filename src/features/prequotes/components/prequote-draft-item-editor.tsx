@@ -33,6 +33,7 @@ export const ELEMENT_OPTIONS: PreQuoteDraftElementType[] = [
   "PARTITION",
   "RAILING",
   "SKYLIGHT",
+  "SHOWER_DIVISION",
   "OTHER",
 ];
 
@@ -267,7 +268,7 @@ export function PreQuoteDraftItemEditor({
             <h4 className="text-sm font-semibold text-foreground">Valoración read-only</h4>
             <p className="mt-2 text-sm leading-6 text-foreground-secondary">
               {source?.valuation
-                ? `${formatPreQuoteDraftValuationStatus(source.valuation.status)} · ${formatPreQuoteDraftMoney(source.valuation.totalAmount, source.valuation.currency)} · ${formatPreQuoteDraftDimension(source.valuation.widthMillimetersUsed)} x ${formatPreQuoteDraftDimension(source.valuation.heightMillimetersUsed)} · Cantidad ${formatPreQuoteDraftQuantity(source.valuation.quantityUsed)}`
+                ? `${formatPreQuoteDraftValuationStatus(source.valuation.status)} · ${formatPreQuoteDraftMoney(source.valuation.itemExpectedAmount ?? source.valuation.totalAmount, source.valuation.currency)} · ${formatPreQuoteDraftDimension(source.valuation.widthMillimetersUsed)} x ${formatPreQuoteDraftDimension(source.valuation.heightMillimetersUsed)} · Cantidad ${formatPreQuoteDraftQuantity(source.valuation.quantityUsed)}`
                 : "No hay una valoración registrada para este ítem."}
             </p>
           </div>

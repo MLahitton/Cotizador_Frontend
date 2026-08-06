@@ -3,6 +3,9 @@ import {
   formatProcessingAvailability,
 } from "@/features/prequotes/prequote-document-formatters";
 import type {
+  TechnicalClassificationSource,
+} from "@/features/prequotes/prequote-technical-types";
+import type {
   EvidenceSourceType,
   GlassAssignmentScope,
   GlassReviewReason,
@@ -82,6 +85,8 @@ export function formatElementType(value: StructuredElementType): string {
       return "Baranda";
     case "SKYLIGHT":
       return "Lucernario";
+    case "SHOWER_DIVISION":
+      return "División de baño";
     case "OTHER":
       return "Otro";
   }
@@ -207,6 +212,23 @@ export function formatGlassValuationReason(
   }
 }
 
+export function formatTechnicalClassificationSource(
+  value: TechnicalClassificationSource | null,
+): string {
+  switch (value) {
+    case "EXPLICIT":
+      return "Explícito";
+    case "ALIAS":
+      return "Alias";
+    case "INFERRED":
+      return "Inferido";
+    case "UNRESOLVED":
+      return "No resuelto";
+    case null:
+      return "—";
+  }
+}
+
 export function formatPriceRangeStatus(value: string): string {
   switch (value) {
     case "PRELIMINARY":
@@ -277,9 +299,21 @@ export function formatMoneyAmount(
 
 export function formatMoneyRange(
   minimum: number | null,
+  expected: number | null,
   maximum: number | null,
   currency: string | null,
 ): string {
+  if (minimum !== null && expected !== null && maximum !== null) {
+    if (minimum === expected && expected === maximum) {
+      return formatMoneyAmount(expected, currency);
+    }
+
+    return `${formatMoneyAmount(minimum, currency)} / ${formatMoneyAmount(
+      expected,
+      currency,
+    )} / ${formatMoneyAmount(maximum, currency)}`;
+  }
+
   if (minimum !== null && maximum !== null) {
     if (minimum === maximum) {
       return formatMoneyAmount(minimum, currency);
@@ -289,6 +323,10 @@ export function formatMoneyRange(
       maximum,
       currency,
     )}`;
+  }
+
+  if (expected !== null) {
+    return `Esperado ${formatMoneyAmount(expected, currency)}`;
   }
 
   if (minimum !== null) {
@@ -304,10 +342,11 @@ export function formatMoneyRange(
 
 export function formatPricePerSquareMeterRange(
   minimum: number | null,
+  expected: number | null,
   maximum: number | null,
   currency: string | null,
 ): string {
-  const range = formatMoneyRange(minimum, maximum, currency);
+  const range = formatMoneyRange(minimum, expected, maximum, currency);
   return range === "Sin rango económico disponible." ? range : `${range} por m²`;
 }
 

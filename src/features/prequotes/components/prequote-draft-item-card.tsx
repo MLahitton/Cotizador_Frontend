@@ -17,6 +17,8 @@ import {
   formatPreQuoteDraftPages,
   formatPreQuoteDraftQuantity,
   formatPreQuoteDraftReviewReason,
+  formatPreQuotePricingConfidenceLevel,
+  formatPreQuoteTechnicalSource,
   formatPreQuoteDraftValuationReason,
   formatPreQuoteDraftValuationStatus,
 } from "@/features/prequotes/prequote-draft-formatters";
@@ -42,7 +44,15 @@ function DetailValue({ label, value }: { label: string; value: string }) {
 }
 
 function statusTone(status: PreQuoteDraftValuationStatus) {
-  return status === "VALUED" ? "success" : "warning";
+  if (status === "VALUED") {
+    return "success";
+  }
+
+  if (status === "NOT_PRICEABLE") {
+    return "neutral";
+  }
+
+  return "warning";
 }
 
 function DraftEvidenceList({
@@ -275,6 +285,13 @@ function DraftItemValuation({
           )}
         />
         <DetailValue
+          label="Precio esperado por m²"
+          value={formatPreQuoteDraftMoney(
+            valuation.glassExpectedPricePerSquareMeter,
+            valuation.currency,
+          )}
+        />
+        <DetailValue
           label="Valor unitario registrado"
           value={formatPreQuoteDraftMoney(valuation.unitAmount, valuation.currency)}
         />
@@ -283,12 +300,23 @@ function DraftItemValuation({
           value={formatPreQuoteDraftMoney(valuation.totalAmount, valuation.currency)}
         />
         <DetailValue
+          label="Valor esperado del ítem"
+          value={formatPreQuoteDraftMoney(
+            valuation.itemExpectedAmount,
+            valuation.currency,
+          )}
+        />
+        <DetailValue
           label="Moneda"
           value={formatNullableDraftText(valuation.currency)}
         />
         <DetailValue
           label="Fecha de valoración"
           value={formatPreQuoteDraftDateTime(valuation.valuedAtUtc)}
+        />
+        <DetailValue
+          label="Cálculo técnico"
+          value={formatPreQuoteDraftDateTime(valuation.calculatedAtUtc)}
         />
         <DetailValue
           label="Fecha de invalidación"
@@ -389,6 +417,30 @@ export function PreQuoteDraftItemCard({ item }: { item: PreQuoteDraftItem }) {
           <DetailValue
             label="Ítem estructurado fuente"
             value={formatNullableDraftText(item.sourceStructuredItemId)}
+          />
+          <DetailValue
+            label="Sistema técnico"
+            value={formatNullableDraftText(item.technicalSnapshot?.systemCode ?? null)}
+          />
+          <DetailValue
+            label="Fuente del sistema"
+            value={formatPreQuoteTechnicalSource(
+              item.technicalSnapshot?.systemSource ?? null,
+            )}
+          />
+          <DetailValue
+            label="Marco"
+            value={formatNullableDraftText(item.technicalSnapshot?.frameCode ?? null)}
+          />
+          <DetailValue
+            label="Acabado"
+            value={formatNullableDraftText(item.technicalSnapshot?.finishCode ?? null)}
+          />
+          <DetailValue
+            label="Confianza valoración"
+            value={formatPreQuotePricingConfidenceLevel(
+              item.valuation?.confidenceLevel ?? null,
+            )}
           />
         </dl>
       </details>

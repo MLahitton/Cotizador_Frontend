@@ -4,6 +4,7 @@ export interface GlassPriceRange {
   glassPriceRangeVersionId: string;
   version: number;
   minimumPricePerSquareMeter: number;
+  expectedAmountPerM2: number;
   maximumPricePerSquareMeter: number;
   currency: string;
   status: GlassPriceRangeStatus;
@@ -17,7 +18,7 @@ export interface GlassCatalogItem {
   name: string;
   description: string | null;
   isActive: boolean;
-  currentPriceRange: GlassPriceRange;
+  currentPriceRange: GlassPriceRange | null;
 }
 
 export interface GetGlassTypesCatalogResponse {

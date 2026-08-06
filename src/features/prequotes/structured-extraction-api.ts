@@ -33,6 +33,10 @@ import type {
   StructuredRequirement,
   StructuredSummary,
 } from "@/features/prequotes/structured-extraction-types";
+import type {
+  StructuredItemTechnicalClassification,
+  TechnicalClassificationSource,
+} from "@/features/prequotes/prequote-technical-types";
 import { apiRequest } from "@/lib/http/api-client";
 
 const INVALID_EXTRACTION_RESPONSE_DETAIL =
@@ -85,7 +89,14 @@ const ELEMENT_TYPES = [
   "PARTITION",
   "RAILING",
   "SKYLIGHT",
+  "SHOWER_DIVISION",
   "OTHER",
+] as const;
+const TECHNICAL_CLASSIFICATION_SOURCES = [
+  "EXPLICIT",
+  "ALIAS",
+  "INFERRED",
+  "UNRESOLVED",
 ] as const;
 const REQUIREMENT_CATEGORIES = [
   "GLASS_SPECIFICATION",
@@ -235,6 +246,12 @@ function isGlassValuationReason(value: unknown): value is GlassValuationReason {
   return isStringIn(value, GLASS_VALUATION_REASONS);
 }
 
+function isTechnicalClassificationSource(
+  value: unknown,
+): value is TechnicalClassificationSource {
+  return isStringIn(value, TECHNICAL_CLASSIFICATION_SOURCES);
+}
+
 function isElementType(value: unknown): value is StructuredElementType {
   return isStringIn(value, ELEMENT_TYPES);
 }
@@ -304,6 +321,41 @@ function isEvidenceArray(value: unknown): value is StructuredEvidence[] {
   return Array.isArray(value) && value.every(isEvidence);
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isNullableTechnicalClassificationSource(
+  value: unknown,
+): value is TechnicalClassificationSource | null {
+  return value === null || isTechnicalClassificationSource(value);
+}
+
+function isStructuredItemTechnicalClassification(
+  value: unknown,
+): value is StructuredItemTechnicalClassification {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isNullableString(value.systemCode) &&
+    isNullableString(value.systemOriginalText) &&
+    isNullableTechnicalClassificationSource(value.systemSource) &&
+    isNonNegativeNullableFiniteNumber(value.systemConfidence) &&
+    isNullableString(value.frameCode) &&
+    isNullableString(value.frameOriginalText) &&
+    isNullableTechnicalClassificationSource(value.frameSource) &&
+    isNonNegativeNullableFiniteNumber(value.frameConfidence) &&
+    isNullableString(value.finishCode) &&
+    isNullableString(value.finishOriginalText) &&
+    isNullableTechnicalClassificationSource(value.finishSource) &&
+    isNonNegativeNullableFiniteNumber(value.finishConfidence) &&
+    typeof value.requiresReview === "boolean" &&
+    isStringArray(value.reviewReasons)
+  );
+}
+
 function isStructuredItemGlass(value: unknown): value is StructuredItemGlass {
   if (!isRecord(value)) {
     return false;
@@ -344,8 +396,10 @@ function isStructuredItemGlassValuation(
       isNonNegativeNullableFiniteNumber(value.unitAreaSquareMeters) &&
       isNonNegativeNullableFiniteNumber(value.totalAreaSquareMeters) &&
       isNonNegativeNullableFiniteNumber(value.minimumPricePerSquareMeter) &&
+      isNonNegativeNullableFiniteNumber(value.expectedPricePerSquareMeter) &&
       isNonNegativeNullableFiniteNumber(value.maximumPricePerSquareMeter) &&
       isNonNegativeNullableFiniteNumber(value.minimumAmount) &&
+      isNonNegativeNullableFiniteNumber(value.expectedAmount) &&
       isNonNegativeNullableFiniteNumber(value.maximumAmount) &&
       isValidDateTime(value.calculatedAtUtc)
     )
@@ -361,10 +415,42 @@ function isStructuredItemGlassValuation(
     return false;
   }
 
-  return !(
+  if (
+    value.minimumPricePerSquareMeter !== null &&
+    value.expectedPricePerSquareMeter !== null &&
+    value.minimumPricePerSquareMeter > value.expectedPricePerSquareMeter
+  ) {
+    return false;
+  }
+
+  if (
+    value.expectedPricePerSquareMeter !== null &&
+    value.maximumPricePerSquareMeter !== null &&
+    value.expectedPricePerSquareMeter > value.maximumPricePerSquareMeter
+  ) {
+    return false;
+  }
+
+  if (
     value.minimumAmount !== null &&
     value.maximumAmount !== null &&
     value.minimumAmount > value.maximumAmount
+  ) {
+    return false;
+  }
+
+  if (
+    value.minimumAmount !== null &&
+    value.expectedAmount !== null &&
+    value.minimumAmount > value.expectedAmount
+  ) {
+    return false;
+  }
+
+  return !(
+    value.expectedAmount !== null &&
+    value.maximumAmount !== null &&
+    value.expectedAmount > value.maximumAmount
   );
 }
 
@@ -415,6 +501,16 @@ function isItem(value: unknown): value is StructuredItem {
       !("valuation" in value) ||
       value.valuation === null ||
       isStructuredItemGlassValuation(value.valuation)
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    !(
+      !("technicalClassification" in value) ||
+      value.technicalClassification === null ||
+      isStructuredItemTechnicalClassification(value.technicalClassification)
     )
   ) {
     return false;

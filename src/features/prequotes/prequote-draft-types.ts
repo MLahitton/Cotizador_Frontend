@@ -1,3 +1,9 @@
+import type {
+  PreQuoteDraftItemTechnicalSnapshot,
+  PreQuotePricingConfidenceLevel,
+  TechnicalClassificationSource,
+} from "@/features/prequotes/prequote-technical-types";
+
 export type PreQuoteDraftStatus =
   | "PENDING_REVIEW"
   | "IN_REVIEW"
@@ -14,6 +20,7 @@ export type PreQuoteDraftValuationStatus =
   | "PENDING"
   | "VALUED"
   | "STALE"
+  | "NOT_PRICEABLE"
   | "REQUIRES_REVIEW";
 
 export type PreQuoteDraftElementType =
@@ -23,6 +30,7 @@ export type PreQuoteDraftElementType =
   | "PARTITION"
   | "RAILING"
   | "SKYLIGHT"
+  | "SHOWER_DIVISION"
   | "OTHER";
 
 export type PreQuoteDraftGlassAssignmentScope =
@@ -160,6 +168,43 @@ export interface PreQuoteDraftItemValuation {
   valuedAtUtc: string;
   invalidatedAtUtc: string | null;
   invalidationReason: PreQuoteDraftValuationInvalidationReason | null;
+  billableAreaUnitSquareMeters: number | null;
+  glassPriceRangeVersion: number | null;
+  glassMinimumPricePerSquareMeter: number | null;
+  glassExpectedPricePerSquareMeter: number | null;
+  glassMaximumPricePerSquareMeter: number | null;
+  systemCode: string | null;
+  systemSource: TechnicalClassificationSource | null;
+  frameCode: string | null;
+  finishCode: string | null;
+  laborProfileCode: string | null;
+  assemblyProfileCode: string | null;
+  finishFactorMinimum: number | null;
+  finishFactorExpected: number | null;
+  finishFactorMaximum: number | null;
+  accessoryFactor: number | null;
+  glassMinimumAmount: number | null;
+  glassExpectedAmount: number | null;
+  glassMaximumAmount: number | null;
+  laborMinimumAmount: number | null;
+  laborExpectedAmount: number | null;
+  laborMaximumAmount: number | null;
+  assemblyMinimumAmount: number | null;
+  assemblyExpectedAmount: number | null;
+  assemblyMaximumAmount: number | null;
+  accessoriesMinimumAmount: number | null;
+  accessoriesExpectedAmount: number | null;
+  accessoriesMaximumAmount: number | null;
+  itemMinimumAmount: number | null;
+  itemExpectedAmount: number | null;
+  itemMaximumAmount: number | null;
+  pricingProfileVersion: string | null;
+  confidenceScore: number | null;
+  confidenceLevel: PreQuotePricingConfidenceLevel | null;
+  assumptions: string[];
+  missingData: string[];
+  requiresReview: boolean | null;
+  calculatedAtUtc: string | null;
 }
 
 export interface PreQuoteDraftItem {
@@ -179,6 +224,7 @@ export interface PreQuoteDraftItem {
   isIncluded: boolean;
   glass: PreQuoteDraftItemGlass | null;
   valuation: PreQuoteDraftItemValuation | null;
+  technicalSnapshot: PreQuoteDraftItemTechnicalSnapshot | null;
 }
 
 export interface PreQuoteDraftRequirement {
@@ -237,11 +283,38 @@ export interface PreQuoteDraftEconomicSummary {
   valuedItemCount: number;
   pendingValuationItemCount: number;
   staleValuationItemCount: number;
+  notPriceableItemCount: number;
   itemsRequiringReviewCount: number;
   totalAreaSquareMeters: number | null;
   glassSubtotal: number | null;
   currency: string | null;
   isEconomicallyComplete: boolean;
+  minimumTechnicalSubtotal: number | null;
+  expectedTechnicalSubtotal: number | null;
+  maximumTechnicalSubtotal: number | null;
+  transportMinimum: number | null;
+  transportExpected: number | null;
+  transportMaximum: number | null;
+  administrationMinimum: number | null;
+  administrationExpected: number | null;
+  administrationMaximum: number | null;
+  contingencyMinimum: number | null;
+  contingencyExpected: number | null;
+  contingencyMaximum: number | null;
+  profitMinimum: number | null;
+  profitExpected: number | null;
+  profitMaximum: number | null;
+  vatMinimum: number | null;
+  vatExpected: number | null;
+  vatMaximum: number | null;
+  finalMinimum: number | null;
+  finalExpected: number | null;
+  finalMaximum: number | null;
+  overallConfidence: number | null;
+  confidenceLevel: PreQuotePricingConfidenceLevel | null;
+  assumptions: string[];
+  missingData: string[];
+  hasLimitedPricingScope: boolean;
 }
 
 export interface PreQuoteDraftSummary {

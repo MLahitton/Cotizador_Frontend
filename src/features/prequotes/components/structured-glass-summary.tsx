@@ -54,6 +54,7 @@ export function StructuredGlassSummary({
   const isAggregable = summary.isAggregable ?? true;
   const range = formatMoneyRange(
     summary.minimumGlassAmount ?? null,
+    null,
     summary.maximumGlassAmount ?? null,
     summary.currency ?? null,
   );

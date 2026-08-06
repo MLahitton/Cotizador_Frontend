@@ -20,6 +20,11 @@ import type {
   PreQuoteDraftValuationReason,
   UpdatePreQuoteDraftRequest,
 } from "@/features/prequotes/prequote-draft-types";
+import type {
+  PreQuoteDraftItemTechnicalSnapshot,
+  PreQuotePricingConfidenceLevel,
+  TechnicalClassificationSource,
+} from "@/features/prequotes/prequote-technical-types";
 import { apiRequest } from "@/lib/http/api-client";
 
 const INVALID_DRAFT_RESPONSE_MESSAGE =
@@ -41,6 +46,7 @@ const VALUATION_STATUSES = [
   "PENDING",
   "VALUED",
   "STALE",
+  "NOT_PRICEABLE",
   "REQUIRES_REVIEW",
 ] as const;
 const ELEMENT_TYPES = [
@@ -50,8 +56,10 @@ const ELEMENT_TYPES = [
   "PARTITION",
   "RAILING",
   "SKYLIGHT",
+  "SHOWER_DIVISION",
   "OTHER",
 ] as const;
+const CONFIDENCE_LEVELS = ["LOW", "MEDIUM", "GOOD", "HIGH"] as const;
 const REQUIREMENT_CATEGORIES = [
   "GLASS_SPECIFICATION",
   "PROFILE_SPECIFICATION",
@@ -112,6 +120,17 @@ const INVALIDATION_REASON_ALIASES = {
   QUANTITY_CHANGED: "QUANTITY_CHANGED",
   QuantityChanged: "QUANTITY_CHANGED",
 } as const satisfies Record<string, PreQuoteDraftValuationInvalidationReason>;
+
+const TECHNICAL_SOURCE_ALIASES = {
+  EXPLICIT: "EXPLICIT",
+  Explicit: "EXPLICIT",
+  ALIAS: "ALIAS",
+  Alias: "ALIAS",
+  INFERRED: "INFERRED",
+  Inferred: "INFERRED",
+  UNRESOLVED: "UNRESOLVED",
+  Unresolved: "UNRESOLVED",
+} as const satisfies Record<string, TechnicalClassificationSource>;
 
 export class InvalidPreQuoteDraftResponseError extends Error {
   constructor() {
@@ -198,6 +217,19 @@ function isNullableFiniteNumber(value: unknown): value is number | null {
   return value === null || (typeof value === "number" && Number.isFinite(value));
 }
 
+function isNullableNonNegativeFiniteNumber(
+  value: unknown,
+): value is number | null {
+  return (
+    value === null ||
+    (typeof value === "number" && Number.isFinite(value) && value >= 0)
+  );
+}
+
+function isNullableNonNegativeInteger(value: unknown): value is number | null {
+  return value === null || isNonNegativeInteger(value);
+}
+
 function isValidDateTime(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
@@ -228,6 +260,34 @@ function idsMatch(left: string, right: string): boolean {
 
 function isPositiveIntegerArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every(isPositiveInteger);
+}
+
+function normalizeStringArray(value: unknown): string[] | null {
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? value
+    : null;
+}
+
+function normalizeTechnicalSource(
+  value: unknown,
+): TechnicalClassificationSource | null | false {
+  if (value === null) {
+    return null;
+  }
+
+  return normalizeFromAliases(value, TECHNICAL_SOURCE_ALIASES) ?? false;
+}
+
+function isConfidenceLevel(
+  value: unknown,
+): value is PreQuotePricingConfidenceLevel {
+  return isStringIn(value, CONFIDENCE_LEVELS);
+}
+
+function isNullableConfidenceLevel(
+  value: unknown,
+): value is PreQuotePricingConfidenceLevel | null {
+  return value === null || isConfidenceLevel(value);
 }
 
 function isConsecutiveSequence<T extends { sequence: number }>(
@@ -333,6 +393,62 @@ function normalizeGlass(value: unknown): PreQuoteDraftItemGlass | null | false {
   };
 }
 
+function normalizeTechnicalSnapshot(
+  value: unknown,
+): PreQuoteDraftItemTechnicalSnapshot | null | false {
+  if (value === null) {
+    return null;
+  }
+
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const systemSource = normalizeTechnicalSource(value.systemSource);
+  const frameSource = normalizeTechnicalSource(value.frameSource);
+  const finishSource = normalizeTechnicalSource(value.finishSource);
+  const reviewReasons = normalizeStringArray(value.reviewReasons);
+
+  if (
+    !isValidContractGuid(value.sourceStructuredItemTechnicalClassificationId) ||
+    !isNullableString(value.systemCode) ||
+    !isNullableString(value.systemOriginalText) ||
+    systemSource === false ||
+    !isNullableNonNegativeFiniteNumber(value.systemConfidence) ||
+    !isNullableString(value.frameCode) ||
+    !isNullableString(value.frameOriginalText) ||
+    frameSource === false ||
+    !isNullableNonNegativeFiniteNumber(value.frameConfidence) ||
+    !isNullableString(value.finishCode) ||
+    !isNullableString(value.finishOriginalText) ||
+    finishSource === false ||
+    !isNullableNonNegativeFiniteNumber(value.finishConfidence) ||
+    typeof value.requiresReview !== "boolean" ||
+    !reviewReasons
+  ) {
+    return false;
+  }
+
+  return {
+    sourceStructuredItemTechnicalClassificationId:
+      value.sourceStructuredItemTechnicalClassificationId,
+    systemCode: value.systemCode,
+    systemOriginalText: value.systemOriginalText,
+    systemSource,
+    systemConfidence: value.systemConfidence,
+    frameCode: value.frameCode,
+    frameOriginalText: value.frameOriginalText,
+    frameSource,
+    frameConfidence: value.frameConfidence,
+    finishCode: value.finishCode,
+    finishOriginalText: value.finishOriginalText,
+    finishSource,
+    finishConfidence: value.finishConfidence,
+    requiresReview: value.requiresReview,
+    reviewReasons,
+  };
+}
+
 function normalizeValuation(
   value: unknown,
 ): PreQuoteDraftItemValuation | null | false {
@@ -355,6 +471,9 @@ function normalizeValuation(
           value.invalidationReason,
           INVALIDATION_REASON_ALIASES,
         );
+  const systemSource = normalizeTechnicalSource(value.systemSource);
+  const assumptions = normalizeStringArray(value.assumptions);
+  const missingData = normalizeStringArray(value.missingData);
 
   if (
     !isValidContractGuid(value.sourceStructuredItemValuationId) ||
@@ -373,7 +492,44 @@ function normalizeValuation(
     !isNullableString(value.currency) ||
     !isValidDateTime(value.valuedAtUtc) ||
     !isNullableDateTime(value.invalidatedAtUtc) ||
-    (invalidationReason === null && value.invalidationReason !== null)
+    (invalidationReason === null && value.invalidationReason !== null) ||
+    !isNullableFiniteNumber(value.billableAreaUnitSquareMeters) ||
+    !isPositiveNullableInteger(value.glassPriceRangeVersion) ||
+    !isNullableFiniteNumber(value.glassMinimumPricePerSquareMeter) ||
+    !isNullableFiniteNumber(value.glassExpectedPricePerSquareMeter) ||
+    !isNullableFiniteNumber(value.glassMaximumPricePerSquareMeter) ||
+    !isNullableString(value.systemCode) ||
+    systemSource === false ||
+    !isNullableString(value.frameCode) ||
+    !isNullableString(value.finishCode) ||
+    !isNullableString(value.laborProfileCode) ||
+    !isNullableString(value.assemblyProfileCode) ||
+    !isNullableFiniteNumber(value.finishFactorMinimum) ||
+    !isNullableFiniteNumber(value.finishFactorExpected) ||
+    !isNullableFiniteNumber(value.finishFactorMaximum) ||
+    !isNullableFiniteNumber(value.accessoryFactor) ||
+    !isNullableFiniteNumber(value.glassMinimumAmount) ||
+    !isNullableFiniteNumber(value.glassExpectedAmount) ||
+    !isNullableFiniteNumber(value.glassMaximumAmount) ||
+    !isNullableFiniteNumber(value.laborMinimumAmount) ||
+    !isNullableFiniteNumber(value.laborExpectedAmount) ||
+    !isNullableFiniteNumber(value.laborMaximumAmount) ||
+    !isNullableFiniteNumber(value.assemblyMinimumAmount) ||
+    !isNullableFiniteNumber(value.assemblyExpectedAmount) ||
+    !isNullableFiniteNumber(value.assemblyMaximumAmount) ||
+    !isNullableFiniteNumber(value.accessoriesMinimumAmount) ||
+    !isNullableFiniteNumber(value.accessoriesExpectedAmount) ||
+    !isNullableFiniteNumber(value.accessoriesMaximumAmount) ||
+    !isNullableFiniteNumber(value.itemMinimumAmount) ||
+    !isNullableFiniteNumber(value.itemExpectedAmount) ||
+    !isNullableFiniteNumber(value.itemMaximumAmount) ||
+    !isNullableString(value.pricingProfileVersion) ||
+    !isNullableNonNegativeInteger(value.confidenceScore) ||
+    !isNullableConfidenceLevel(value.confidenceLevel) ||
+    !assumptions ||
+    !missingData ||
+    !(value.requiresReview === null || typeof value.requiresReview === "boolean") ||
+    !isNullableDateTime(value.calculatedAtUtc)
   ) {
     return false;
   }
@@ -396,6 +552,43 @@ function normalizeValuation(
     valuedAtUtc: value.valuedAtUtc,
     invalidatedAtUtc: value.invalidatedAtUtc,
     invalidationReason,
+    billableAreaUnitSquareMeters: value.billableAreaUnitSquareMeters,
+    glassPriceRangeVersion: value.glassPriceRangeVersion,
+    glassMinimumPricePerSquareMeter: value.glassMinimumPricePerSquareMeter,
+    glassExpectedPricePerSquareMeter: value.glassExpectedPricePerSquareMeter,
+    glassMaximumPricePerSquareMeter: value.glassMaximumPricePerSquareMeter,
+    systemCode: value.systemCode,
+    systemSource,
+    frameCode: value.frameCode,
+    finishCode: value.finishCode,
+    laborProfileCode: value.laborProfileCode,
+    assemblyProfileCode: value.assemblyProfileCode,
+    finishFactorMinimum: value.finishFactorMinimum,
+    finishFactorExpected: value.finishFactorExpected,
+    finishFactorMaximum: value.finishFactorMaximum,
+    accessoryFactor: value.accessoryFactor,
+    glassMinimumAmount: value.glassMinimumAmount,
+    glassExpectedAmount: value.glassExpectedAmount,
+    glassMaximumAmount: value.glassMaximumAmount,
+    laborMinimumAmount: value.laborMinimumAmount,
+    laborExpectedAmount: value.laborExpectedAmount,
+    laborMaximumAmount: value.laborMaximumAmount,
+    assemblyMinimumAmount: value.assemblyMinimumAmount,
+    assemblyExpectedAmount: value.assemblyExpectedAmount,
+    assemblyMaximumAmount: value.assemblyMaximumAmount,
+    accessoriesMinimumAmount: value.accessoriesMinimumAmount,
+    accessoriesExpectedAmount: value.accessoriesExpectedAmount,
+    accessoriesMaximumAmount: value.accessoriesMaximumAmount,
+    itemMinimumAmount: value.itemMinimumAmount,
+    itemExpectedAmount: value.itemExpectedAmount,
+    itemMaximumAmount: value.itemMaximumAmount,
+    pricingProfileVersion: value.pricingProfileVersion,
+    confidenceScore: value.confidenceScore,
+    confidenceLevel: value.confidenceLevel,
+    assumptions,
+    missingData,
+    requiresReview: value.requiresReview,
+    calculatedAtUtc: value.calculatedAtUtc,
   };
 }
 
@@ -406,6 +599,7 @@ function normalizeItem(value: unknown): PreQuoteDraftItem | null {
 
   const glass = normalizeGlass(value.glass);
   const valuation = normalizeValuation(value.valuation);
+  const technicalSnapshot = normalizeTechnicalSnapshot(value.technicalSnapshot);
   const sourceSequence =
     "sourceSequence" in value ? value.sourceSequence : value.sourceItemSequence;
 
@@ -425,7 +619,8 @@ function normalizeItem(value: unknown): PreQuoteDraftItem | null {
     !isPositiveNullableInteger(value.quantity) ||
     typeof value.isIncluded !== "boolean" ||
     glass === false ||
-    valuation === false
+    valuation === false ||
+    technicalSnapshot === false
   ) {
     return null;
   }
@@ -447,6 +642,7 @@ function normalizeItem(value: unknown): PreQuoteDraftItem | null {
     isIncluded: value.isIncluded,
     glass,
     valuation,
+    technicalSnapshot,
   };
 }
 
@@ -611,12 +807,46 @@ function normalizeEconomicSummary(
     !isNonNegativeInteger(value.valuedItemCount) ||
     !isNonNegativeInteger(value.pendingValuationItemCount) ||
     !isNonNegativeInteger(value.staleValuationItemCount) ||
+    !isNonNegativeInteger(value.notPriceableItemCount) ||
     !isNonNegativeInteger(value.itemsRequiringReviewCount) ||
     !isNullableFiniteNumber(value.totalAreaSquareMeters) ||
     !isNullableFiniteNumber(value.glassSubtotal) ||
     !isNullableString(value.currency) ||
-    typeof value.isEconomicallyComplete !== "boolean"
+    typeof value.isEconomicallyComplete !== "boolean" ||
+    !isNullableFiniteNumber(value.minimumTechnicalSubtotal) ||
+    !isNullableFiniteNumber(value.expectedTechnicalSubtotal) ||
+    !isNullableFiniteNumber(value.maximumTechnicalSubtotal) ||
+    !isNullableFiniteNumber(value.transportMinimum) ||
+    !isNullableFiniteNumber(value.transportExpected) ||
+    !isNullableFiniteNumber(value.transportMaximum) ||
+    !isNullableFiniteNumber(value.administrationMinimum) ||
+    !isNullableFiniteNumber(value.administrationExpected) ||
+    !isNullableFiniteNumber(value.administrationMaximum) ||
+    !isNullableFiniteNumber(value.contingencyMinimum) ||
+    !isNullableFiniteNumber(value.contingencyExpected) ||
+    !isNullableFiniteNumber(value.contingencyMaximum) ||
+    !isNullableFiniteNumber(value.profitMinimum) ||
+    !isNullableFiniteNumber(value.profitExpected) ||
+    !isNullableFiniteNumber(value.profitMaximum) ||
+    !isNullableFiniteNumber(value.vatMinimum) ||
+    !isNullableFiniteNumber(value.vatExpected) ||
+    !isNullableFiniteNumber(value.vatMaximum) ||
+    !isNullableFiniteNumber(value.finalMinimum) ||
+    !isNullableFiniteNumber(value.finalExpected) ||
+    !isNullableFiniteNumber(value.finalMaximum) ||
+    !isNullableNonNegativeInteger(value.overallConfidence) ||
+    !isNullableConfidenceLevel(value.confidenceLevel) ||
+    !normalizeStringArray(value.assumptions) ||
+    !normalizeStringArray(value.missingData) ||
+    typeof value.hasLimitedPricingScope !== "boolean"
   ) {
+    return null;
+  }
+
+  const assumptions = normalizeStringArray(value.assumptions);
+  const missingData = normalizeStringArray(value.missingData);
+
+  if (!assumptions || !missingData) {
     return null;
   }
 
@@ -626,11 +856,38 @@ function normalizeEconomicSummary(
     valuedItemCount: value.valuedItemCount,
     pendingValuationItemCount: value.pendingValuationItemCount,
     staleValuationItemCount: value.staleValuationItemCount,
+    notPriceableItemCount: value.notPriceableItemCount,
     itemsRequiringReviewCount: value.itemsRequiringReviewCount,
     totalAreaSquareMeters: value.totalAreaSquareMeters,
     glassSubtotal: value.glassSubtotal,
     currency: value.currency,
     isEconomicallyComplete: value.isEconomicallyComplete,
+    minimumTechnicalSubtotal: value.minimumTechnicalSubtotal,
+    expectedTechnicalSubtotal: value.expectedTechnicalSubtotal,
+    maximumTechnicalSubtotal: value.maximumTechnicalSubtotal,
+    transportMinimum: value.transportMinimum,
+    transportExpected: value.transportExpected,
+    transportMaximum: value.transportMaximum,
+    administrationMinimum: value.administrationMinimum,
+    administrationExpected: value.administrationExpected,
+    administrationMaximum: value.administrationMaximum,
+    contingencyMinimum: value.contingencyMinimum,
+    contingencyExpected: value.contingencyExpected,
+    contingencyMaximum: value.contingencyMaximum,
+    profitMinimum: value.profitMinimum,
+    profitExpected: value.profitExpected,
+    profitMaximum: value.profitMaximum,
+    vatMinimum: value.vatMinimum,
+    vatExpected: value.vatExpected,
+    vatMaximum: value.vatMaximum,
+    finalMinimum: value.finalMinimum,
+    finalExpected: value.finalExpected,
+    finalMaximum: value.finalMaximum,
+    overallConfidence: value.overallConfidence,
+    confidenceLevel: value.confidenceLevel,
+    assumptions,
+    missingData,
+    hasLimitedPricingScope: value.hasLimitedPricingScope,
   };
 }
 

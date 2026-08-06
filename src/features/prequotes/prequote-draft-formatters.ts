@@ -11,6 +11,10 @@ import type {
   PreQuoteDraftValuationReason,
   PreQuoteDraftValuationStatus,
 } from "@/features/prequotes/prequote-draft-types";
+import type {
+  PreQuotePricingConfidenceLevel,
+  TechnicalClassificationSource,
+} from "@/features/prequotes/prequote-technical-types";
 
 const EMPTY_VALUE = "-";
 
@@ -104,6 +108,8 @@ export function formatPreQuoteDraftElementType(
       return "Baranda";
     case "SKYLIGHT":
       return "Tragaluces";
+    case "SHOWER_DIVISION":
+      return "División de baño";
     case "OTHER":
       return "Otro";
   }
@@ -153,8 +159,44 @@ export function formatPreQuoteDraftValuationStatus(
       return "Valoración vigente";
     case "STALE":
       return "Valoración desactualizada";
+    case "NOT_PRICEABLE":
+      return "No cotizable";
     case "REQUIRES_REVIEW":
       return "Requiere revisión";
+  }
+}
+
+export function formatPreQuoteTechnicalSource(
+  value: TechnicalClassificationSource | null,
+): string {
+  switch (value) {
+    case "EXPLICIT":
+      return "Explícito";
+    case "ALIAS":
+      return "Alias";
+    case "INFERRED":
+      return "Inferido";
+    case "UNRESOLVED":
+      return "No resuelto";
+    case null:
+      return EMPTY_VALUE;
+  }
+}
+
+export function formatPreQuotePricingConfidenceLevel(
+  value: PreQuotePricingConfidenceLevel | null,
+): string {
+  switch (value) {
+    case "LOW":
+      return "Baja";
+    case "MEDIUM":
+      return "Media";
+    case "GOOD":
+      return "Buena";
+    case "HIGH":
+      return "Alta";
+    case null:
+      return EMPTY_VALUE;
   }
 }
 

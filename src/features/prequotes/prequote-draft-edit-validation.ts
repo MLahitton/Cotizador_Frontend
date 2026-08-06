@@ -18,6 +18,7 @@ const ELEMENT_TYPES = [
   "PARTITION",
   "RAILING",
   "SKYLIGHT",
+  "SHOWER_DIVISION",
   "OTHER",
 ] as const satisfies readonly PreQuoteDraftElementType[];
 
