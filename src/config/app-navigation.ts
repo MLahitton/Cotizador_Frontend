@@ -1,4 +1,5 @@
 import {
+  BookOpenCheck,
   Calculator,
   Files,
   FileText,
@@ -46,6 +47,13 @@ export const appNavigationItems: AppNavigationItem[] = [
     label: "Catálogo de vidrios",
     href: "/catalogs/glass-types",
     icon: Layers3,
+    disabled: false,
+  },
+  {
+    id: "canonical-catalog",
+    label: "Catálogo técnico",
+    href: "/catalogs/canonical",
+    icon: BookOpenCheck,
     disabled: false,
   },
   {
