@@ -99,7 +99,12 @@ const EVIDENCE_SOURCE_ALIASES = {
   Native: "NATIVE",
   OCR: "OCR",
   Ocr: "OCR",
+  XLSX: "XLSX",
+  Xlsx: "XLSX",
 } as const satisfies Record<string, PreQuoteDraftEvidenceSourceType>;
+
+const MAX_EVIDENCE_SHEET_NAME_LENGTH = 100;
+const MAX_EVIDENCE_CELL_RANGE_LENGTH = 50;
 
 const VALUATION_REASON_ALIASES = {
   MISSING_MEASUREMENTS: "MISSING_MEASUREMENTS",
@@ -194,6 +199,17 @@ function isNullableString(value: unknown): value is string | null {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isNonEmptyStringWithMaxLength(
+  value: unknown,
+  maxLength: number,
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= maxLength
+  );
 }
 
 function isPositiveInteger(value: unknown): value is number {
@@ -325,18 +341,52 @@ function normalizeEvidence(value: unknown): PreQuoteDraftItemGlassEvidence | nul
 
   if (
     !isPositiveInteger(value.sequence) ||
-    !isPositiveInteger(value.pageNumber) ||
     !sourceType ||
     !isNonEmptyString(value.text)
   ) {
     return null;
   }
 
+  if (sourceType === "NATIVE" || sourceType === "OCR") {
+    if (
+      !isPositiveInteger(value.pageNumber) ||
+      value.sheetName !== null ||
+      value.cellRange !== null
+    ) {
+      return null;
+    }
+
+    return {
+      sequence: value.sequence,
+      pageNumber: value.pageNumber,
+      sourceType,
+      text: value.text,
+      sheetName: null,
+      cellRange: null,
+    };
+  }
+
+  if (
+    value.pageNumber !== null ||
+    !isNonEmptyStringWithMaxLength(
+      value.sheetName,
+      MAX_EVIDENCE_SHEET_NAME_LENGTH,
+    ) ||
+    !isNonEmptyStringWithMaxLength(
+      value.cellRange,
+      MAX_EVIDENCE_CELL_RANGE_LENGTH,
+    )
+  ) {
+    return null;
+  }
+
   return {
     sequence: value.sequence,
-    pageNumber: value.pageNumber,
+    pageNumber: null,
     sourceType,
     text: value.text,
+    sheetName: value.sheetName,
+    cellRange: value.cellRange,
   };
 }
 
@@ -858,7 +908,8 @@ function normalizeEconomicSummary(
     !isNullableConfidenceLevel(value.confidenceLevel) ||
     !normalizeStringArray(value.assumptions) ||
     !normalizeStringArray(value.missingData) ||
-    typeof value.hasLimitedPricingScope !== "boolean"
+    typeof value.hasLimitedPricingScope !== "boolean" ||
+    typeof value.hasNotPriceableItems !== "boolean"
   ) {
     return null;
   }
@@ -908,6 +959,7 @@ function normalizeEconomicSummary(
     assumptions,
     missingData,
     hasLimitedPricingScope: value.hasLimitedPricingScope,
+    hasNotPriceableItems: value.hasNotPriceableItems,
   };
 }
 

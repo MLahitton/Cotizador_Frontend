@@ -44,7 +44,7 @@ export type PreQuoteDraftGlassReviewReason =
   | "GLASS_TYPE_AMBIGUOUS"
   | "GLASS_TYPE_CONFLICT";
 
-export type PreQuoteDraftEvidenceSourceType = "NATIVE" | "OCR";
+export type PreQuoteDraftEvidenceSourceType = "NATIVE" | "OCR" | "XLSX";
 
 export type PreQuoteDraftValuationReason =
   | "MISSING_MEASUREMENTS"
@@ -133,9 +133,11 @@ export interface UpdatePreQuoteDraftRequest {
 
 export interface PreQuoteDraftItemGlassEvidence {
   sequence: number;
-  pageNumber: number;
+  pageNumber: number | null;
   sourceType: PreQuoteDraftEvidenceSourceType;
   text: string;
+  sheetName: string | null;
+  cellRange: string | null;
 }
 
 export interface PreQuoteDraftItemGlass {
@@ -315,6 +317,7 @@ export interface PreQuoteDraftEconomicSummary {
   assumptions: string[];
   missingData: string[];
   hasLimitedPricingScope: boolean;
+  hasNotPriceableItems: boolean;
 }
 
 export interface PreQuoteDraftSummary {

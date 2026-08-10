@@ -6,6 +6,7 @@ import {
   formatPreQuoteDraftAssignmentScope,
   formatPreQuoteDraftDimension,
   formatPreQuoteDraftElementType,
+  formatPreQuoteDraftEvidenceLocation,
   formatPreQuoteDraftEvidenceSource,
   formatPreQuoteDraftInclusion,
   formatPreQuoteDraftNumber,
@@ -47,21 +48,21 @@ function DraftEvidenceList({
   }
 
   return (
-    <details className="rounded-sm border border-border-subtle bg-surface p-3">
+    <details className="min-w-0 rounded-sm border border-border-subtle bg-surface p-3">
       <summary className="cursor-pointer text-sm font-semibold text-foreground">
         Ver {evidence.length} {evidence.length === 1 ? "evidencia" : "evidencias"}
       </summary>
       <ul className="mt-3 space-y-3">
         {evidence.map((item) => (
           <li
-            key={`${item.sequence}-${item.pageNumber}-${item.sourceType}`}
+            key={`${item.sequence}-${item.pageNumber ?? item.sheetName}-${item.cellRange ?? item.sourceType}`}
             className="min-w-0 rounded-sm bg-surface-subtle p-3"
           >
-            <p className="text-xs font-semibold uppercase text-foreground-secondary">
-              Página {item.pageNumber} ·{" "}
+            <p className="break-words text-xs font-semibold uppercase text-foreground-secondary [overflow-wrap:anywhere]">
+              {formatPreQuoteDraftEvidenceLocation(item)} ·{" "}
               {formatPreQuoteDraftEvidenceSource(item.sourceType)}
             </p>
-            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
+            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground [overflow-wrap:anywhere]">
               {item.text}
             </p>
           </li>

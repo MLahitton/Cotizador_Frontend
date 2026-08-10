@@ -3,6 +3,7 @@ import type {
   PreQuoteDraftEvidenceSourceType,
   PreQuoteDraftGlassAssignmentScope,
   PreQuoteDraftGlassReviewReason,
+  PreQuoteDraftItemGlassEvidence,
   PreQuoteDraftOrigin,
   PreQuoteDraftRequirementCategory,
   PreQuoteDraftResolutionStatus,
@@ -142,7 +143,24 @@ export function formatPreQuoteDraftReviewReason(
 export function formatPreQuoteDraftEvidenceSource(
   value: PreQuoteDraftEvidenceSourceType,
 ): string {
-  return value === "NATIVE" ? "Texto del documento" : "Reconocimiento OCR";
+  switch (value) {
+    case "NATIVE":
+      return "Texto nativo";
+    case "OCR":
+      return "OCR";
+    case "XLSX":
+      return "XLSX";
+  }
+}
+
+export function formatPreQuoteDraftEvidenceLocation(
+  value: PreQuoteDraftItemGlassEvidence,
+): string {
+  if (value.sourceType === "XLSX") {
+    return `Hoja ${value.sheetName} · ${value.cellRange}`;
+  }
+
+  return `Página ${value.pageNumber}`;
 }
 
 export function formatPreQuoteDraftValuationStatus(

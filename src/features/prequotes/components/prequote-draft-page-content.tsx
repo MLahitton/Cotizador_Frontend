@@ -13,6 +13,7 @@ import {
   getProjectContextErrorMessage,
 } from "@/features/prequotes/components/prequote-errors";
 import { PreQuoteDraftEditor } from "@/features/prequotes/components/prequote-draft-editor";
+import { PreQuoteDraftEconomicSummary } from "@/features/prequotes/components/prequote-draft-economic-summary";
 import { PreQuoteDraftFindingsSection } from "@/features/prequotes/components/prequote-draft-findings-section";
 import { PreQuoteDraftItemsSection } from "@/features/prequotes/components/prequote-draft-items-section";
 import { PreQuoteDraftReferencesSection } from "@/features/prequotes/components/prequote-draft-references-section";
@@ -23,11 +24,8 @@ import {
   PreQuotesLoading,
 } from "@/features/prequotes/components/prequotes-status";
 import {
-  formatEconomicCompleteness,
   formatNullableDraftText,
-  formatPreQuoteDraftArea,
   formatPreQuoteDraftDateTime,
-  formatPreQuoteDraftMoney,
   formatPreQuoteDraftNumber,
   formatPreQuoteDraftStatus,
 } from "@/features/prequotes/prequote-draft-formatters";
@@ -279,66 +277,7 @@ function OperationalSummary({ draft }: { draft: PreQuoteDraftDetails }) {
 }
 
 function EconomicSummary({ draft }: { draft: PreQuoteDraftDetails }) {
-  const summary = draft.economicSummary;
-  const metrics = [
-    ["Ítems incluidos", summary.includedItemCount],
-    ["Unidades conocidas", summary.includedKnownQuoteableUnitCount],
-    ["Valorados", summary.valuedItemCount],
-    ["Pendientes", summary.pendingValuationItemCount],
-    ["Desactualizados", summary.staleValuationItemCount],
-    ["No cotizables", summary.notPriceableItemCount],
-    ["Requieren revisión", summary.itemsRequiringReviewCount],
-  ] as const;
-
-  return (
-    <Surface padding="none" className="min-w-0 overflow-hidden">
-      <section className="p-5 sm:p-6" aria-labelledby="draft-economic-title">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 id="draft-economic-title" className="text-lg font-semibold text-foreground">
-            Resumen económico read-only
-          </h2>
-          <Badge tone={summary.isEconomicallyComplete ? "success" : "warning"} size="sm">
-            {formatEconomicCompleteness(summary.isEconomicallyComplete)}
-          </Badge>
-        </div>
-        {summary.hasLimitedPricingScope ? (
-          <div className="mt-4 flex items-start gap-3 rounded-sm border border-warning bg-warning-soft p-3 text-warning">
-            <CircleAlert
-              aria-hidden="true"
-              className="mt-0.5 shrink-0"
-              size={18}
-              strokeWidth={1.75}
-            />
-            <p className="text-sm leading-6">
-              La valoración tiene alcance limitado porque algunos ítems no son
-              cotizables o requieren datos adicionales.
-            </p>
-          </div>
-        ) : null}
-        <dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {metrics.map(([label, value]) => (
-            <Metric key={label} label={label} value={formatPreQuoteDraftNumber(value)} />
-          ))}
-          <Metric
-            label="Área total"
-            value={formatPreQuoteDraftArea(summary.totalAreaSquareMeters)}
-          />
-          <Metric
-            label="Subtotal registrado en el borrador"
-            value={formatPreQuoteDraftMoney(summary.glassSubtotal, summary.currency)}
-          />
-          <Metric
-            label="Total esperado"
-            value={formatPreQuoteDraftMoney(summary.finalExpected, summary.currency)}
-          />
-          <Metric
-            label="Moneda"
-            value={formatNullableDraftText(summary.currency)}
-          />
-        </dl>
-      </section>
-    </Surface>
-  );
+  return <PreQuoteDraftEconomicSummary economicSummary={draft.economicSummary} />;
 }
 
 function PreQuoteDraftView({
