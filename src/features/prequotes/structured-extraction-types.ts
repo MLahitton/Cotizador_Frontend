@@ -4,7 +4,7 @@ import type {
 } from "@/features/prequotes/prequote-documents-types";
 import type { StructuredItemTechnicalClassification } from "@/features/prequotes/prequote-technical-types";
 
-export type EvidenceSourceType = "NATIVE" | "OCR";
+export type EvidenceSourceType = "NATIVE" | "OCR" | "XLSX";
 
 export type StructuredElementType =
   | "WINDOW"
@@ -62,9 +62,11 @@ export type GlassValuationReason =
   | "CURRENCY_MISMATCH";
 
 export interface StructuredEvidence {
-  pageNumber: number;
+  pageNumber: number | null;
   sourceType: EvidenceSourceType;
   text: string;
+  sheetName: string | null;
+  cellRange: string | null;
 }
 
 export interface StructuredItemGlass {

@@ -280,11 +280,11 @@ export function getUploadPreQuoteDocumentErrorMessage(error: unknown): string {
     case PREQUOTE_ERROR_CODES.documentInvalidRequest:
       return "No fue posible registrar el documento porque la solicitud no es válida.";
     case PREQUOTE_ERROR_CODES.documentUnsupportedFileType:
-      return "Selecciona un archivo en formato PDF.";
+      return "Selecciona un archivo PDF o XLSX compatible.";
     case PREQUOTE_ERROR_CODES.documentEmptyFile:
-      return "El documento PDF está vacío o no contiene información válida.";
+      return "El documento está vacío o no contiene información válida.";
     case PREQUOTE_ERROR_CODES.documentFileTooLarge:
-      return "El documento PDF no puede superar 20 MiB.";
+      return "El documento no puede superar 20 MiB.";
     case PREQUOTE_ERROR_CODES.unauthorized:
       return "Tu sesión no permite agregar documentos. Inicia sesión nuevamente.";
     case PREQUOTE_ERROR_CODES.inactiveUser:
@@ -300,11 +300,11 @@ export function getUploadPreQuoteDocumentErrorMessage(error: unknown): string {
     case PREQUOTE_ERROR_CODES.documentPersistenceError:
       return "No fue posible registrar el documento.";
     case API_ERROR_CODES.unsupportedMediaType:
-      return "Selecciona un archivo en formato PDF.";
+      return "Selecciona un archivo PDF o XLSX compatible.";
     case API_ERROR_CODES.methodNotAllowed:
       return "La operación solicitada no está disponible.";
     case API_ERROR_CODES.payloadTooLarge:
-      return "El documento PDF no puede superar 20 MiB.";
+      return "El documento no puede superar 20 MiB.";
     case API_ERROR_CODES.internalServerError:
       return fallbackMessage;
   }
@@ -318,9 +318,9 @@ export function getUploadPreQuoteDocumentErrorMessage(error: unknown): string {
       403: "No tienes acceso para agregar documentos.",
       404: "La precotización, el proyecto o el cliente ya no está disponible.",
       409: "El proyecto o su cliente no permite agregar documentos en su estado actual.",
-      413: "El documento PDF no puede superar 20 MiB.",
-      415: "Selecciona un archivo en formato PDF.",
-      422: "El documento PDF está vacío o no contiene información válida.",
+      413: "El documento no puede superar 20 MiB.",
+      415: "Selecciona un archivo PDF o XLSX compatible.",
+      422: "El documento está vacío o no contiene información válida.",
       500: fallbackMessage,
     },
     fallbackMessage,

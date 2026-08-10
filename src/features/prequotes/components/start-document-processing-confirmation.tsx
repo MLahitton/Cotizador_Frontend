@@ -46,23 +46,25 @@ export function StartDocumentProcessingConfirmation({
       aria-describedby={errorMessage ? `${descriptionId} ${errorId}` : descriptionId}
       aria-busy={isSubmitting}
     >
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)_minmax(13rem,0.7fr)] lg:items-start">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] xl:items-start">
         <div className="min-w-0 space-y-2">
           <h4 id={titleId} className="text-sm font-semibold text-foreground">
             Confirmar procesamiento
           </h4>
-          <dl className="grid gap-2 text-sm text-foreground-secondary">
-            <div>
+          <dl className="grid min-w-0 gap-2 text-sm text-foreground-secondary">
+            <div className="min-w-0">
               <dt className="font-medium text-foreground">Archivo</dt>
-              <dd className="break-words">{document.originalFileName}</dd>
+              <dd className="break-words [overflow-wrap:anywhere]">
+                {document.originalFileName}
+              </dd>
             </div>
-            <div>
+            <div className="min-w-0">
               <dt className="font-medium text-foreground">Estado actual</dt>
               <dd>
                 {formatProcessingAvailability(document.processingAvailability)}
               </dd>
             </div>
-            <div>
+            <div className="min-w-0">
               <dt className="font-medium text-foreground">Acción</dt>
               <dd>{actionLabel}</dd>
             </div>
@@ -89,7 +91,7 @@ export function StartDocumentProcessingConfirmation({
           ) : null}
         </div>
 
-        <div className="min-w-0 space-y-3 lg:text-right">
+        <div className="min-w-0 space-y-3 xl:col-span-2">
           {errorMessage ? (
             <div
               id={errorId}
@@ -103,7 +105,9 @@ export function StartDocumentProcessingConfirmation({
                 strokeWidth={1.75}
                 className="mt-0.5 shrink-0"
               />
-              <p>{errorMessage}</p>
+              <p className="min-w-0 break-words [overflow-wrap:anywhere]">
+                {errorMessage}
+              </p>
             </div>
           ) : null}
 
@@ -117,11 +121,11 @@ export function StartDocumentProcessingConfirmation({
             </p>
           ) : null}
 
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end lg:flex-col-reverse">
+          <div className="flex min-w-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="ghost"
-              className="w-full"
+              className="w-full sm:w-auto"
               disabled={isSubmitting}
               onClick={onCancel}
             >
@@ -130,7 +134,7 @@ export function StartDocumentProcessingConfirmation({
             </Button>
             <Button
               type="button"
-              className="w-full"
+              className="w-full sm:w-auto"
               disabled={isSubmitting || isPrimaryBlocked}
               onClick={onConfirm}
             >

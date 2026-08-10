@@ -14,13 +14,17 @@ export type DocumentProcessingOutcome =
   | "REQUIRES_REVIEW"
   | "FAILED";
 
-export type PdfClassification = "PDF_TEXT" | "PDF_SCANNED" | "PDF_MIXED";
+export type DocumentClassification =
+  | "PDF_TEXT"
+  | "PDF_SCANNED"
+  | "PDF_MIXED"
+  | "XLSX";
 
 export type StructuredExtractionStatus = "COMPLETED" | "REQUIRES_REVIEW";
 
 export interface DocumentExtractionResultMetadata {
   schemaVersion: string;
-  classification: PdfClassification;
+  classification: DocumentClassification;
   requiresOcr: boolean;
   pageCount: number;
   processingMethod: string;

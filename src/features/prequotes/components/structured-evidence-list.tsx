@@ -1,4 +1,5 @@
 import {
+  formatEvidenceLocation,
   formatEvidenceSource,
   formatSourcePages,
 } from "@/features/prequotes/structured-extraction-formatters";
@@ -6,7 +7,7 @@ import type { StructuredEvidence } from "@/features/prequotes/structured-extract
 
 export function SourcePages({ pages }: { pages: number[] }) {
   return (
-    <p className="text-sm text-foreground-secondary">
+    <p className="break-words text-sm text-foreground-secondary [overflow-wrap:anywhere]">
       {formatSourcePages(pages)}
     </p>
   );
@@ -22,20 +23,21 @@ export function StructuredEvidenceList({
   }
 
   return (
-    <details className="rounded-sm border border-border-subtle bg-surface-subtle p-3">
+    <details className="min-w-0 rounded-sm border border-border-subtle bg-surface-subtle p-3">
       <summary className="cursor-pointer text-sm font-semibold text-foreground">
         Ver {evidence.length} {evidence.length === 1 ? "evidencia" : "evidencias"}
       </summary>
       <ul className="mt-3 space-y-3">
         {evidence.map((item, index) => (
           <li
-            key={`${item.pageNumber}-${item.sourceType}-${index}`}
+            key={`${item.pageNumber ?? item.sheetName}-${item.cellRange ?? item.sourceType}-${index}`}
             className="min-w-0 rounded-sm bg-surface p-3"
           >
-            <p className="text-xs font-semibold uppercase text-foreground-secondary">
-              Página {item.pageNumber} · {formatEvidenceSource(item.sourceType)}
+            <p className="break-words text-xs font-semibold uppercase text-foreground-secondary [overflow-wrap:anywhere]">
+              {formatEvidenceLocation(item)} ·{" "}
+              {formatEvidenceSource(item.sourceType)}
             </p>
-            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
+            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground [overflow-wrap:anywhere]">
               {item.text}
             </p>
           </li>

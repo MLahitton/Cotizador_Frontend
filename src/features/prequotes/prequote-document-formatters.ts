@@ -3,12 +3,38 @@ import type {
   DocumentProcessingAttemptSummary,
   DocumentProcessingOutcome,
   DocumentProcessingState,
+  DocumentClassification,
   PreQuoteDocumentListItem,
-  PdfClassification,
   StructuredExtractionStatus,
 } from "@/features/prequotes/prequote-documents-types";
 
 const BYTE_UNITS = ["B", "KB", "MB"] as const;
+export const MAX_DOCUMENT_SIZE_BYTES = 20 * 1024 * 1024;
+export const PDF_CONTENT_TYPE = "application/pdf";
+export const XLSX_CONTENT_TYPE =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const DOCUMENT_FILE_ACCEPT = [
+  PDF_CONTENT_TYPE,
+  ".pdf",
+  XLSX_CONTENT_TYPE,
+  ".xlsx",
+].join(",");
+
+const SUPPORTED_DOCUMENT_TYPES = [
+  {
+    extension: ".pdf",
+    contentType: PDF_CONTENT_TYPE,
+    label: "PDF",
+  },
+  {
+    extension: ".xlsx",
+    contentType: XLSX_CONTENT_TYPE,
+    label: "XLSX",
+  },
+] as const;
+
+export type SupportedDocumentFormat =
+  (typeof SUPPORTED_DOCUMENT_TYPES)[number]["label"];
 
 export type DocumentProcessingActionKind = "start" | "retry" | "restart";
 
@@ -33,7 +59,29 @@ export function formatFileSize(sizeBytes: number): string {
 }
 
 export function formatContentType(contentType: string): string {
-  return contentType === "application/pdf" ? "PDF" : contentType;
+  const documentType = SUPPORTED_DOCUMENT_TYPES.find(
+    (type) => type.contentType === contentType.trim().toLowerCase(),
+  );
+
+  return documentType?.label ?? contentType;
+}
+
+export function getSupportedDocumentFormat(
+  fileName: string,
+  contentType: string,
+): SupportedDocumentFormat | null {
+  const normalizedFileName = fileName.trim().toLowerCase();
+  const normalizedContentType = contentType.trim().toLowerCase();
+
+  const documentType = SUPPORTED_DOCUMENT_TYPES.find((type) =>
+    normalizedFileName.endsWith(type.extension),
+  );
+
+  if (!documentType || documentType.contentType !== normalizedContentType) {
+    return null;
+  }
+
+  return documentType.label;
 }
 
 export function formatProcessingAvailability(
@@ -146,7 +194,9 @@ export function formatProcessingOutcome(
   }
 }
 
-export function formatPdfClassification(value: PdfClassification): string {
+export function formatDocumentClassification(
+  value: DocumentClassification,
+): string {
   switch (value) {
     case "PDF_TEXT":
       return "Texto nativo";
@@ -154,6 +204,8 @@ export function formatPdfClassification(value: PdfClassification): string {
       return "Documento escaneado";
     case "PDF_MIXED":
       return "Documento mixto";
+    case "XLSX":
+      return "Hoja de cálculo XLSX";
   }
 }
 

@@ -5,7 +5,7 @@ import type {
   DocumentProcessingAvailability,
   DocumentProcessingOutcome,
   DocumentProcessingState,
-  PdfClassification,
+  DocumentClassification,
 } from "@/features/prequotes/prequote-documents-types";
 import type {
   EvidenceSourceType,
@@ -59,8 +59,15 @@ const PROCESSING_OUTCOMES = [
   "REQUIRES_REVIEW",
   "FAILED",
 ] as const;
-const PDF_CLASSIFICATIONS = ["PDF_TEXT", "PDF_SCANNED", "PDF_MIXED"] as const;
-const EVIDENCE_SOURCE_TYPES = ["NATIVE", "OCR"] as const;
+const DOCUMENT_CLASSIFICATIONS = [
+  "PDF_TEXT",
+  "PDF_SCANNED",
+  "PDF_MIXED",
+  "XLSX",
+] as const;
+const EVIDENCE_SOURCE_TYPES = ["NATIVE", "OCR", "XLSX"] as const;
+const MAX_EVIDENCE_SHEET_NAME_LENGTH = 100;
+const MAX_EVIDENCE_CELL_RANGE_LENGTH = 50;
 const STRUCTURED_STATUSES = ["COMPLETED", "REQUIRES_REVIEW"] as const;
 const GLASS_ASSIGNMENT_SCOPES = [
   "ITEM",
@@ -147,6 +154,17 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function isNonEmptyStringWithMaxLength(
+  value: unknown,
+  maxLength: number,
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= maxLength
+  );
+}
+
 function isNullableString(value: unknown): value is string | null {
   return typeof value === "string" || value === null;
 }
@@ -228,8 +246,10 @@ function isProcessingOutcome(
   return isStringIn(value, PROCESSING_OUTCOMES);
 }
 
-function isPdfClassification(value: unknown): value is PdfClassification {
-  return isStringIn(value, PDF_CLASSIFICATIONS);
+function isDocumentClassification(
+  value: unknown,
+): value is DocumentClassification {
+  return isStringIn(value, DOCUMENT_CLASSIFICATIONS);
 }
 
 function isEvidenceSourceType(value: unknown): value is EvidenceSourceType {
@@ -285,13 +305,27 @@ function isResultMetadata(
     return false;
   }
 
+  if (
+    !isNonEmptyString(value.schemaVersion) ||
+    !isDocumentClassification(value.classification) ||
+    typeof value.requiresOcr !== "boolean" ||
+    !isNonNegativeInteger(value.pageCount) ||
+    !isNonEmptyString(value.processingMethod) ||
+    !isNonNegativeInteger(value.durationMs)
+  ) {
+    return false;
+  }
+
+  const isXlsx = value.classification === "XLSX";
+  const expectedRequiresOcr =
+    value.classification === "PDF_SCANNED" ||
+    value.classification === "PDF_MIXED";
+  const expectedProcessingMethod = isXlsx ? "openpyxl" : "pymupdf";
+
   return (
-    isNonEmptyString(value.schemaVersion) &&
-    isPdfClassification(value.classification) &&
-    typeof value.requiresOcr === "boolean" &&
-    isPositiveInteger(value.pageCount) &&
-    isNonEmptyString(value.processingMethod) &&
-    isNonNegativeInteger(value.durationMs)
+    value.requiresOcr === expectedRequiresOcr &&
+    (isXlsx ? value.pageCount === 0 : isPositiveInteger(value.pageCount)) &&
+    value.processingMethod === expectedProcessingMethod
   );
 }
 
@@ -320,10 +354,28 @@ function isEvidence(value: unknown): value is StructuredEvidence {
     return false;
   }
 
+  if (!isEvidenceSourceType(value.sourceType) || !isNonEmptyString(value.text)) {
+    return false;
+  }
+
+  if (value.sourceType === "NATIVE" || value.sourceType === "OCR") {
+    return (
+      isPositiveInteger(value.pageNumber) &&
+      value.sheetName === null &&
+      value.cellRange === null
+    );
+  }
+
   return (
-    isPositiveInteger(value.pageNumber) &&
-    isEvidenceSourceType(value.sourceType) &&
-    isNonEmptyString(value.text)
+    value.pageNumber === null &&
+    isNonEmptyStringWithMaxLength(
+      value.sheetName,
+      MAX_EVIDENCE_SHEET_NAME_LENGTH,
+    ) &&
+    isNonEmptyStringWithMaxLength(
+      value.cellRange,
+      MAX_EVIDENCE_CELL_RANGE_LENGTH,
+    )
   );
 }
 

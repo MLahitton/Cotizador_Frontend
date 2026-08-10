@@ -6,7 +6,7 @@ import type {
   DocumentProcessingOutcome,
   DocumentProcessingState,
   GetPreQuoteDocumentsParameters,
-  PdfClassification,
+  DocumentClassification,
   PreQuoteDocumentListItem,
   PreQuoteDocumentsPage,
   StartedDocumentProcessingAttempt,
@@ -41,7 +41,12 @@ const PROCESSING_OUTCOMES = [
   "REQUIRES_REVIEW",
   "FAILED",
 ] as const;
-const PDF_CLASSIFICATIONS = ["PDF_TEXT", "PDF_SCANNED", "PDF_MIXED"] as const;
+const DOCUMENT_CLASSIFICATIONS = [
+  "PDF_TEXT",
+  "PDF_SCANNED",
+  "PDF_MIXED",
+  "XLSX",
+] as const;
 const STRUCTURED_EXTRACTION_STATUSES = [
   "COMPLETED",
   "REQUIRES_REVIEW",
@@ -98,8 +103,10 @@ function isProcessingOutcome(
   return isStringIn(value, PROCESSING_OUTCOMES);
 }
 
-function isPdfClassification(value: unknown): value is PdfClassification {
-  return isStringIn(value, PDF_CLASSIFICATIONS);
+function isDocumentClassification(
+  value: unknown,
+): value is DocumentClassification {
+  return isStringIn(value, DOCUMENT_CLASSIFICATIONS);
 }
 
 function isStructuredExtractionStatus(
@@ -115,13 +122,27 @@ function isResultMetadata(
     return false;
   }
 
+  if (
+    !isNonEmptyString(value.schemaVersion) ||
+    !isDocumentClassification(value.classification) ||
+    typeof value.requiresOcr !== "boolean" ||
+    !isNonNegativeInteger(value.pageCount) ||
+    !isNonEmptyString(value.processingMethod) ||
+    !isNonNegativeInteger(value.durationMs)
+  ) {
+    return false;
+  }
+
+  const isXlsx = value.classification === "XLSX";
+  const expectedRequiresOcr =
+    value.classification === "PDF_SCANNED" ||
+    value.classification === "PDF_MIXED";
+  const expectedProcessingMethod = isXlsx ? "openpyxl" : "pymupdf";
+
   return (
-    isNonEmptyString(value.schemaVersion) &&
-    isPdfClassification(value.classification) &&
-    typeof value.requiresOcr === "boolean" &&
-    isPositiveInteger(value.pageCount) &&
-    isNonEmptyString(value.processingMethod) &&
-    isNonNegativeInteger(value.durationMs)
+    value.requiresOcr === expectedRequiresOcr &&
+    (isXlsx ? value.pageCount === 0 : isPositiveInteger(value.pageCount)) &&
+    value.processingMethod === expectedProcessingMethod
   );
 }
 

@@ -277,7 +277,7 @@ export function PreQuoteDocumentsSection({
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-foreground-secondary">
                 {documentsPage.totalCount === 0
-                  ? "Agrega el primer PDF para comenzar a preparar la precotización."
+                  ? "Agrega el primer documento PDF o XLSX para comenzar a preparar la precotización."
                   : "La página solicitada no tiene resultados disponibles."}
               </p>
               {documentsPage.totalCount === 0 && projectIsActive ? (

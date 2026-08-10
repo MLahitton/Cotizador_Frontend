@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  getSupportedDocumentFormat,
+  MAX_DOCUMENT_SIZE_BYTES,
+} from "@/features/prequotes/prequote-document-formatters";
 import { uploadPreQuoteDocument } from "@/features/prequotes/prequote-documents-api";
 import type { UploadedPreQuoteDocument } from "@/features/prequotes/prequote-documents-types";
 import { isValidPreQuoteId } from "@/features/prequotes/prequote-identifiers";
 
-const MAX_PDF_SIZE_BYTES = 20 * 1024 * 1024;
 const MAX_FILE_NAME_LENGTH = 255;
-const PDF_CONTENT_TYPE = "application/pdf";
 
 type UploadStatus = "idle" | "uploading";
 
@@ -36,22 +38,9 @@ function createInitialState(preQuoteId: string): UploadState {
   };
 }
 
-function isPdfFileName(fileName: string): boolean {
-  return fileName.trim().toLowerCase().endsWith(".pdf");
-}
-
-function isAllowedPdfContentType(contentType: string): boolean {
-  const normalizedContentType = contentType.trim().toLowerCase();
-
-  return (
-    normalizedContentType.length === 0 ||
-    normalizedContentType === PDF_CONTENT_TYPE
-  );
-}
-
 function validateUploadFile(file: File | null): string | null {
   if (!file) {
-    return "Selecciona un documento PDF.";
+    return "Selecciona un documento PDF o XLSX.";
   }
 
   const normalizedFileName = file.name.trim();
@@ -63,16 +52,16 @@ function validateUploadFile(file: File | null): string | null {
     return "El nombre del archivo no es válido.";
   }
 
-  if (!isPdfFileName(normalizedFileName) || !isAllowedPdfContentType(file.type)) {
-    return "Selecciona un archivo en formato PDF.";
+  if (!getSupportedDocumentFormat(normalizedFileName, file.type)) {
+    return "Selecciona un archivo PDF o XLSX compatible.";
   }
 
   if (file.size === 0) {
     return "El documento seleccionado está vacío.";
   }
 
-  if (file.size > MAX_PDF_SIZE_BYTES) {
-    return "El documento PDF no puede superar 20 MiB.";
+  if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
+    return "El documento no puede superar 20 MiB.";
   }
 
   return null;

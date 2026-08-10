@@ -12,6 +12,7 @@ import type {
   RequirementCategory,
   StructuredConflictCode,
   StructuredElementType,
+  StructuredEvidence,
   StructuredExtractionStatus,
   StructuredIssueCode,
 } from "@/features/prequotes/structured-extraction-types";
@@ -51,7 +52,17 @@ export function formatEvidenceSource(value: EvidenceSourceType): string {
       return "Texto nativo";
     case "OCR":
       return "OCR";
+    case "XLSX":
+      return "XLSX";
   }
+}
+
+export function formatEvidenceLocation(value: StructuredEvidence): string {
+  if (value.sourceType === "XLSX") {
+    return `Hoja ${value.sheetName} Â· ${value.cellRange}`;
+  }
+
+  return `PÃ¡gina ${value.pageNumber}`;
 }
 
 export function formatRequirementCategory(value: RequirementCategory): string {

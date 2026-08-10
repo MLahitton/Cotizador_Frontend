@@ -6,7 +6,11 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { getUploadPreQuoteDocumentErrorMessage } from "@/features/prequotes/components/prequote-errors";
-import { formatFileSize } from "@/features/prequotes/prequote-document-formatters";
+import {
+  DOCUMENT_FILE_ACCEPT,
+  formatFileSize,
+  getSupportedDocumentFormat,
+} from "@/features/prequotes/prequote-document-formatters";
 
 export function UploadPreQuoteDocumentPanel({
   selectedFile,
@@ -43,7 +47,7 @@ export function UploadPreQuoteDocumentPanel({
       <div className="space-y-4">
         <div className="flex min-w-0 flex-col gap-1">
           <h3 className="text-base font-semibold text-foreground">
-            Agregar documento PDF
+            Agregar documento PDF o XLSX
           </h3>
           <p className="text-sm leading-6 text-foreground-secondary">
             El documento quedará asociado a esta precotización. El
@@ -56,19 +60,22 @@ export function UploadPreQuoteDocumentPanel({
             htmlFor="prequote-document-file"
             className="text-sm font-medium text-foreground"
           >
-            Documento PDF
+            Documento PDF o XLSX
           </label>
           <input
             ref={inputRef}
             id="prequote-document-file"
             type="file"
-            accept="application/pdf,.pdf"
+            accept={DOCUMENT_FILE_ACCEPT}
             disabled={isUploading}
             className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-foreground file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-background disabled:cursor-not-allowed disabled:opacity-60"
             onChange={(event) =>
               onFileSelect(event.currentTarget.files?.[0] ?? null)
             }
           />
+          <p className="text-sm leading-6 text-foreground-secondary">
+            Selecciona un archivo PDF o XLSX de hasta 20 MiB.
+          </p>
         </div>
 
         {selectedFile ? (
@@ -84,7 +91,11 @@ export function UploadPreQuoteDocumentPanel({
                 {selectedFile.name}
               </p>
               <p className="mt-1 text-foreground-secondary">
-                {formatFileSize(selectedFile.size)} -{" "}
+                {getSupportedDocumentFormat(
+                  selectedFile.name,
+                  selectedFile.type,
+                ) ?? "Formato no compatible"}{" "}
+                - {formatFileSize(selectedFile.size)} -{" "}
                 {selectedFile.type || "Tipo no informado"}
               </p>
             </div>

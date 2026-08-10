@@ -7,10 +7,10 @@ import { Surface } from "@/components/ui/surface";
 import { StartDocumentProcessingConfirmation } from "@/features/prequotes/components/start-document-processing-confirmation";
 import {
   formatContentType,
+  formatDocumentClassification,
   formatDuration,
   formatFileSize,
   formatMissingExtractionSummary,
-  formatPdfClassification,
   formatProcessingOutcome,
   formatProcessingState,
   getDocumentProcessingAction,
@@ -42,13 +42,13 @@ function LatestAttemptSummary({
   }
 
   return (
-    <div className="space-y-3 text-sm text-foreground-secondary">
-      <dl className="grid gap-2">
-        <div>
+    <div className="min-w-0 space-y-3 text-sm text-foreground-secondary">
+      <dl className="grid min-w-0 gap-2">
+        <div className="min-w-0">
           <dt className="font-medium text-foreground">Estado</dt>
           <dd>{formatProcessingState(latestAttempt.processingState)}</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="font-medium text-foreground">Resultado</dt>
           <dd>{formatProcessingOutcome(latestAttempt.outcome)}</dd>
         </div>
@@ -61,9 +61,11 @@ function LatestAttemptSummary({
         <p>Finalizado: {formatPreQuoteDateTime(latestAttempt.completedAtUtc)}</p>
       ) : null}
       {latestAttempt.resultMetadata ? (
-        <div className="flex flex-wrap gap-2 pt-1">
+        <div className="flex min-w-0 flex-wrap gap-2 pt-1">
           <Badge tone="neutral" size="sm">
-            {formatPdfClassification(latestAttempt.resultMetadata.classification)}
+            {formatDocumentClassification(
+              latestAttempt.resultMetadata.classification,
+            )}
           </Badge>
           <Badge tone="neutral" size="sm">
             {latestAttempt.resultMetadata.pageCount} páginas
@@ -99,8 +101,8 @@ function StructuredSummary({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="min-w-0 space-y-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <StructuredExtractionStatusBadge value={summary.status} />
         {!summary.isFromLatestAttempt ? (
           <Badge tone="info" size="sm">
@@ -108,24 +110,24 @@ function StructuredSummary({
           </Badge>
         ) : null}
       </div>
-      <dl className="grid gap-2 text-sm text-foreground-secondary sm:grid-cols-2">
-        <div>
+      <dl className="grid min-w-0 gap-2 text-sm text-foreground-secondary sm:grid-cols-2">
+        <div className="min-w-0">
           <dt className="font-medium text-foreground">Ítems</dt>
           <dd>{summary.itemCount}</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="font-medium text-foreground">Requieren revisión</dt>
           <dd>{summary.itemsRequiringReview}</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="font-medium text-foreground">Observaciones</dt>
           <dd>{summary.issueCount}</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="font-medium text-foreground">Conflictos</dt>
           <dd>{summary.conflictCount}</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="font-medium text-foreground">Unidades conocidas</dt>
           <dd>{summary.knownQuoteableUnitCount}</dd>
         </div>
@@ -135,7 +137,7 @@ function StructuredSummary({
         .map((value) => (
           <p
             key={value}
-            className="break-words text-sm text-foreground-secondary"
+            className="break-words text-sm text-foreground-secondary [overflow-wrap:anywhere]"
           >
             {value}
           </p>
@@ -216,7 +218,7 @@ export function PreQuoteDocumentsTable({
             <li key={document.documentId}>
               <article
                 aria-labelledby={headingId}
-                className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)]"
+                className="grid min-w-0 gap-5 p-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)]"
               >
                 <section className="min-w-0" aria-labelledby={`${headingId}-file`}>
                   <h3
@@ -233,10 +235,10 @@ export function PreQuoteDocumentsTable({
                         strokeWidth={1.75}
                       />
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p
                         id={headingId}
-                        className="break-words font-semibold text-foreground"
+                        className="break-words font-semibold text-foreground [overflow-wrap:anywhere]"
                       >
                         {document.originalFileName}
                       </p>
@@ -247,7 +249,7 @@ export function PreQuoteDocumentsTable({
                       <p className="mt-1 text-sm text-foreground-secondary">
                         Cargado: {formatPreQuoteDateTime(document.createdAtUtc)}
                       </p>
-                      <p className="mt-1 break-all text-xs text-muted">
+                      <p className="mt-1 break-all text-xs text-muted [overflow-wrap:anywhere]">
                         <span className="sr-only">
                           Identificador completo:
                         </span>
@@ -330,7 +332,7 @@ export function PreQuoteDocumentsTable({
                 </section>
 
                 {isConfirmationOpen ? (
-                  <div className="min-w-0 lg:col-span-3">
+                  <div className="min-w-0 xl:col-span-3">
                     <StartDocumentProcessingConfirmation
                       document={document}
                       isSubmitting={isSubmitting}
