@@ -61,16 +61,22 @@ export function formatPreQuoteDraftMoney(
   amount: number | null,
   currency: string | null,
 ): string {
-  if (amount === null || !currency) {
+  const normalizedCurrency = currency?.trim();
+
+  if (amount === null || !normalizedCurrency) {
     return EMPTY_VALUE;
   }
 
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency,
-    currencyDisplay: "code",
-    maximumFractionDigits: 2,
-  }).format(amount);
+  try {
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: normalizedCurrency,
+      currencyDisplay: "code",
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${normalizedCurrency} ${numberFormatter.format(amount)}`;
+  }
 }
 
 export function formatEconomicCompleteness(value: boolean): string {

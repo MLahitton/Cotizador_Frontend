@@ -70,14 +70,14 @@ function RangeCard({
         {label}
       </h3>
       <dl className="mt-3 grid min-w-0 gap-3 sm:grid-cols-3">
-        <AmountValue label="Minimo" value={minimum} currency={currency} />
+        <AmountValue label="Mínimo" value={minimum} currency={currency} />
         <AmountValue
           label="Esperado"
           value={expected}
           currency={currency}
           emphasis={emphasis}
         />
-        <AmountValue label="Maximo" value={maximum} currency={currency} />
+        <AmountValue label="Máximo" value={maximum} currency={currency} />
       </dl>
     </article>
   );
@@ -143,12 +143,25 @@ function PricingNoteList({
             {formatPreQuotePricingNoteCode(code)}
           </span>
           <code className="mt-1 block break-words text-xs text-foreground-secondary [overflow-wrap:anywhere]">
-            Codigo: {code}
+            Código: {code}
           </code>
         </li>
       ))}
     </ul>
   );
+}
+
+function formatGlobalConfidence(
+  score: PreQuoteDraftEconomicSummaryModel["overallConfidence"],
+  level: PreQuoteDraftEconomicSummaryModel["confidenceLevel"],
+): string {
+  if (score === null && level === null) {
+    return "-";
+  }
+
+  return `${formatPreQuoteDraftConfidenceScore(
+    score,
+  )} · ${formatPreQuotePricingConfidenceLevel(level)}`;
 }
 
 export function PreQuoteDraftEconomicSummary({
@@ -157,7 +170,7 @@ export function PreQuoteDraftEconomicSummary({
   economicSummary: PreQuoteDraftEconomicSummaryModel;
 }) {
   const finalRange = {
-    label: "Total estimado de la precotizacion",
+    label: "Total estimado de la precotización",
     minimum: economicSummary.finalMinimum,
     expected: economicSummary.finalExpected,
     maximum: economicSummary.finalMaximum,
@@ -166,7 +179,7 @@ export function PreQuoteDraftEconomicSummary({
 
   const breakdown = [
     {
-      label: "Subtotal tecnico",
+      label: "Subtotal técnico",
       minimum: economicSummary.minimumTechnicalSubtotal,
       expected: economicSummary.expectedTechnicalSubtotal,
       maximum: economicSummary.maximumTechnicalSubtotal,
@@ -178,7 +191,7 @@ export function PreQuoteDraftEconomicSummary({
       maximum: economicSummary.transportMaximum,
     },
     {
-      label: "Administracion",
+      label: "Administración",
       minimum: economicSummary.administrationMinimum,
       expected: economicSummary.administrationExpected,
       maximum: economicSummary.administrationMaximum,
@@ -211,12 +224,12 @@ export function PreQuoteDraftEconomicSummary({
   ] satisfies AmountRange[];
 
   const metrics = [
-    ["Items incluidos", formatPreQuoteDraftNumber(economicSummary.includedItemCount)],
+    ["Ítems incluidos", formatPreQuoteDraftNumber(economicSummary.includedItemCount)],
     [
       "Unidades conocidas",
       formatPreQuoteDraftNumber(economicSummary.includedKnownQuoteableUnitCount),
     ],
-    ["Items valorados", formatPreQuoteDraftNumber(economicSummary.valuedItemCount)],
+    ["Ítems valorados", formatPreQuoteDraftNumber(economicSummary.valuedItemCount)],
     [
       "Pendientes",
       formatPreQuoteDraftNumber(economicSummary.pendingValuationItemCount),
@@ -232,14 +245,14 @@ export function PreQuoteDraftEconomicSummary({
     [
       "Estado no cotizable",
       economicSummary.hasNotPriceableItems
-        ? "Con items no cotizables"
-        : "Sin items no cotizables",
+        ? "Con ítems no cotizables"
+        : "Sin ítems no cotizables",
     ],
     [
-      "Requieren revision",
+      "Requieren revisión",
       formatPreQuoteDraftNumber(economicSummary.itemsRequiringReviewCount),
     ],
-    ["Area total", formatPreQuoteDraftArea(economicSummary.totalAreaSquareMeters)],
+    ["Área total", formatPreQuoteDraftArea(economicSummary.totalAreaSquareMeters)],
     ["Moneda", formatNullableDraftText(economicSummary.currency)],
   ] as const;
 
@@ -252,7 +265,7 @@ export function PreQuoteDraftEconomicSummary({
               id="draft-economic-title"
               className="text-lg font-semibold text-foreground"
             >
-              Resumen economico
+              Resumen económico
             </h2>
             <p className="mt-1 text-sm leading-6 text-foreground-secondary">
               Valores globales entregados por Backend para este borrador.
@@ -284,11 +297,10 @@ export function PreQuoteDraftEconomicSummary({
         <dl className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Metric
             label="Confianza global"
-            value={`${formatPreQuoteDraftConfidenceScore(
+            value={formatGlobalConfidence(
               economicSummary.overallConfidence,
-            )} · ${formatPreQuotePricingConfidenceLevel(
               economicSummary.confidenceLevel,
-            )}`}
+            )}
           />
           <Metric
             label="Completitud"
@@ -308,12 +320,12 @@ export function PreQuoteDraftEconomicSummary({
         <div className="mt-5 grid min-w-0 gap-3">
           {economicSummary.hasLimitedPricingScope ? (
             <WarningMessage>
-              El alcance economico es limitado.
+              El alcance económico es limitado.
             </WarningMessage>
           ) : null}
           {economicSummary.hasNotPriceableItems ? (
             <WarningMessage>
-              El borrador contiene items que actualmente no tienen valoracion
+              El borrador contiene ítems que actualmente no tienen valoración
               cotizable.
             </WarningMessage>
           ) : null}
@@ -324,7 +336,7 @@ export function PreQuoteDraftEconomicSummary({
             id="draft-economic-state"
             className="text-sm font-semibold text-foreground"
           >
-            Estado de la valoracion
+            Estado de la valoración
           </h3>
           <dl className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {metrics.map(([label, value]) => (
@@ -341,7 +353,7 @@ export function PreQuoteDraftEconomicSummary({
             id="draft-economic-breakdown"
             className="text-sm font-semibold text-foreground"
           >
-            Desglose economico
+            Desglose económico
           </h3>
           <div className="mt-3 grid min-w-0 gap-3">
             {breakdown.map((item) => (
@@ -360,11 +372,11 @@ export function PreQuoteDraftEconomicSummary({
               id="draft-assumptions"
               className="text-sm font-semibold text-foreground"
             >
-              Supuestos economicos
+              Supuestos económicos
             </h3>
             <div className="mt-3">
               <PricingNoteList
-                emptyMessage="Sin supuestos economicos globales registrados."
+                emptyMessage="Sin supuestos económicos globales registrados."
                 tone="neutral"
                 values={economicSummary.assumptions}
               />
@@ -376,11 +388,11 @@ export function PreQuoteDraftEconomicSummary({
               id="draft-missing-data"
               className="text-sm font-semibold text-foreground"
             >
-              Datos economicos faltantes
+              Datos económicos faltantes
             </h3>
             <div className="mt-3">
               <PricingNoteList
-                emptyMessage="Sin datos economicos faltantes registrados."
+                emptyMessage="Sin datos económicos faltantes registrados."
                 tone="warning"
                 values={economicSummary.missingData}
               />

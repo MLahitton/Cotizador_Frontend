@@ -228,6 +228,15 @@ function isNullableFiniteNumber(value: unknown): value is number | null {
   return value === null || (typeof value === "number" && Number.isFinite(value));
 }
 
+function isNullableNonNegativeFiniteNumber(
+  value: unknown,
+): value is number | null {
+  return (
+    value === null ||
+    (typeof value === "number" && Number.isFinite(value) && value >= 0)
+  );
+}
+
 function isNullableTechnicalConfidence(value: unknown): value is number | null {
   return (
     value === null ||
@@ -236,10 +245,6 @@ function isNullableTechnicalConfidence(value: unknown): value is number | null {
       value >= 0 &&
       value <= 1)
   );
-}
-
-function isNullableNonNegativeInteger(value: unknown): value is number | null {
-  return value === null || isNonNegativeInteger(value);
 }
 
 function isNullablePricingConfidenceScore(
@@ -252,6 +257,20 @@ function isNullablePricingConfidenceScore(
       value >= 0 &&
       value <= 100)
   );
+}
+
+function getExpectedPricingConfidenceLevel(
+  score: number,
+): PreQuotePricingConfidenceLevel {
+  if (score >= 85) {
+    return "HIGH";
+  }
+
+  if (score >= 70) {
+    return "GOOD";
+  }
+
+  return score >= 50 ? "MEDIUM" : "LOW";
 }
 
 function isValidDateTime(value: unknown): value is string {
@@ -864,12 +883,140 @@ function normalizeArray<T>(
   return items.every((item) => item !== null) ? (items as T[]) : null;
 }
 
+function normalizePricingCodeArray(value: unknown): string[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  return value.every(
+    (item) =>
+      typeof item === "string" &&
+      item.trim().length > 0 &&
+      item.trim() === item,
+  )
+    ? value
+    : null;
+}
+
+type EconomicRange = {
+  minimum: number | null;
+  expected: number | null;
+  maximum: number | null;
+};
+
+type PricingConfidencePair = {
+  score: number | null;
+  level: PreQuotePricingConfidenceLevel | null;
+};
+
+function normalizePricingConfidencePair(
+  score: unknown,
+  level: unknown,
+): PricingConfidencePair | null {
+  if (score === null || level === null) {
+    return score === null && level === null
+      ? {
+          score: null,
+          level: null,
+        }
+      : null;
+  }
+
+  if (
+    !isNullablePricingConfidenceScore(score) ||
+    typeof score !== "number" ||
+    !isConfidenceLevel(level) ||
+    level !== getExpectedPricingConfidenceLevel(score)
+  ) {
+    return null;
+  }
+
+  return {
+    score,
+    level,
+  };
+}
+
+function normalizeEconomicRange(
+  minimum: unknown,
+  expected: unknown,
+  maximum: unknown,
+): EconomicRange | null {
+  if (
+    !isNullableNonNegativeFiniteNumber(minimum) ||
+    !isNullableNonNegativeFiniteNumber(expected) ||
+    !isNullableNonNegativeFiniteNumber(maximum)
+  ) {
+    return null;
+  }
+
+  if (minimum !== null && expected !== null && minimum > expected) {
+    return null;
+  }
+
+  if (expected !== null && maximum !== null && expected > maximum) {
+    return null;
+  }
+
+  if (minimum !== null && maximum !== null && minimum > maximum) {
+    return null;
+  }
+
+  return {
+    minimum,
+    expected,
+    maximum,
+  };
+}
+
 function normalizeEconomicSummary(
   value: unknown,
 ): PreQuoteDraftEconomicSummary | null {
   if (!isRecord(value)) {
     return null;
   }
+
+  const assumptions = normalizePricingCodeArray(value.assumptions);
+  const missingData = normalizePricingCodeArray(value.missingData);
+  const technicalSubtotal = normalizeEconomicRange(
+    value.minimumTechnicalSubtotal,
+    value.expectedTechnicalSubtotal,
+    value.maximumTechnicalSubtotal,
+  );
+  const transport = normalizeEconomicRange(
+    value.transportMinimum,
+    value.transportExpected,
+    value.transportMaximum,
+  );
+  const administration = normalizeEconomicRange(
+    value.administrationMinimum,
+    value.administrationExpected,
+    value.administrationMaximum,
+  );
+  const contingency = normalizeEconomicRange(
+    value.contingencyMinimum,
+    value.contingencyExpected,
+    value.contingencyMaximum,
+  );
+  const profit = normalizeEconomicRange(
+    value.profitMinimum,
+    value.profitExpected,
+    value.profitMaximum,
+  );
+  const vat = normalizeEconomicRange(
+    value.vatMinimum,
+    value.vatExpected,
+    value.vatMaximum,
+  );
+  const final = normalizeEconomicRange(
+    value.finalMinimum,
+    value.finalExpected,
+    value.finalMaximum,
+  );
+  const globalConfidence = normalizePricingConfidencePair(
+    value.overallConfidence,
+    value.confidenceLevel,
+  );
 
   if (
     !isNonNegativeInteger(value.includedItemCount) ||
@@ -879,45 +1026,34 @@ function normalizeEconomicSummary(
     !isNonNegativeInteger(value.staleValuationItemCount) ||
     !isNonNegativeInteger(value.notPriceableItemCount) ||
     !isNonNegativeInteger(value.itemsRequiringReviewCount) ||
-    !isNullableFiniteNumber(value.totalAreaSquareMeters) ||
-    !isNullableFiniteNumber(value.glassSubtotal) ||
+    !isNullableNonNegativeFiniteNumber(value.totalAreaSquareMeters) ||
+    !isNullableNonNegativeFiniteNumber(value.glassSubtotal) ||
     !isNullableString(value.currency) ||
     typeof value.isEconomicallyComplete !== "boolean" ||
-    !isNullableFiniteNumber(value.minimumTechnicalSubtotal) ||
-    !isNullableFiniteNumber(value.expectedTechnicalSubtotal) ||
-    !isNullableFiniteNumber(value.maximumTechnicalSubtotal) ||
-    !isNullableFiniteNumber(value.transportMinimum) ||
-    !isNullableFiniteNumber(value.transportExpected) ||
-    !isNullableFiniteNumber(value.transportMaximum) ||
-    !isNullableFiniteNumber(value.administrationMinimum) ||
-    !isNullableFiniteNumber(value.administrationExpected) ||
-    !isNullableFiniteNumber(value.administrationMaximum) ||
-    !isNullableFiniteNumber(value.contingencyMinimum) ||
-    !isNullableFiniteNumber(value.contingencyExpected) ||
-    !isNullableFiniteNumber(value.contingencyMaximum) ||
-    !isNullableFiniteNumber(value.profitMinimum) ||
-    !isNullableFiniteNumber(value.profitExpected) ||
-    !isNullableFiniteNumber(value.profitMaximum) ||
-    !isNullableFiniteNumber(value.vatMinimum) ||
-    !isNullableFiniteNumber(value.vatExpected) ||
-    !isNullableFiniteNumber(value.vatMaximum) ||
-    !isNullableFiniteNumber(value.finalMinimum) ||
-    !isNullableFiniteNumber(value.finalExpected) ||
-    !isNullableFiniteNumber(value.finalMaximum) ||
-    !isNullableNonNegativeInteger(value.overallConfidence) ||
-    !isNullableConfidenceLevel(value.confidenceLevel) ||
-    !normalizeStringArray(value.assumptions) ||
-    !normalizeStringArray(value.missingData) ||
+    !technicalSubtotal ||
+    !transport ||
+    !administration ||
+    !contingency ||
+    !profit ||
+    !vat ||
+    !final ||
+    !globalConfidence ||
+    !assumptions ||
+    !missingData ||
     typeof value.hasLimitedPricingScope !== "boolean" ||
     typeof value.hasNotPriceableItems !== "boolean"
   ) {
     return null;
   }
 
-  const assumptions = normalizeStringArray(value.assumptions);
-  const missingData = normalizeStringArray(value.missingData);
-
-  if (!assumptions || !missingData) {
+  if (
+    value.valuedItemCount > value.includedItemCount ||
+    value.pendingValuationItemCount > value.includedItemCount ||
+    value.staleValuationItemCount > value.includedItemCount ||
+    value.notPriceableItemCount > value.includedItemCount ||
+    value.itemsRequiringReviewCount > value.includedItemCount ||
+    value.hasNotPriceableItems !== (value.notPriceableItemCount > 0)
+  ) {
     return null;
   }
 
@@ -933,29 +1069,29 @@ function normalizeEconomicSummary(
     glassSubtotal: value.glassSubtotal,
     currency: value.currency,
     isEconomicallyComplete: value.isEconomicallyComplete,
-    minimumTechnicalSubtotal: value.minimumTechnicalSubtotal,
-    expectedTechnicalSubtotal: value.expectedTechnicalSubtotal,
-    maximumTechnicalSubtotal: value.maximumTechnicalSubtotal,
-    transportMinimum: value.transportMinimum,
-    transportExpected: value.transportExpected,
-    transportMaximum: value.transportMaximum,
-    administrationMinimum: value.administrationMinimum,
-    administrationExpected: value.administrationExpected,
-    administrationMaximum: value.administrationMaximum,
-    contingencyMinimum: value.contingencyMinimum,
-    contingencyExpected: value.contingencyExpected,
-    contingencyMaximum: value.contingencyMaximum,
-    profitMinimum: value.profitMinimum,
-    profitExpected: value.profitExpected,
-    profitMaximum: value.profitMaximum,
-    vatMinimum: value.vatMinimum,
-    vatExpected: value.vatExpected,
-    vatMaximum: value.vatMaximum,
-    finalMinimum: value.finalMinimum,
-    finalExpected: value.finalExpected,
-    finalMaximum: value.finalMaximum,
-    overallConfidence: value.overallConfidence,
-    confidenceLevel: value.confidenceLevel,
+    minimumTechnicalSubtotal: technicalSubtotal.minimum,
+    expectedTechnicalSubtotal: technicalSubtotal.expected,
+    maximumTechnicalSubtotal: technicalSubtotal.maximum,
+    transportMinimum: transport.minimum,
+    transportExpected: transport.expected,
+    transportMaximum: transport.maximum,
+    administrationMinimum: administration.minimum,
+    administrationExpected: administration.expected,
+    administrationMaximum: administration.maximum,
+    contingencyMinimum: contingency.minimum,
+    contingencyExpected: contingency.expected,
+    contingencyMaximum: contingency.maximum,
+    profitMinimum: profit.minimum,
+    profitExpected: profit.expected,
+    profitMaximum: profit.maximum,
+    vatMinimum: vat.minimum,
+    vatExpected: vat.expected,
+    vatMaximum: vat.maximum,
+    finalMinimum: final.minimum,
+    finalExpected: final.expected,
+    finalMaximum: final.maximum,
+    overallConfidence: globalConfidence.score,
+    confidenceLevel: globalConfidence.level,
     assumptions,
     missingData,
     hasLimitedPricingScope: value.hasLimitedPricingScope,
