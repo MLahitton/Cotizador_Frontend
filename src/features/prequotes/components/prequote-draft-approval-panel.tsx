@@ -88,12 +88,29 @@ function ApprovalStatusList({
   const summary = draft.summary;
   const economicSummary = draft.economicSummary;
   const readyItems = [
-    summary ? "Sin issues pendientes" : "Issues: sin resumen disponible",
-    summary ? "Sin conflictos pendientes" : "Conflicts: sin resumen disponible",
+    {
+      label: summary ? "Sin issues pendientes" : "Issues: sin resumen disponible",
+      status: summary ? "success" : "unknown",
+    },
+    {
+      label: summary
+        ? "Sin conflictos pendientes"
+        : "Conflicts: sin resumen disponible",
+      status: summary ? "success" : "unknown",
+    },
     summary
-      ? "Ítems incluidos completos"
-      : "Completitud de ítems: sin resumen disponible",
-    formatEconomicCompleteness(economicSummary.isEconomicallyComplete),
+      ? {
+          label: "Ítems incluidos completos",
+          status: "success",
+        }
+      : {
+          label: "Completitud de ítems: sin resumen disponible",
+          status: "unknown",
+        },
+    {
+      label: formatEconomicCompleteness(economicSummary.isEconomicallyComplete),
+      status: "success",
+    },
   ];
 
   return blockers.length > 0 ? (
@@ -113,14 +130,23 @@ function ApprovalStatusList({
   ) : (
     <ul className="mt-3 grid gap-2 text-sm leading-6 text-foreground-secondary sm:grid-cols-2">
       {readyItems.map((item) => (
-        <li key={item} className="flex min-w-0 items-start gap-2">
-          <CheckCircle
-            aria-hidden="true"
-            size={16}
-            strokeWidth={1.75}
-            className="mt-1 shrink-0 text-success"
-          />
-          <span className="min-w-0 break-words">{item}</span>
+        <li key={item.label} className="flex min-w-0 items-start gap-2">
+          {item.status === "success" ? (
+            <CheckCircle
+              aria-hidden="true"
+              size={16}
+              strokeWidth={1.75}
+              className="mt-1 shrink-0 text-success"
+            />
+          ) : (
+            <CircleAlert
+              aria-hidden="true"
+              size={16}
+              strokeWidth={1.75}
+              className="mt-1 shrink-0 text-foreground-secondary"
+            />
+          )}
+          <span className="min-w-0 break-words">{item.label}</span>
         </li>
       ))}
     </ul>
