@@ -131,6 +131,10 @@ export interface UpdatePreQuoteDraftRequest {
   conflicts: UpdatePreQuoteDraftConflictResolutionRequest[];
 }
 
+export interface ApprovePreQuoteDraftRequest {
+  expectedVersion: number;
+}
+
 export interface PreQuoteDraftItemGlassEvidence {
   sequence: number;
   pageNumber: number | null;
@@ -383,6 +387,10 @@ export interface UpdatePreQuoteDraftError {
   cause: unknown;
 }
 
+export interface ApprovePreQuoteDraftError {
+  cause: unknown;
+}
+
 export type CreatePreQuoteDraftResult =
   | { status: "created"; draft: PreQuoteDraftDetails }
   | { status: "already-exists" }
@@ -392,6 +400,14 @@ export type CreatePreQuoteDraftResult =
 
 export type UpdatePreQuoteDraftResult =
   | { status: "updated"; draft: PreQuoteDraftDetails }
+  | { status: "version-conflict" }
+  | { status: "already-approved" }
+  | { status: "failed" }
+  | { status: "ignored" }
+  | { status: "stale" };
+
+export type ApprovePreQuoteDraftResult =
+  | { status: "approved"; draft: PreQuoteDraftDetails }
   | { status: "version-conflict" }
   | { status: "already-approved" }
   | { status: "failed" }

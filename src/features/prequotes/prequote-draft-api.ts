@@ -1,5 +1,6 @@
 import { isValidPreQuoteId } from "@/features/prequotes/prequote-identifiers";
 import type {
+  ApprovePreQuoteDraftRequest,
   CreatePreQuoteDraftRequest,
   PreQuoteDraftAudit,
   PreQuoteDraftConflict,
@@ -34,6 +35,9 @@ const INVALID_CREATE_DRAFT_RESPONSE_MESSAGE =
 
 const INVALID_UPDATE_DRAFT_RESPONSE_MESSAGE =
   "El servidor devolvió una respuesta inesperada al actualizar el borrador.";
+
+const INVALID_APPROVE_DRAFT_RESPONSE_MESSAGE =
+  "El servidor devolvió una respuesta inesperada al aprobar el borrador.";
 
 const CONTRACT_GUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -153,6 +157,13 @@ export class InvalidUpdatePreQuoteDraftResponseError extends Error {
   }
 }
 
+export class InvalidApprovePreQuoteDraftResponseError extends Error {
+  constructor() {
+    super(INVALID_APPROVE_DRAFT_RESPONSE_MESSAGE);
+    this.name = "InvalidApprovePreQuoteDraftResponseError";
+  }
+}
+
 export function isInvalidPreQuoteDraftResponseError(
   error: unknown,
 ): error is InvalidPreQuoteDraftResponseError {
@@ -169,6 +180,12 @@ export function isInvalidUpdatePreQuoteDraftResponseError(
   error: unknown,
 ): error is InvalidUpdatePreQuoteDraftResponseError {
   return error instanceof InvalidUpdatePreQuoteDraftResponseError;
+}
+
+export function isInvalidApprovePreQuoteDraftResponseError(
+  error: unknown,
+): error is InvalidApprovePreQuoteDraftResponseError {
+  return error instanceof InvalidApprovePreQuoteDraftResponseError;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -1346,6 +1363,10 @@ function isValidUpdateRequest(request: UpdatePreQuoteDraftRequest): boolean {
   );
 }
 
+function isValidApproveRequest(request: ApprovePreQuoteDraftRequest): boolean {
+  return isPositiveInteger(request.expectedVersion);
+}
+
 export function isValidPreQuoteDraftContractGuid(value: string): boolean {
   return isValidContractGuid(value);
 }
@@ -1419,6 +1440,31 @@ export async function updatePreQuoteDraft(
 
   if (!draft) {
     throw new InvalidUpdatePreQuoteDraftResponseError();
+  }
+
+  return draft;
+}
+
+export async function approvePreQuoteDraft(
+  preQuoteId: string,
+  request: ApprovePreQuoteDraftRequest,
+): Promise<PreQuoteDraftDetails> {
+  if (!isValidPreQuoteId(preQuoteId) || !isValidApproveRequest(request)) {
+    throw new InvalidApprovePreQuoteDraftResponseError();
+  }
+
+  const response = await apiRequest(
+    `/api/v1/prequotes/${encodeURIComponent(preQuoteId)}/draft/approve`,
+    {
+      method: "POST",
+      authenticated: true,
+      body: request,
+    },
+  );
+  const draft = normalizeDraftDetails(response, preQuoteId);
+
+  if (!draft) {
+    throw new InvalidApprovePreQuoteDraftResponseError();
   }
 
   return draft;

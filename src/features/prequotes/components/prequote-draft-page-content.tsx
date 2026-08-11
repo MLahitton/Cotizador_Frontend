@@ -12,6 +12,7 @@ import {
   getPreQuoteDraftErrorContent,
   getProjectContextErrorMessage,
 } from "@/features/prequotes/components/prequote-errors";
+import { PreQuoteDraftApprovalPanel } from "@/features/prequotes/components/prequote-draft-approval-panel";
 import { PreQuoteDraftEditor } from "@/features/prequotes/components/prequote-draft-editor";
 import { PreQuoteDraftEconomicSummary } from "@/features/prequotes/components/prequote-draft-economic-summary";
 import { PreQuoteDraftFindingsSection } from "@/features/prequotes/components/prequote-draft-findings-section";
@@ -303,6 +304,12 @@ function PreQuoteDraftView({
     setSuccessMessage(`Cambios guardados. Versión ${updatedDraft.version}.`);
   };
 
+  const handleApproved = (approvedDraft: PreQuoteDraftDetails) => {
+    onDraftUpdated(approvedDraft);
+    setIsEditing(false);
+    setSuccessMessage(`Precotización aprobada. Versión ${approvedDraft.version}.`);
+  };
+
   const handleDiscardAndReload = () => {
     setIsEditing(false);
     setSuccessMessage(null);
@@ -342,6 +349,14 @@ function PreQuoteDraftView({
           ) : null}
         </div>
       </Surface>
+      {!isEditing ? (
+        <PreQuoteDraftApprovalPanel
+          draft={draft}
+          preQuoteId={preQuoteId}
+          onApproved={handleApproved}
+          onReloadDraft={onReloadDraft}
+        />
+      ) : null}
       {isEditing ? (
         <>
           <OperationalSummary draft={draft} />
