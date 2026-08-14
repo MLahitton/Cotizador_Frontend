@@ -18,7 +18,10 @@ export type DocumentClassification =
   | "PDF_TEXT"
   | "PDF_SCANNED"
   | "PDF_MIXED"
-  | "XLSX";
+  | "PDF"
+  | "IMAGE"
+  | "XLSX"
+  | "DOCUMENT";
 
 export type StructuredExtractionStatus = "COMPLETED" | "REQUIRES_REVIEW";
 

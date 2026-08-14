@@ -45,7 +45,10 @@ const DOCUMENT_CLASSIFICATIONS = [
   "PDF_TEXT",
   "PDF_SCANNED",
   "PDF_MIXED",
+  "PDF",
+  "IMAGE",
   "XLSX",
+  "DOCUMENT",
 ] as const;
 const STRUCTURED_EXTRACTION_STATUSES = [
   "COMPLETED",
@@ -137,12 +140,20 @@ function isResultMetadata(
   const expectedRequiresOcr =
     value.classification === "PDF_SCANNED" ||
     value.classification === "PDF_MIXED";
-  const expectedProcessingMethod = isXlsx ? "openpyxl" : "pymupdf";
+  const isLegacyPdfClassification =
+    value.classification === "PDF_TEXT" ||
+    value.classification === "PDF_SCANNED" ||
+    value.classification === "PDF_MIXED";
 
   return (
-    value.requiresOcr === expectedRequiresOcr &&
+    (!isLegacyPdfClassification ||
+      value.requiresOcr === expectedRequiresOcr) &&
     (isXlsx ? value.pageCount === 0 : isPositiveInteger(value.pageCount)) &&
-    value.processingMethod === expectedProcessingMethod
+    (isLegacyPdfClassification
+      ? value.processingMethod === "pymupdf"
+      : isXlsx
+        ? value.processingMethod === "openpyxl"
+        : true)
   );
 }
 

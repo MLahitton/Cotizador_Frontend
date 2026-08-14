@@ -4,7 +4,13 @@ import type {
 } from "@/features/prequotes/prequote-documents-types";
 import type { StructuredItemTechnicalClassification } from "@/features/prequotes/prequote-technical-types";
 
-export type EvidenceSourceType = "NATIVE" | "OCR" | "XLSX";
+export type EvidenceSourceType =
+  | "NATIVE"
+  | "OCR"
+  | "PDF"
+  | "IMAGE"
+  | "XLSX"
+  | "DOCUMENT";
 
 export type StructuredElementType =
   | "WINDOW"

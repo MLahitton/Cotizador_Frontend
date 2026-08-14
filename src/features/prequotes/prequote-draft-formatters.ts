@@ -5,6 +5,7 @@ import type {
   PreQuoteDraftGlassReviewReason,
   PreQuoteDraftItemGlassEvidence,
   PreQuoteDraftOrigin,
+  PreQuotePricingSource,
   PreQuoteDraftRequirementCategory,
   PreQuoteDraftResolutionStatus,
   PreQuoteDraftStatus,
@@ -156,6 +157,12 @@ export function formatPreQuoteDraftEvidenceSource(
       return "OCR";
     case "XLSX":
       return "XLSX";
+    case "PDF":
+      return "PDF";
+    case "IMAGE":
+      return "Imagen";
+    case "DOCUMENT":
+      return "Documento";
   }
 }
 
@@ -166,7 +173,22 @@ export function formatPreQuoteDraftEvidenceLocation(
     return `Hoja ${value.sheetName} · ${value.cellRange}`;
   }
 
-  return `Página ${value.pageNumber}`;
+  return value.pageNumber === null
+    ? "Ubicación no especificada"
+    : `Página ${value.pageNumber}`;
+}
+
+export function formatPreQuotePricingSource(
+  value: PreQuotePricingSource | null,
+): string {
+  switch (value) {
+    case "HISTORICAL_COMPARABLES":
+      return "Basado en históricos reales";
+    case "LEGACY_FALLBACK":
+      return "Estimación preliminar con datos limitados";
+    case null:
+      return "Fuente de estimación no informada";
+  }
 }
 
 export function formatPreQuoteDraftValuationStatus(
@@ -208,7 +230,7 @@ export function formatPreQuoteDraftFactor(value: number | null): string {
 }
 
 export function formatPreQuoteDraftConfidenceScore(value: number | null): string {
-  return value === null ? EMPTY_VALUE : `${numberFormatter.format(value)} / 100`;
+  return value === null ? EMPTY_VALUE : `${numberFormatter.format(value)}%`;
 }
 
 export function formatPreQuoteDraftNullableReview(value: boolean | null): string {
@@ -246,11 +268,18 @@ export function formatPreQuotePricingNoteCode(code: string): string {
     case "ACCESSORY_FACTOR_ESTIMATED_BY_UNKNOWN_ELEMENT_TYPE":
       return "El factor de accesorios fue estimado por tipo de elemento desconocido.";
     case "FRAME_NOT_CONFIRMED":
-      return "El marco no está confirmado.";
+      return "Falta confirmar el perfil o marco.";
     case "LEAF_COUNT_NOT_AVAILABLE":
       return "La cantidad de hojas no está disponible.";
     case "FINISH_NOT_CONFIRMED":
       return "El acabado no está confirmado.";
+    case "FEW_HISTORICAL_COMPARABLES":
+    case "LIMITED_HISTORICAL_COMPARABLES":
+      return "Hay pocos históricos comparables para respaldar la estimación.";
+    case "SYSTEM_INFERRED":
+      return "El sistema fue inferido y debe confirmarse.";
+    case "GLASS_INCOMPLETE":
+      return "La especificación del vidrio está incompleta.";
     default:
       return "Condición económica pendiente de interpretación.";
   }
@@ -345,6 +374,10 @@ export function formatPreQuoteDraftIssueCode(value: string): string {
       return "Tipo de elemento no reconocido";
     case "OCR_REVIEW_REQUIRED":
       return "Revisión OCR requerida";
+    case "MEASUREMENT_AREA_MISMATCH":
+      return "El área informada no coincide con las dimensiones";
+    case "INCONSISTENT_REFERENCE":
+      return "Referencia inconsistente";
     case "GLASS_TYPE_NOT_IDENTIFIED":
       return "Vidrio no identificado";
     case "GLASS_TYPE_AMBIGUOUS":

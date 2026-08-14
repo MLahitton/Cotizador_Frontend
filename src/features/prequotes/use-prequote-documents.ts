@@ -8,11 +8,18 @@ import type { PreQuoteDocumentsPage } from "@/features/prequotes/prequote-docume
 import type { PreQuoteLoadError } from "@/features/prequotes/prequotes-types";
 
 const PAGE_SIZE = 20;
+const PROCESSING_POLL_INTERVAL_MS = 5_000;
 
 type DocumentsState =
   | { key: string; status: "idle"; data: null; error: null }
   | { key: string; status: "loading"; data: null; error: null }
   | { key: string; status: "success"; data: PreQuoteDocumentsPage; error: null }
+  | {
+      key: string;
+      status: "refreshing";
+      data: PreQuoteDocumentsPage;
+      error: null;
+    }
   | { key: string; status: "error"; data: null; error: PreQuoteLoadError };
 
 function idsMatch(left: string, right: string): boolean {
@@ -29,7 +36,7 @@ export function usePreQuoteDocuments(
   enabled: boolean,
 ) {
   const [reloadKey, setReloadKey] = useState(0);
-  const documentsKey = `${preQuoteId}:${page}:${reloadKey}`;
+  const documentsKey = `${preQuoteId}:${page}`;
   const [documentsState, setDocumentsState] = useState<DocumentsState>(() =>
     idleState(documentsKey),
   );
@@ -81,20 +88,45 @@ export function usePreQuoteDocuments(
           });
         }
       })
-  }, [documentsKey, enabled, isPreQuoteIdValid, page, preQuoteId]);
+  }, [documentsKey, enabled, isPreQuoteIdValid, page, preQuoteId, reloadKey]);
 
   const refresh = useCallback(() => {
+    setDocumentsState((current) =>
+      current.key === documentsKey && current.data
+        ? { ...current, status: "refreshing", error: null }
+        : current,
+    );
     setReloadKey((current) => current + 1);
-  }, []);
+  }, [documentsKey]);
 
   const renderableDocumentsPage =
-    documentsState.key === documentsKey && documentsState.status === "success"
+    documentsState.key === documentsKey &&
+    (documentsState.status === "success" ||
+      documentsState.status === "refreshing")
       ? documentsState.data
       : null;
   const renderableError =
     documentsState.key === documentsKey && documentsState.status === "error"
       ? documentsState.error
       : null;
+
+  const hasActiveProcessing = Boolean(
+    renderableDocumentsPage?.items.some(
+      (document) =>
+        document.processingAvailability === "PENDING" ||
+        document.processingAvailability === "PROCESSING",
+    ),
+  );
+
+  useEffect(() => {
+    if (!enabled || !hasActiveProcessing) return;
+
+    const timeoutId = window.setTimeout(
+      refresh,
+      PROCESSING_POLL_INTERVAL_MS,
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [enabled, hasActiveProcessing, refresh, renderableDocumentsPage]);
 
   return {
     documentsPage: renderableDocumentsPage,
@@ -103,8 +135,11 @@ export function usePreQuoteDocuments(
       enabled &&
       isPreQuoteIdValid &&
       (documentsState.key !== documentsKey ||
+        documentsState.status === "idle" ||
         documentsState.status === "loading"),
-    isRefreshing: false,
+    isRefreshing:
+      documentsState.key === documentsKey &&
+      documentsState.status === "refreshing",
     page,
     pageSize: PAGE_SIZE,
     refresh,

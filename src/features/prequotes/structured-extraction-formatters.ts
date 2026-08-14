@@ -54,6 +54,12 @@ export function formatEvidenceSource(value: EvidenceSourceType): string {
       return "OCR";
     case "XLSX":
       return "XLSX";
+    case "PDF":
+      return "PDF";
+    case "IMAGE":
+      return "Imagen";
+    case "DOCUMENT":
+      return "Documento";
   }
 }
 
@@ -62,7 +68,9 @@ export function formatEvidenceLocation(value: StructuredEvidence): string {
     return `Hoja ${value.sheetName} Â· ${value.cellRange}`;
   }
 
-  return `PÃ¡gina ${value.pageNumber}`;
+  return value.pageNumber === null
+    ? "Ubicación no especificada"
+    : `Página ${value.pageNumber}`;
 }
 
 export function formatRequirementCategory(value: RequirementCategory): string {

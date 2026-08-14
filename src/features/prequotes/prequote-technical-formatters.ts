@@ -17,6 +17,10 @@ export function formatTechnicalClassificationSource(
       return "Alias";
     case "INFERRED":
       return "Inferida";
+    case "UNKNOWN":
+      return "No especificado";
+    case "AMBIGUOUS":
+      return "Ambiguo";
     case "UNRESOLVED":
       return "Sin resolver";
     case null:

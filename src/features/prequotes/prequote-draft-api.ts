@@ -17,6 +17,7 @@ import type {
   PreQuoteDraftItemValuation,
   PreQuoteDraftRequirement,
   PreQuoteDraftSummary,
+  PreQuotePricingSource,
   PreQuoteDraftValuationInvalidationReason,
   PreQuoteDraftValuationReason,
   UpdatePreQuoteDraftRequest,
@@ -68,8 +69,14 @@ const TECHNICAL_CLASSIFICATION_SOURCES = [
   "ALIAS",
   "INFERRED",
   "UNRESOLVED",
+  "UNKNOWN",
+  "AMBIGUOUS",
 ] as const;
 const CONFIDENCE_LEVELS = ["LOW", "MEDIUM", "GOOD", "HIGH"] as const;
+const PRICING_SOURCES = [
+  "HISTORICAL_COMPARABLES",
+  "LEGACY_FALLBACK",
+] as const;
 const REQUIREMENT_CATEGORIES = [
   "GLASS_SPECIFICATION",
   "PROFILE_SPECIFICATION",
@@ -105,6 +112,12 @@ const EVIDENCE_SOURCE_ALIASES = {
   Ocr: "OCR",
   XLSX: "XLSX",
   Xlsx: "XLSX",
+  PDF: "PDF",
+  Pdf: "PDF",
+  IMAGE: "IMAGE",
+  Image: "IMAGE",
+  DOCUMENT: "DOCUMENT",
+  Document: "DOCUMENT",
 } as const satisfies Record<string, PreQuoteDraftEvidenceSourceType>;
 
 const MAX_EVIDENCE_SHEET_NAME_LENGTH = 100;
@@ -362,6 +375,26 @@ function isNullableConfidenceLevel(
   return value === null || isConfidenceLevel(value);
 }
 
+function normalizeOptionalPricingSource(
+  value: unknown,
+): PreQuotePricingSource | null | false {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  return isStringIn(value, PRICING_SOURCES) ? value : false;
+}
+
+function normalizeOptionalNonNegativeInteger(
+  value: unknown,
+): number | null | false {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  return isNonNegativeInteger(value) ? value : false;
+}
+
 function isConsecutiveSequence<T extends { sequence: number }>(
   values: T[],
 ): boolean {
@@ -383,11 +416,11 @@ function normalizeEvidence(value: unknown): PreQuoteDraftItemGlassEvidence | nul
     return null;
   }
 
-  if (sourceType === "NATIVE" || sourceType === "OCR") {
+  if (sourceType !== "XLSX") {
     if (
-      !isPositiveInteger(value.pageNumber) ||
-      value.sheetName !== null ||
-      value.cellRange !== null
+      !(value.pageNumber === null || isPositiveInteger(value.pageNumber)) ||
+      !(value.sheetName === undefined || value.sheetName === null) ||
+      !(value.cellRange === undefined || value.cellRange === null)
     ) {
       return null;
     }
@@ -513,6 +546,17 @@ function normalizeTechnicalSnapshot(
   const systemSource = normalizeTechnicalSource(value.systemSource);
   const frameSource = normalizeTechnicalSource(value.frameSource);
   const finishSource = normalizeTechnicalSource(value.finishSource);
+  const configuration =
+    value.configuration === undefined ? null : value.configuration;
+  const configurationSource = normalizeTechnicalSource(
+    value.configurationSource === undefined
+      ? null
+      : value.configurationSource,
+  );
+  const configurationConfidence =
+    value.configurationConfidence === undefined
+      ? null
+      : value.configurationConfidence;
   const reviewReasons = normalizeStringArray(value.reviewReasons);
 
   if (
@@ -529,6 +573,9 @@ function normalizeTechnicalSnapshot(
     !isNullableString(value.finishOriginalText) ||
     finishSource === false ||
     !isNullableTechnicalConfidence(value.finishConfidence) ||
+    !isNullableString(configuration) ||
+    configurationSource === false ||
+    !isNullableTechnicalConfidence(configurationConfidence) ||
     typeof value.requiresReview !== "boolean" ||
     !reviewReasons
   ) {
@@ -550,6 +597,9 @@ function normalizeTechnicalSnapshot(
     finishOriginalText: value.finishOriginalText,
     finishSource,
     finishConfidence: value.finishConfidence,
+    configuration,
+    configurationSource,
+    configurationConfidence,
     requiresReview: value.requiresReview,
     reviewReasons,
   };
@@ -580,6 +630,13 @@ function normalizeValuation(
   const systemSource = normalizeTechnicalSource(value.systemSource);
   const assumptions = normalizeNullableStringArray(value.assumptions);
   const missingData = normalizeNullableStringArray(value.missingData);
+  const pricingSource = normalizeOptionalPricingSource(value.pricingSource);
+  const historicalComparableCount = normalizeOptionalNonNegativeInteger(
+    value.historicalComparableCount,
+  );
+  const strongComparableCount = normalizeOptionalNonNegativeInteger(
+    value.strongComparableCount,
+  );
 
   if (
     !isValidContractGuid(value.sourceStructuredItemValuationId) ||
@@ -634,6 +691,12 @@ function normalizeValuation(
     !isNullableConfidenceLevel(value.confidenceLevel) ||
     assumptions === false ||
     missingData === false ||
+    pricingSource === false ||
+    historicalComparableCount === false ||
+    strongComparableCount === false ||
+    (historicalComparableCount !== null &&
+      strongComparableCount !== null &&
+      strongComparableCount > historicalComparableCount) ||
     !(value.requiresReview === null || typeof value.requiresReview === "boolean") ||
     !isNullableDateTime(value.calculatedAtUtc)
   ) {
@@ -691,6 +754,9 @@ function normalizeValuation(
     pricingProfileVersion: value.pricingProfileVersion,
     confidenceScore: value.confidenceScore,
     confidenceLevel: value.confidenceLevel,
+    pricingSource,
+    historicalComparableCount,
+    strongComparableCount,
     assumptions,
     missingData,
     requiresReview: value.requiresReview,
@@ -1034,6 +1100,13 @@ function normalizeEconomicSummary(
     value.overallConfidence,
     value.confidenceLevel,
   );
+  const pricingSource = normalizeOptionalPricingSource(value.pricingSource);
+  const historicalComparableCount = normalizeOptionalNonNegativeInteger(
+    value.historicalComparableCount,
+  );
+  const strongComparableCount = normalizeOptionalNonNegativeInteger(
+    value.strongComparableCount,
+  );
 
   if (
     !isNonNegativeInteger(value.includedItemCount) ||
@@ -1055,6 +1128,12 @@ function normalizeEconomicSummary(
     !vat ||
     !final ||
     !globalConfidence ||
+    pricingSource === false ||
+    historicalComparableCount === false ||
+    strongComparableCount === false ||
+    (historicalComparableCount !== null &&
+      strongComparableCount !== null &&
+      strongComparableCount > historicalComparableCount) ||
     !assumptions ||
     !missingData ||
     typeof value.hasLimitedPricingScope !== "boolean" ||
@@ -1109,6 +1188,9 @@ function normalizeEconomicSummary(
     finalMaximum: final.maximum,
     overallConfidence: globalConfidence.score,
     confidenceLevel: globalConfidence.level,
+    pricingSource,
+    historicalComparableCount,
+    strongComparableCount,
     assumptions,
     missingData,
     hasLimitedPricingScope: value.hasLimitedPricingScope,

@@ -44,7 +44,17 @@ export type PreQuoteDraftGlassReviewReason =
   | "GLASS_TYPE_AMBIGUOUS"
   | "GLASS_TYPE_CONFLICT";
 
-export type PreQuoteDraftEvidenceSourceType = "NATIVE" | "OCR" | "XLSX";
+export type PreQuoteDraftEvidenceSourceType =
+  | "NATIVE"
+  | "OCR"
+  | "PDF"
+  | "IMAGE"
+  | "XLSX"
+  | "DOCUMENT";
+
+export type PreQuotePricingSource =
+  | "HISTORICAL_COMPARABLES"
+  | "LEGACY_FALLBACK";
 
 export type PreQuoteDraftValuationReason =
   | "MISSING_MEASUREMENTS"
@@ -207,6 +217,9 @@ export interface PreQuoteDraftItemValuation {
   pricingProfileVersion: string | null;
   confidenceScore: number | null;
   confidenceLevel: PreQuotePricingConfidenceLevel | null;
+  pricingSource: PreQuotePricingSource | null;
+  historicalComparableCount: number | null;
+  strongComparableCount: number | null;
   assumptions: string[] | null;
   missingData: string[] | null;
   requiresReview: boolean | null;
@@ -318,6 +331,9 @@ export interface PreQuoteDraftEconomicSummary {
   finalMaximum: number | null;
   overallConfidence: number | null;
   confidenceLevel: PreQuotePricingConfidenceLevel | null;
+  pricingSource: PreQuotePricingSource | null;
+  historicalComparableCount: number | null;
+  strongComparableCount: number | null;
   assumptions: string[];
   missingData: string[];
   hasLimitedPricingScope: boolean;

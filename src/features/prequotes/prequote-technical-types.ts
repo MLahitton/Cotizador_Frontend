@@ -2,7 +2,9 @@ export type TechnicalClassificationSource =
   | "EXPLICIT"
   | "ALIAS"
   | "INFERRED"
-  | "UNRESOLVED";
+  | "UNRESOLVED"
+  | "UNKNOWN"
+  | "AMBIGUOUS";
 
 export type PreQuotePricingConfidenceLevel = "LOW" | "MEDIUM" | "GOOD" | "HIGH";
 
@@ -19,6 +21,9 @@ export interface StructuredItemTechnicalClassification {
   finishOriginalText: string | null;
   finishSource: TechnicalClassificationSource | null;
   finishConfidence: number | null;
+  configuration?: string | null;
+  configurationSource?: TechnicalClassificationSource | null;
+  configurationConfidence?: number | null;
   requiresReview: boolean;
   reviewReasons: string[];
 }

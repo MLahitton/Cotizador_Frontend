@@ -280,7 +280,7 @@ export function getUploadPreQuoteDocumentErrorMessage(error: unknown): string {
     case PREQUOTE_ERROR_CODES.documentInvalidRequest:
       return "No fue posible registrar el documento porque la solicitud no es válida.";
     case PREQUOTE_ERROR_CODES.documentUnsupportedFileType:
-      return "Selecciona un archivo PDF o XLSX compatible.";
+      return "El Backend rechazó el tipo de archivo. Verifica que admita PDF, XLSX, JPG o PNG.";
     case PREQUOTE_ERROR_CODES.documentEmptyFile:
       return "El documento está vacío o no contiene información válida.";
     case PREQUOTE_ERROR_CODES.documentFileTooLarge:
@@ -300,7 +300,7 @@ export function getUploadPreQuoteDocumentErrorMessage(error: unknown): string {
     case PREQUOTE_ERROR_CODES.documentPersistenceError:
       return "No fue posible registrar el documento.";
     case API_ERROR_CODES.unsupportedMediaType:
-      return "Selecciona un archivo PDF o XLSX compatible.";
+      return "El Backend no admite todavía este formato de documento.";
     case API_ERROR_CODES.methodNotAllowed:
       return "La operación solicitada no está disponible.";
     case API_ERROR_CODES.payloadTooLarge:
@@ -319,7 +319,7 @@ export function getUploadPreQuoteDocumentErrorMessage(error: unknown): string {
       404: "La precotización, el proyecto o el cliente ya no está disponible.",
       409: "El proyecto o su cliente no permite agregar documentos en su estado actual.",
       413: "El documento no puede superar 20 MiB.",
-      415: "Selecciona un archivo PDF o XLSX compatible.",
+      415: "El Backend no admite todavía este formato de documento.",
       422: "El documento está vacío o no contiene información válida.",
       500: fallbackMessage,
     },

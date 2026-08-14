@@ -13,11 +13,18 @@ export const MAX_DOCUMENT_SIZE_BYTES = 20 * 1024 * 1024;
 export const PDF_CONTENT_TYPE = "application/pdf";
 export const XLSX_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const JPEG_CONTENT_TYPE = "image/jpeg";
+export const PNG_CONTENT_TYPE = "image/png";
 export const DOCUMENT_FILE_ACCEPT = [
   PDF_CONTENT_TYPE,
   ".pdf",
   XLSX_CONTENT_TYPE,
   ".xlsx",
+  JPEG_CONTENT_TYPE,
+  ".jpg",
+  ".jpeg",
+  PNG_CONTENT_TYPE,
+  ".png",
 ].join(",");
 
 const SUPPORTED_DOCUMENT_TYPES = [
@@ -30,6 +37,21 @@ const SUPPORTED_DOCUMENT_TYPES = [
     extension: ".xlsx",
     contentType: XLSX_CONTENT_TYPE,
     label: "XLSX",
+  },
+  {
+    extension: ".jpg",
+    contentType: JPEG_CONTENT_TYPE,
+    label: "JPG",
+  },
+  {
+    extension: ".jpeg",
+    contentType: JPEG_CONTENT_TYPE,
+    label: "JPG",
+  },
+  {
+    extension: ".png",
+    contentType: PNG_CONTENT_TYPE,
+    label: "PNG",
   },
 ] as const;
 
@@ -204,8 +226,14 @@ export function formatDocumentClassification(
       return "Documento escaneado";
     case "PDF_MIXED":
       return "Documento mixto";
+    case "PDF":
+      return "Documento PDF";
+    case "IMAGE":
+      return "Imagen";
     case "XLSX":
       return "Hoja de cálculo XLSX";
+    case "DOCUMENT":
+      return "Documento";
   }
 }
 

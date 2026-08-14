@@ -63,9 +63,19 @@ const DOCUMENT_CLASSIFICATIONS = [
   "PDF_TEXT",
   "PDF_SCANNED",
   "PDF_MIXED",
+  "PDF",
+  "IMAGE",
   "XLSX",
+  "DOCUMENT",
 ] as const;
-const EVIDENCE_SOURCE_TYPES = ["NATIVE", "OCR", "XLSX"] as const;
+const EVIDENCE_SOURCE_TYPES = [
+  "NATIVE",
+  "OCR",
+  "PDF",
+  "IMAGE",
+  "XLSX",
+  "DOCUMENT",
+] as const;
 const MAX_EVIDENCE_SHEET_NAME_LENGTH = 100;
 const MAX_EVIDENCE_CELL_RANGE_LENGTH = 50;
 const STRUCTURED_STATUSES = ["COMPLETED", "REQUIRES_REVIEW"] as const;
@@ -104,6 +114,8 @@ const TECHNICAL_CLASSIFICATION_SOURCES = [
   "ALIAS",
   "INFERRED",
   "UNRESOLVED",
+  "UNKNOWN",
+  "AMBIGUOUS",
 ] as const;
 const REQUIREMENT_CATEGORIES = [
   "GLASS_SPECIFICATION",
@@ -320,12 +332,20 @@ function isResultMetadata(
   const expectedRequiresOcr =
     value.classification === "PDF_SCANNED" ||
     value.classification === "PDF_MIXED";
-  const expectedProcessingMethod = isXlsx ? "openpyxl" : "pymupdf";
+  const isLegacyPdfClassification =
+    value.classification === "PDF_TEXT" ||
+    value.classification === "PDF_SCANNED" ||
+    value.classification === "PDF_MIXED";
 
   return (
-    value.requiresOcr === expectedRequiresOcr &&
+    (!isLegacyPdfClassification ||
+      value.requiresOcr === expectedRequiresOcr) &&
     (isXlsx ? value.pageCount === 0 : isPositiveInteger(value.pageCount)) &&
-    value.processingMethod === expectedProcessingMethod
+    (isLegacyPdfClassification
+      ? value.processingMethod === "pymupdf"
+      : isXlsx
+        ? value.processingMethod === "openpyxl"
+        : true)
   );
 }
 
@@ -358,11 +378,11 @@ function isEvidence(value: unknown): value is StructuredEvidence {
     return false;
   }
 
-  if (value.sourceType === "NATIVE" || value.sourceType === "OCR") {
+  if (value.sourceType !== "XLSX") {
     return (
-      isPositiveInteger(value.pageNumber) &&
-      value.sheetName === null &&
-      value.cellRange === null
+      (value.pageNumber === null || isPositiveInteger(value.pageNumber)) &&
+      (value.sheetName === undefined || value.sheetName === null) &&
+      (value.cellRange === undefined || value.cellRange === null)
     );
   }
 
@@ -413,6 +433,12 @@ function isStructuredItemTechnicalClassification(
     isNullableString(value.finishOriginalText) &&
     isNullableTechnicalClassificationSource(value.finishSource) &&
     isNullableTechnicalConfidence(value.finishConfidence) &&
+    (value.configuration === undefined ||
+      isNullableString(value.configuration)) &&
+    (value.configurationSource === undefined ||
+      isNullableTechnicalClassificationSource(value.configurationSource)) &&
+    (value.configurationConfidence === undefined ||
+      isNullableTechnicalConfidence(value.configurationConfidence)) &&
     typeof value.requiresReview === "boolean" &&
     isStringArray(value.reviewReasons)
   );

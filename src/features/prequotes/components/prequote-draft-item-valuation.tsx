@@ -12,12 +12,14 @@ import {
   formatPreQuoteDraftFactor,
   formatPreQuoteDraftInvalidationReason,
   formatPreQuoteDraftMoney,
+  formatPreQuoteDraftNumber,
   formatPreQuoteDraftNullableReview,
   formatPreQuoteDraftPriceRangeVersion,
   formatPreQuoteDraftQuantity,
   formatPreQuoteDraftValuationReason,
   formatPreQuoteDraftValuationStatus,
   formatPreQuotePricingConfidenceLevel,
+  formatPreQuotePricingSource,
   formatPreQuotePricingNoteCode,
 } from "@/features/prequotes/prequote-draft-formatters";
 import type {
@@ -131,7 +133,7 @@ function StatusMessage({
         : status === "REQUIRES_REVIEW"
           ? "La valoración requiere revisión antes de utilizarse como base económica definitiva."
           : status === "NOT_PRICEABLE"
-            ? "Este ítem no cuenta con una valoración cotizable registrada."
+            ? "No se pudo establecer un precio confiable. Requiere información o revisión adicional."
             : null;
 
   if (!message) {
@@ -305,6 +307,20 @@ export function PreQuoteDraftItemValuation({
           label="Requiere revisión"
           value={formatPreQuoteDraftNullableReview(valuation.requiresReview)}
         />
+        <DetailValue
+          label="Fuente del precio"
+          value={formatPreQuotePricingSource(valuation.pricingSource)}
+        />
+        {valuation.historicalComparableCount !== null ? (
+          <DetailValue
+            label="Históricos comparables"
+            value={`${formatPreQuoteDraftNumber(valuation.historicalComparableCount)} totales${
+              valuation.strongComparableCount === null
+                ? ""
+                : ` · ${formatPreQuoteDraftNumber(valuation.strongComparableCount)} de alta similitud`
+            }`}
+          />
+        ) : null}
       </dl>
 
       <div className="mt-4">

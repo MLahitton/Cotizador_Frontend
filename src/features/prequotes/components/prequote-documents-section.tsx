@@ -1,6 +1,6 @@
 "use client";
 
-import { FilePlus2, RefreshCw } from "lucide-react";
+import { Calculator, FilePlus2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -14,6 +14,8 @@ import { PreQuotesError, PreQuotesLoading } from "@/features/prequotes/component
 import { PreQuoteDocumentsPagination } from "@/features/prequotes/components/prequote-documents-pagination";
 import { PreQuoteDocumentsTable } from "@/features/prequotes/components/prequote-documents-table";
 import { UploadPreQuoteDocumentPanel } from "@/features/prequotes/components/upload-prequote-document-panel";
+import { HistoricalDocumentEstimateResult } from "@/features/prequotes/components/historical-document-estimate-result";
+import { getEstimateDocumentsErrorMessage } from "@/features/prequotes/historical-document-estimate-api";
 import {
   getDocumentProcessingAction,
   type DocumentProcessingActionKind,
@@ -21,6 +23,7 @@ import {
 import type { PreQuoteDocumentsPage } from "@/features/prequotes/prequote-documents-types";
 import type { PreQuoteLoadError } from "@/features/prequotes/prequotes-types";
 import { useStartDocumentProcessing } from "@/features/prequotes/use-start-document-processing";
+import { useHistoricalDocumentEstimate } from "@/features/prequotes/use-historical-document-estimate";
 import { useUploadPreQuoteDocument } from "@/features/prequotes/use-upload-prequote-document";
 import { cn } from "@/lib/utils/cn";
 
@@ -46,8 +49,8 @@ export function PreQuoteDocumentsSection({
   isRefreshing: boolean;
   onRefresh: () => void;
 }) {
-  const [uploadPanelPreQuoteId, setUploadPanelPreQuoteId] = useState<
-    string | null
+  const [documentPanelMode, setDocumentPanelMode] = useState<
+    "upload" | "estimate" | null
   >(null);
   const [activeProcessingDocumentId, setActiveProcessingDocumentId] = useState<
     string | null
@@ -60,8 +63,10 @@ export function PreQuoteDocumentsSection({
     setLocalProcessingErrorMessage,
   ] = useState<string | null>(null);
   const upload = useUploadPreQuoteDocument(preQuoteId);
+  const documentEstimate = useHistoricalDocumentEstimate(projectId);
   const processing = useStartDocumentProcessing(preQuoteId);
-  const isUploadPanelOpen = uploadPanelPreQuoteId === preQuoteId;
+  const isUploadPanelOpen = documentPanelMode !== null;
+  const isDocumentOperationRunning = upload.isUploading || documentEstimate.isEstimating;
   const hasDocuments = Boolean(documentsPage && documentsPage.items.length > 0);
   const isProcessingSubmitting = processing.isSubmitting;
   const activeProcessingDocument = documentsPage?.items.find(
@@ -89,29 +94,45 @@ export function PreQuoteDocumentsSection({
       : null;
 
   function openUploadPanel() {
-    if (!projectIsActive || upload.isUploading || isProcessingSubmitting) {
+    if (!projectIsActive || isDocumentOperationRunning || isProcessingSubmitting) {
       return;
     }
 
     upload.clearSelection();
-    setUploadPanelPreQuoteId(preQuoteId);
+    setDocumentPanelMode("upload");
+  }
+
+  function openEstimatePanel() {
+    if (!projectIsActive || isDocumentOperationRunning || isProcessingSubmitting) return;
+    upload.clearSelection();
+    setDocumentPanelMode("estimate");
   }
 
   function closeUploadPanel() {
-    if (upload.isUploading) {
+    if (isDocumentOperationRunning) {
       return;
     }
 
     upload.clearSelection();
-    setUploadPanelPreQuoteId(null);
+    setDocumentPanelMode(null);
   }
 
   async function handleUpload() {
     const result = await upload.upload();
 
     if (result.status === "uploaded") {
-      setUploadPanelPreQuoteId(null);
+      setDocumentPanelMode(null);
       onRefresh();
+    } else if (result.status === "partial") {
+      onRefresh();
+    }
+  }
+
+  async function handleEstimate() {
+    const succeeded = await documentEstimate.estimate(upload.selectedFiles);
+    if (succeeded) {
+      upload.clearSelection();
+      setDocumentPanelMode(null);
     }
   }
 
@@ -190,17 +211,28 @@ export function PreQuoteDocumentsSection({
             Documentos
           </h2>
           <p className="mt-1 text-sm leading-6 text-foreground-secondary">
-            Documentos existentes asociados a esta precotización.
+            {documentsPage
+              ? `Documentos del mismo requerimiento (${documentsPage.totalCount}).`
+              : "Documentos asociados al mismo requerimiento de precotización."}
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            disabled={!projectIsActive || isDocumentOperationRunning || isProcessingSubmitting}
+            onClick={openEstimatePanel}
+          >
+            <Calculator aria-hidden="true" size={17} strokeWidth={1.75} />
+            Generar precotización
+          </Button>
           {hasDocuments ? (
             <Button
               type="button"
               variant="outline"
               className="w-full sm:w-auto"
               disabled={
-                !projectIsActive || upload.isUploading || isProcessingSubmitting
+                !projectIsActive || isDocumentOperationRunning || isProcessingSubmitting
               }
               onClick={openUploadPanel}
             >
@@ -215,7 +247,7 @@ export function PreQuoteDocumentsSection({
             disabled={
               isLoading ||
               isRefreshing ||
-              upload.isUploading ||
+              isDocumentOperationRunning ||
               isProcessingSubmitting
             }
             onClick={onRefresh}
@@ -234,14 +266,27 @@ export function PreQuoteDocumentsSection({
 
       {isUploadPanelOpen ? (
         <UploadPreQuoteDocumentPanel
-          selectedFile={upload.selectedFile}
+          selectedFiles={upload.selectedFiles}
           validationError={upload.validationError}
-          uploadError={upload.uploadError}
-          isUploading={upload.isUploading}
-          onFileSelect={upload.selectFile}
+          uploadError={documentPanelMode === "estimate" ? documentEstimate.error : upload.uploadError}
+          isUploading={isDocumentOperationRunning}
+          uploadedCount={upload.uploadedCount}
+          uploadTotal={upload.uploadTotal}
+          onFilesSelect={upload.selectFiles}
+          onFileRemove={upload.removeFile}
           onCancel={closeUploadPanel}
-          onUpload={handleUpload}
+          onUpload={documentPanelMode === "estimate" ? handleEstimate : handleUpload}
+          mode={documentPanelMode ?? "upload"}
+          errorMessageOverride={
+            documentPanelMode === "estimate" && documentEstimate.error
+              ? getEstimateDocumentsErrorMessage(documentEstimate.error)
+              : null
+          }
         />
+      ) : null}
+
+      {documentEstimate.result ? (
+        <HistoricalDocumentEstimateResult estimate={documentEstimate.result} />
       ) : null}
 
       {error ? (
@@ -277,7 +322,7 @@ export function PreQuoteDocumentsSection({
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-foreground-secondary">
                 {documentsPage.totalCount === 0
-                  ? "Agrega el primer documento PDF o XLSX para comenzar a preparar la precotización."
+                  ? "Agrega documentos PDF, XLSX, JPG o PNG para comenzar a preparar la precotización."
                   : "La página solicitada no tiene resultados disponibles."}
               </p>
               {documentsPage.totalCount === 0 && projectIsActive ? (
@@ -285,7 +330,7 @@ export function PreQuoteDocumentsSection({
                   type="button"
                   variant="outline"
                   className="mt-5"
-                  disabled={upload.isUploading || isProcessingSubmitting}
+                  disabled={isDocumentOperationRunning || isProcessingSubmitting}
                   onClick={openUploadPanel}
                 >
                   <FilePlus2 aria-hidden="true" size={17} strokeWidth={1.75} />

@@ -170,6 +170,15 @@ export function TechnicalClassificationDetails({
           source={classification.finishSource}
           confidence={classification.finishConfidence}
         />
+        {classification.configuration ? (
+          <TechnicalBlock
+            title="Configuración / apertura"
+            code={classification.configuration}
+            originalText={classification.configuration}
+            source={classification.configurationSource ?? null}
+            confidence={classification.configurationConfidence ?? null}
+          />
+        ) : null}
       </div>
 
       <div className="mt-4">
