@@ -1,7 +1,7 @@
 "use client";
 
 import { FileText, Trash2, Upload, X } from "lucide-react";
-import { useRef } from "react";
+import { type ChangeEvent, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
@@ -50,6 +50,16 @@ export function UploadPreQuoteDocumentPanel({
     onCancel();
   }
 
+  function handleFilesChange(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    onFilesSelect(files);
+  }
+
+  function handleFileRemove(index: number) {
+    if (inputRef.current) inputRef.current.value = "";
+    onFileRemove(index);
+  }
+
   return (
     <Surface>
       <div className="space-y-4">
@@ -79,10 +89,7 @@ export function UploadPreQuoteDocumentPanel({
             multiple
             disabled={isUploading}
             className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-foreground file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-background disabled:cursor-not-allowed disabled:opacity-60"
-            onChange={(event) => {
-              onFilesSelect(Array.from(event.currentTarget.files ?? []));
-              event.currentTarget.value = "";
-            }}
+            onChange={handleFilesChange}
           />
           <p className="text-sm leading-6 text-foreground-secondary">
             Máximo 20 MiB por archivo. Puedes retirar archivos antes de subirlos.
@@ -125,7 +132,7 @@ export function UploadPreQuoteDocumentPanel({
                     size="icon"
                     aria-label={`Quitar ${file.name}`}
                     disabled={isUploading}
-                    onClick={() => onFileRemove(index)}
+                    onClick={() => handleFileRemove(index)}
                   >
                     <Trash2 aria-hidden="true" size={17} strokeWidth={1.75} />
                   </Button>
@@ -170,7 +177,7 @@ export function UploadPreQuoteDocumentPanel({
             disabled={
               isUploading ||
               selectedFiles.length === 0 ||
-              Boolean(validationError)
+              (mode === "upload" && Boolean(validationError))
             }
             onClick={onUpload}
           >

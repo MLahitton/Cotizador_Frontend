@@ -1,9 +1,11 @@
 import type {
   EstimateDocumentsParameters,
+  EstimatePreQuoteDocumentsParameters,
   HistoricalDocumentEstimate,
   HistoricalDocumentEstimateItem,
   HistoricalDocumentPricingStatus,
 } from "@/features/prequotes/historical-document-estimate-types";
+import { isValidPreQuoteId } from "@/features/prequotes/prequote-identifiers";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
 
@@ -107,6 +109,38 @@ export async function estimateDocuments({
   return response;
 }
 
+export async function estimatePreQuoteDocuments({
+  preQuoteId,
+  documentIds,
+}: EstimatePreQuoteDocumentsParameters): Promise<HistoricalDocumentEstimate> {
+  if (!isValidPreQuoteId(preQuoteId)) {
+    throw new ApiError({
+      status: 0,
+      title: "Identificador inválido",
+      detail: "No fue posible identificar la precotización.",
+    });
+  }
+
+  const response = await apiRequest(
+    `/api/v1/prequotes/${encodeURIComponent(preQuoteId)}/historical-estimate`,
+    {
+      method: "POST",
+      authenticated: true,
+      body: documentIds && documentIds.length > 0 ? { documentIds } : undefined,
+    },
+  );
+
+  if (!isEstimate(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta inválida",
+      detail: "El servidor devolvió una precotización con un formato inesperado.",
+    });
+  }
+
+  return response;
+}
+
 export function getEstimateDocumentsErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) {
     return "No fue posible calcular la precotización.";
@@ -114,11 +148,13 @@ export function getEstimateDocumentsErrorMessage(error: unknown): string {
 
   const messages: Record<number, string> = {
     0: "No fue posible conectar con el servidor. Inténtalo nuevamente.",
-    400: "El documento no es válido o no se puede procesar.",
+    400: "No fue posible utilizar los documentos seleccionados.",
     401: "Tu sesión expiró. Inicia sesión nuevamente.",
     403: "No tienes permiso para generar esta precotización.",
-    502: "El servicio de análisis no está disponible o agotó su tiempo de respuesta.",
-    503: "El histórico de precios no está disponible temporalmente.",
+    404: "No se encontró la precotización o alguno de sus documentos.",
+    409: "La precotización no tiene documentos disponibles para estimar.",
+    502: "El servicio de análisis no está disponible temporalmente.",
+    503: "No fue posible acceder al histórico de cotizaciones.",
     500: "No fue posible calcular la precotización.",
   };
   return messages[error.status] ?? "No fue posible calcular la precotización.";

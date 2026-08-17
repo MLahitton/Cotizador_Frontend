@@ -49,9 +49,7 @@ export function PreQuoteDocumentsSection({
   isRefreshing: boolean;
   onRefresh: () => void;
 }) {
-  const [documentPanelMode, setDocumentPanelMode] = useState<
-    "upload" | "estimate" | null
-  >(null);
+  const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
   const [activeProcessingDocumentId, setActiveProcessingDocumentId] = useState<
     string | null
   >(null);
@@ -63,11 +61,10 @@ export function PreQuoteDocumentsSection({
     setLocalProcessingErrorMessage,
   ] = useState<string | null>(null);
   const upload = useUploadPreQuoteDocument(preQuoteId);
-  const documentEstimate = useHistoricalDocumentEstimate(projectId);
+  const documentEstimate = useHistoricalDocumentEstimate(preQuoteId);
   const processing = useStartDocumentProcessing(preQuoteId);
-  const isUploadPanelOpen = documentPanelMode !== null;
   const isDocumentOperationRunning = upload.isUploading || documentEstimate.isEstimating;
-  const hasDocuments = Boolean(documentsPage && documentsPage.items.length > 0);
+  const hasDocuments = Boolean(documentsPage && documentsPage.totalCount > 0);
   const isProcessingSubmitting = processing.isSubmitting;
   const activeProcessingDocument = documentsPage?.items.find(
     (document) => document.documentId === activeProcessingDocumentId,
@@ -99,13 +96,7 @@ export function PreQuoteDocumentsSection({
     }
 
     upload.clearSelection();
-    setDocumentPanelMode("upload");
-  }
-
-  function openEstimatePanel() {
-    if (!projectIsActive || isDocumentOperationRunning || isProcessingSubmitting) return;
-    upload.clearSelection();
-    setDocumentPanelMode("estimate");
+    setIsUploadPanelOpen(true);
   }
 
   function closeUploadPanel() {
@@ -114,14 +105,14 @@ export function PreQuoteDocumentsSection({
     }
 
     upload.clearSelection();
-    setDocumentPanelMode(null);
+    setIsUploadPanelOpen(false);
   }
 
   async function handleUpload() {
     const result = await upload.upload();
 
     if (result.status === "uploaded") {
-      setDocumentPanelMode(null);
+      setIsUploadPanelOpen(false);
       onRefresh();
     } else if (result.status === "partial") {
       onRefresh();
@@ -129,11 +120,8 @@ export function PreQuoteDocumentsSection({
   }
 
   async function handleEstimate() {
-    const succeeded = await documentEstimate.estimate(upload.selectedFiles);
-    if (succeeded) {
-      upload.clearSelection();
-      setDocumentPanelMode(null);
-    }
+    if (!hasDocuments || documentEstimate.isEstimating || isUploadPanelOpen) return;
+    await documentEstimate.estimate();
   }
 
   function openProcessingConfirmation(
@@ -220,11 +208,18 @@ export function PreQuoteDocumentsSection({
           <Button
             type="button"
             className="w-full sm:w-auto"
-            disabled={!projectIsActive || isDocumentOperationRunning || isProcessingSubmitting}
-            onClick={openEstimatePanel}
+            disabled={
+              !hasDocuments ||
+              documentEstimate.isEstimating ||
+              upload.isUploading ||
+              isUploadPanelOpen
+            }
+            onClick={handleEstimate}
           >
             <Calculator aria-hidden="true" size={17} strokeWidth={1.75} />
-            Generar precotización
+            {documentEstimate.isEstimating
+              ? "Generando precotización..."
+              : "Generar precotización"}
           </Button>
           {hasDocuments ? (
             <Button
@@ -264,24 +259,42 @@ export function PreQuoteDocumentsSection({
         </p>
       ) : null}
 
+      {!hasDocuments && documentsPage ? (
+        <p className="text-sm text-foreground-secondary">
+          Agrega al menos un documento para generar la precotización.
+        </p>
+      ) : null}
+
+      {documentEstimate.isEstimating ? (
+        <p
+          className="text-sm text-foreground-secondary"
+          role="status"
+          aria-live="polite"
+        >
+          Estamos analizando los documentos y calculando la precotización.
+        </p>
+      ) : null}
+
+      {documentEstimate.error ? (
+        <PreQuotesError
+          title="No fue posible generar la precotización"
+          message={getEstimateDocumentsErrorMessage(documentEstimate.error)}
+          onRetry={handleEstimate}
+        />
+      ) : null}
+
       {isUploadPanelOpen ? (
         <UploadPreQuoteDocumentPanel
           selectedFiles={upload.selectedFiles}
           validationError={upload.validationError}
-          uploadError={documentPanelMode === "estimate" ? documentEstimate.error : upload.uploadError}
-          isUploading={isDocumentOperationRunning}
+          uploadError={upload.uploadError}
+          isUploading={upload.isUploading}
           uploadedCount={upload.uploadedCount}
           uploadTotal={upload.uploadTotal}
           onFilesSelect={upload.selectFiles}
           onFileRemove={upload.removeFile}
           onCancel={closeUploadPanel}
-          onUpload={documentPanelMode === "estimate" ? handleEstimate : handleUpload}
-          mode={documentPanelMode ?? "upload"}
-          errorMessageOverride={
-            documentPanelMode === "estimate" && documentEstimate.error
-              ? getEstimateDocumentsErrorMessage(documentEstimate.error)
-              : null
-          }
+          onUpload={handleUpload}
         />
       ) : null}
 

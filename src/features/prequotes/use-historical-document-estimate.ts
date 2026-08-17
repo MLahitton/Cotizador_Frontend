@@ -2,21 +2,24 @@
 
 import { useCallback, useState } from "react";
 
-import { estimateDocuments } from "@/features/prequotes/historical-document-estimate-api";
+import { estimatePreQuoteDocuments } from "@/features/prequotes/historical-document-estimate-api";
 import type { HistoricalDocumentEstimate } from "@/features/prequotes/historical-document-estimate-types";
 
-export function useHistoricalDocumentEstimate(projectId: string) {
+export function useHistoricalDocumentEstimate(preQuoteId: string) {
   const [result, setResult] = useState<HistoricalDocumentEstimate | null>(null);
   const [error, setError] = useState<unknown | null>(null);
   const [isEstimating, setIsEstimating] = useState(false);
 
-  const estimate = useCallback(async (files: File[]) => {
-    if (isEstimating || files.length === 0) return false;
+  const estimate = useCallback(async (documentIds?: string[]) => {
+    if (isEstimating) return false;
 
     setError(null);
     setIsEstimating(true);
     try {
-      const response = await estimateDocuments({ files, projectId });
+      const response = await estimatePreQuoteDocuments({
+        preQuoteId,
+        documentIds,
+      });
       setResult(response);
       return true;
     } catch (cause) {
@@ -25,7 +28,7 @@ export function useHistoricalDocumentEstimate(projectId: string) {
     } finally {
       setIsEstimating(false);
     }
-  }, [isEstimating, projectId]);
+  }, [isEstimating, preQuoteId]);
 
   return { result, error, isEstimating, estimate };
 }

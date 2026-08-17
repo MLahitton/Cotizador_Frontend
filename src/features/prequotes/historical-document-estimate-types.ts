@@ -64,3 +64,8 @@ export interface EstimateDocumentsParameters {
   projectId?: string;
   requirementId?: string;
 }
+
+export interface EstimatePreQuoteDocumentsParameters {
+  preQuoteId: string;
+  documentIds?: string[];
+}
