@@ -14,6 +14,7 @@ import {
   PreQuoteDetailView,
 } from "@/features/prequotes/components/prequote-detail-view";
 import { PreQuoteDocumentsSection } from "@/features/prequotes/components/prequote-documents-section";
+import { RequirementWorkspace } from "@/features/prequotes/components/requirement-workspace";
 import { usePreQuoteDetails } from "@/features/prequotes/use-prequote-details";
 import { usePreQuoteDocuments } from "@/features/prequotes/use-prequote-documents";
 
@@ -97,6 +98,10 @@ export function PreQuoteDetailPageContent({
       {preQuote && !isPreQuoteLoading && !preQuoteError ? (
         <>
           <PreQuoteDetailView project={project} preQuote={preQuote} />
+          <RequirementWorkspace
+            preQuoteId={preQuote.id}
+            projectIsActive={project.isActive}
+          />
           <PreQuoteDocumentsSection
             projectId={project.id}
             preQuoteId={preQuote.id}

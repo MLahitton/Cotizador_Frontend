@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator, FilePlus2, RefreshCw } from "lucide-react";
+import { FilePlus2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -14,8 +14,6 @@ import { PreQuotesError, PreQuotesLoading } from "@/features/prequotes/component
 import { PreQuoteDocumentsPagination } from "@/features/prequotes/components/prequote-documents-pagination";
 import { PreQuoteDocumentsTable } from "@/features/prequotes/components/prequote-documents-table";
 import { UploadPreQuoteDocumentPanel } from "@/features/prequotes/components/upload-prequote-document-panel";
-import { HistoricalDocumentEstimateResult } from "@/features/prequotes/components/historical-document-estimate-result";
-import { getEstimateDocumentsErrorMessage } from "@/features/prequotes/historical-document-estimate-api";
 import {
   getDocumentProcessingAction,
   type DocumentProcessingActionKind,
@@ -23,7 +21,6 @@ import {
 import type { PreQuoteDocumentsPage } from "@/features/prequotes/prequote-documents-types";
 import type { PreQuoteLoadError } from "@/features/prequotes/prequotes-types";
 import { useStartDocumentProcessing } from "@/features/prequotes/use-start-document-processing";
-import { useHistoricalDocumentEstimate } from "@/features/prequotes/use-historical-document-estimate";
 import { useUploadPreQuoteDocument } from "@/features/prequotes/use-upload-prequote-document";
 import { cn } from "@/lib/utils/cn";
 
@@ -61,9 +58,8 @@ export function PreQuoteDocumentsSection({
     setLocalProcessingErrorMessage,
   ] = useState<string | null>(null);
   const upload = useUploadPreQuoteDocument(preQuoteId);
-  const documentEstimate = useHistoricalDocumentEstimate(preQuoteId);
   const processing = useStartDocumentProcessing(preQuoteId);
-  const isDocumentOperationRunning = upload.isUploading || documentEstimate.isEstimating;
+  const isDocumentOperationRunning = upload.isUploading;
   const hasDocuments = Boolean(documentsPage && documentsPage.totalCount > 0);
   const isProcessingSubmitting = processing.isSubmitting;
   const activeProcessingDocument = documentsPage?.items.find(
@@ -117,11 +113,6 @@ export function PreQuoteDocumentsSection({
     } else if (result.status === "partial") {
       onRefresh();
     }
-  }
-
-  async function handleEstimate() {
-    if (!hasDocuments || documentEstimate.isEstimating || isUploadPanelOpen) return;
-    await documentEstimate.estimate();
   }
 
   function openProcessingConfirmation(
@@ -205,22 +196,6 @@ export function PreQuoteDocumentsSection({
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            className="w-full sm:w-auto"
-            disabled={
-              !hasDocuments ||
-              documentEstimate.isEstimating ||
-              upload.isUploading ||
-              isUploadPanelOpen
-            }
-            onClick={handleEstimate}
-          >
-            <Calculator aria-hidden="true" size={17} strokeWidth={1.75} />
-            {documentEstimate.isEstimating
-              ? "Generando precotización..."
-              : "Generar precotización"}
-          </Button>
           {hasDocuments ? (
             <Button
               type="button"
@@ -259,30 +234,6 @@ export function PreQuoteDocumentsSection({
         </p>
       ) : null}
 
-      {!hasDocuments && documentsPage ? (
-        <p className="text-sm text-foreground-secondary">
-          Agrega al menos un documento para generar la precotización.
-        </p>
-      ) : null}
-
-      {documentEstimate.isEstimating ? (
-        <p
-          className="text-sm text-foreground-secondary"
-          role="status"
-          aria-live="polite"
-        >
-          Estamos analizando los documentos y calculando la precotización.
-        </p>
-      ) : null}
-
-      {documentEstimate.error ? (
-        <PreQuotesError
-          title="No fue posible generar la precotización"
-          message={getEstimateDocumentsErrorMessage(documentEstimate.error)}
-          onRetry={handleEstimate}
-        />
-      ) : null}
-
       {isUploadPanelOpen ? (
         <UploadPreQuoteDocumentPanel
           selectedFiles={upload.selectedFiles}
@@ -296,10 +247,6 @@ export function PreQuoteDocumentsSection({
           onCancel={closeUploadPanel}
           onUpload={handleUpload}
         />
-      ) : null}
-
-      {documentEstimate.result ? (
-        <HistoricalDocumentEstimateResult estimate={documentEstimate.result} />
       ) : null}
 
       {error ? (
