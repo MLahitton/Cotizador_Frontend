@@ -6,6 +6,15 @@ export interface PreQuoteListItem {
   documentCount: number;
   createdAtUtc: string;
   updatedAtUtc: string;
+  hasRequirement: boolean;
+  latestRequirementId: string | null;
+  latestRequirementStatus: string | null;
+  hasTechnicalProposal: boolean;
+  technicalProposalId: string | null;
+  technicalProposalItemCount: number | null;
+  latestAttemptState: string | null;
+  latestAttemptOutcome: string | null;
+  latestAttemptErrorCode: string | null;
 }
 
 export interface ProjectPreQuotesPage {

@@ -11,14 +11,17 @@ import type {
 import { isValidPreQuoteId } from "@/features/prequotes/prequote-identifiers";
 
 const INVALID_LIST_RESPONSE_DETAIL =
-  "El servidor devolvió una respuesta inesperada al consultar las precotizaciones.";
+  "El servidor devolvio una respuesta inesperada al consultar las precotizaciones.";
 const INVALID_DETAILS_RESPONSE_DETAIL =
-  "El servidor devolvió una respuesta inesperada al consultar la precotización.";
+  "El servidor devolvio una respuesta inesperada al consultar la precotizacion.";
 const PREQUOTE_PROJECT_MISMATCH_DETAIL =
-  "La precotización solicitada no pertenece a este proyecto.";
+  "La precotizacion solicitada no pertenece a este proyecto.";
 
 const INVALID_CREATE_RESPONSE_MESSAGE =
-  "El servidor devolvió una respuesta inesperada al crear la precotización.";
+  "El servidor devolvio una respuesta inesperada al crear la precotizacion.";
+
+const GUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class InvalidCreatePreQuoteResponseError extends Error {
   constructor() {
@@ -62,6 +65,18 @@ function isValidDateTime(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
+function isGuidOrNull(value: unknown): value is string | null {
+  return value === null || (typeof value === "string" && GUID_PATTERN.test(value));
+}
+
+function isStringOrNull(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isNonNegativeIntegerOrNull(value: unknown): value is number | null {
+  return value === null || isNonNegativeInteger(value);
+}
+
 function normalizeId(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -82,7 +97,16 @@ function isPreQuoteListItem(
     normalizeId(value.projectId) === normalizeId(requestedProjectId) &&
     isNonNegativeInteger(value.documentCount) &&
     isValidDateTime(value.createdAtUtc) &&
-    isValidDateTime(value.updatedAtUtc)
+    isValidDateTime(value.updatedAtUtc) &&
+    typeof value.hasRequirement === "boolean" &&
+    isGuidOrNull(value.latestRequirementId) &&
+    isStringOrNull(value.latestRequirementStatus) &&
+    typeof value.hasTechnicalProposal === "boolean" &&
+    isGuidOrNull(value.technicalProposalId) &&
+    isNonNegativeIntegerOrNull(value.technicalProposalItemCount) &&
+    isStringOrNull(value.latestAttemptState) &&
+    isStringOrNull(value.latestAttemptOutcome) &&
+    isStringOrNull(value.latestAttemptErrorCode)
   );
 }
 
@@ -170,7 +194,7 @@ export async function getProjectPreQuotes(
   if (!isProjectPreQuotesPage(response, parameters)) {
     throw new ApiError({
       status: 0,
-      title: "Respuesta inválida",
+      title: "Respuesta invalida",
       detail: INVALID_LIST_RESPONSE_DETAIL,
     });
   }
@@ -211,7 +235,7 @@ export async function getPreQuoteById(
   if (!isPreQuoteDetails(response)) {
     throw new ApiError({
       status: 0,
-      title: "Respuesta inválida",
+      title: "Respuesta invalida",
       detail: INVALID_DETAILS_RESPONSE_DETAIL,
     });
   }
@@ -219,7 +243,7 @@ export async function getPreQuoteById(
   if (normalizeId(response.id) !== normalizeId(preQuoteId)) {
     throw new ApiError({
       status: 0,
-      title: "Respuesta inválida",
+      title: "Respuesta invalida",
       detail: INVALID_DETAILS_RESPONSE_DETAIL,
     });
   }

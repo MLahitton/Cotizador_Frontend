@@ -35,3 +35,15 @@ export interface ProcessedRequirement {
   completedAtUtc: string;
   summary: RequirementProcessingSummary | null;
 }
+
+export interface CurrentRequirement {
+  requirementId: string;
+  preQuoteId: string;
+  status: RequirementStatus;
+  createdAtUtc: string;
+  hasTechnicalProposal: boolean;
+  technicalProposalId: string | null;
+  latestAttemptState: RequirementProcessingState | null;
+  latestAttemptOutcome: RequirementProcessingOutcome | null;
+  latestAttemptErrorCode: string | null;
+}

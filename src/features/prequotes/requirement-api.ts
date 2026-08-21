@@ -2,10 +2,12 @@ import {
   isDateTime,
   isNonEmptyString,
   isNonNegativeInteger,
+  isNullableString,
   isRecord,
 } from "@/features/prequotes/newpipe-guards";
 import type {
   CreatedRequirement,
+  CurrentRequirement,
   ProcessedRequirement,
   RequirementProcessingOutcome,
   RequirementProcessingState,
@@ -31,6 +33,19 @@ function isCreatedRequirement(value: unknown): value is CreatedRequirement {
     isDateTime(value.createdAtUtc);
 }
 
+function isCurrentRequirement(value: unknown): value is CurrentRequirement {
+  return isRecord(value) &&
+    isNonEmptyString(value.requirementId) &&
+    isNonEmptyString(value.preQuoteId) &&
+    isOneOf<RequirementStatus>(value.status, REQUIREMENT_STATUSES) &&
+    isDateTime(value.createdAtUtc) &&
+    typeof value.hasTechnicalProposal === "boolean" &&
+    (value.technicalProposalId === null || isNonEmptyString(value.technicalProposalId)) &&
+    (value.latestAttemptState === null || isOneOf<RequirementProcessingState>(value.latestAttemptState, PROCESSING_STATES)) &&
+    (value.latestAttemptOutcome === null || isOneOf<RequirementProcessingOutcome>(value.latestAttemptOutcome, PROCESSING_OUTCOMES)) &&
+    isNullableString(value.latestAttemptErrorCode);
+}
+
 function isProcessedRequirement(value: unknown): value is ProcessedRequirement {
   if (!isRecord(value)) return false;
   const summary = value.summary;
@@ -51,7 +66,7 @@ function isProcessedRequirement(value: unknown): value is ProcessedRequirement {
 }
 
 function invalidResponse(detail: string): ApiError {
-  return new ApiError({ status: 0, title: "Respuesta inválida", detail });
+  return new ApiError({ status: 0, title: "Respuesta invalida", detail });
 }
 
 export async function createRequirement(preQuoteId: string, files: File[]): Promise<CreatedRequirement> {
@@ -62,9 +77,27 @@ export async function createRequirement(preQuoteId: string, files: File[]): Prom
     { method: "POST", authenticated: true, body: formData },
   );
   if (!isCreatedRequirement(response)) {
-    throw invalidResponse("El servidor no devolvió el requerimiento creado.");
+    throw invalidResponse("El servidor no devolvio el requerimiento creado.");
   }
   return response;
+}
+
+export async function getCurrentRequirement(preQuoteId: string): Promise<CurrentRequirement | null> {
+  try {
+    const response = await apiRequest(
+      `/api/v2/prequotes/${encodeURIComponent(preQuoteId)}/requirements/current`,
+      { authenticated: true },
+    );
+    if (!isCurrentRequirement(response)) {
+      throw invalidResponse("El servidor no devolvio el requerimiento guardado.");
+    }
+    return response;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function processRequirement(requirementId: string): Promise<ProcessedRequirement> {
@@ -73,34 +106,38 @@ export async function processRequirement(requirementId: string): Promise<Process
     { method: "POST", authenticated: true },
   );
   if (!isProcessedRequirement(response)) {
-    throw invalidResponse("El servidor no devolvió un resultado de análisis válido.");
+    throw invalidResponse("El servidor no devolvio un resultado de analisis valido.");
   }
   return response;
 }
 
-export function getRequirementErrorMessage(error: unknown, operation: "upload" | "process"): string {
+export function getRequirementErrorMessage(error: unknown, operation: "upload" | "process" | "current"): string {
   const fallback = operation === "upload"
     ? "No fue posible crear el requerimiento."
-    : "No fue posible analizar el requerimiento.";
+    : operation === "current"
+      ? "No fue posible cargar el analisis guardado."
+      : "No fue posible analizar el requerimiento.";
   if (!(error instanceof ApiError)) return fallback;
   const code = error.problemDetails?.errorCode ?? error.problemDetails?.code;
   if (code === "REQUIREMENT_PROCESSING_ALREADY_ACTIVE") {
-    return "Este requerimiento ya se está procesando.";
+    return "Este requerimiento ya se esta procesando.";
   }
   const messages: Record<number, string> = {
-    0: "No fue posible conectar con el servidor. Inténtalo nuevamente.",
-    400: "La solicitud del requerimiento no es válida.",
-    401: "Tu sesión expiró. Inicia sesión nuevamente.",
-    403: "No tienes acceso para realizar esta operación.",
-    404: "No se encontró la precotización o el requerimiento.",
-    409: "La operación no está disponible en el estado actual.",
-    413: "Los archivos superan los límites permitidos.",
+    0: "No fue posible conectar con el servidor. Intentalo nuevamente.",
+    400: "La solicitud del requerimiento no es valida.",
+    401: "Tu sesion expiro. Inicia sesion nuevamente.",
+    403: "No tienes acceso para realizar esta operacion.",
+    404: operation === "current"
+      ? "Aun no se ha procesado un requerimiento para esta precotizacion."
+      : "No se encontro la precotizacion o el requerimiento.",
+    409: "La operacion no esta disponible en el estado actual.",
+    413: "Los archivos superan los limites permitidos.",
     415: "Uno de los archivos tiene un formato no compatible.",
-    422: "Uno de los archivos está vacío o no se puede procesar.",
+    422: "Uno de los archivos esta vacio o no se puede procesar.",
     500: fallback,
-    502: "El servicio de análisis no está disponible temporalmente.",
-    503: "El servicio no está disponible temporalmente.",
-    504: "El análisis superó el tiempo máximo de espera.",
+    502: "El servicio de analisis no esta disponible temporalmente.",
+    503: "El servicio no esta disponible temporalmente.",
+    504: "El analisis supero el tiempo maximo de espera.",
   };
   return messages[error.status] ?? fallback;
 }

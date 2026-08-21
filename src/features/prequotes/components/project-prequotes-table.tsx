@@ -11,6 +11,44 @@ import {
 import type { PreQuoteListItem } from "@/features/prequotes/prequotes-types";
 import { cn } from "@/lib/utils/cn";
 
+function formatRequirementStatus(preQuote: PreQuoteListItem): string {
+  if (!preQuote.hasRequirement) {
+    return "Sin requerimiento";
+  }
+
+  switch (preQuote.latestRequirementStatus) {
+    case "Pending":
+      return "Pendiente";
+    case "Processing":
+      return "Procesando";
+    case "Processed":
+      return "Procesado";
+    case "Failed":
+      return "Fallido";
+    default:
+      return "Con requerimiento";
+  }
+}
+
+function formatProposalSummary(preQuote: PreQuoteListItem): string {
+  if (!preQuote.hasTechnicalProposal) {
+    if (preQuote.latestAttemptErrorCode) {
+      return `Sin propuesta (${preQuote.latestAttemptErrorCode})`;
+    }
+
+    return "Sin propuesta";
+  }
+
+  const itemCount = preQuote.technicalProposalItemCount;
+  if (itemCount === null) {
+    return "Propuesta lista";
+  }
+
+  return itemCount === 1
+    ? "1 item tecnico"
+    : `${itemCount} items tecnicos`;
+}
+
 export function ProjectPreQuotesTable({
   projectId,
   items,
@@ -38,17 +76,19 @@ export function ProjectPreQuotesTable({
           </h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[58rem] border-collapse text-left">
+          <table className="w-full min-w-[72rem] border-collapse text-left">
             <caption className="sr-only">
               Listado de precotizaciones asociadas al proyecto seleccionado
             </caption>
             <thead className="bg-surface-subtle">
               <tr>
                 {[
-                  "Precotización",
+                  "Precotizacion",
                   "Documentos",
-                  "Creación",
-                  "Actualización",
+                  "Requirement",
+                  "Propuesta tecnica",
+                  "Creacion",
+                  "Actualizacion",
                   "Detalle",
                 ].map((heading) => (
                   <th
@@ -64,7 +104,7 @@ export function ProjectPreQuotesTable({
             <tbody className="divide-y divide-border-subtle">
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-6 py-12 text-center">
                     <SearchX
                       aria-hidden="true"
                       className="mx-auto text-muted"
@@ -75,7 +115,7 @@ export function ProjectPreQuotesTable({
                       No hay precotizaciones registradas
                     </p>
                     <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-foreground-secondary">
-                      Crea la primera precotización para comenzar a organizar
+                      Crea la primera precotizacion para comenzar a organizar
                       sus documentos.
                     </p>
                     <div className="mt-5 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
@@ -94,7 +134,7 @@ export function ProjectPreQuotesTable({
                           />
                           {isCreating
                             ? "Creando..."
-                            : "Crear primera precotización"}
+                            : "Crear primera precotizacion"}
                         </Button>
                       ) : (
                         <p className="text-sm text-foreground-secondary">
@@ -126,7 +166,7 @@ export function ProjectPreQuotesTable({
                         </span>
                         <div className="min-w-0">
                           <p className="font-semibold text-foreground">
-                            Precotización
+                            Precotizacion
                           </p>
                           <p className="mt-1 break-all text-sm text-foreground-secondary">
                             <span className="sr-only">
@@ -147,6 +187,21 @@ export function ProjectPreQuotesTable({
                       {formatDocumentCount(preQuote.documentCount)}
                     </td>
                     <td className="px-5 py-4 align-top text-sm text-foreground-secondary">
+                      <span className="font-medium text-foreground">
+                        {formatRequirementStatus(preQuote)}
+                      </span>
+                      {preQuote.latestAttemptOutcome ? (
+                        <span className="mt-1 block text-xs text-muted">
+                          Intento: {preQuote.latestAttemptOutcome}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-5 py-4 align-top text-sm text-foreground-secondary">
+                      <span className="font-medium text-foreground">
+                        {formatProposalSummary(preQuote)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 align-top text-sm text-foreground-secondary">
                       {formatPreQuoteDateTime(preQuote.createdAtUtc)}
                     </td>
                     <td className="px-5 py-4 align-top text-sm text-foreground-secondary">
@@ -159,7 +214,7 @@ export function ProjectPreQuotesTable({
                           buttonVariants({ variant: "outline", size: "sm" }),
                           "w-full",
                         )}
-                        aria-label={`Ver detalle de precotización ${preQuote.id}`}
+                        aria-label={`Ver detalle de precotizacion ${preQuote.id}`}
                       >
                         <Eye aria-hidden="true" size={17} strokeWidth={1.75} />
                         Ver detalle

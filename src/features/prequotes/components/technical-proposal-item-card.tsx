@@ -3,6 +3,8 @@ import { CheckCircle2, CircleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Surface } from "@/components/ui/surface";
 import { formatProposalConfidence, formatProposalNumber, formatReviewReason } from "@/features/prequotes/technical-proposal-formatters";
+import { formatPricingWarning, formatRequirementMoney } from "@/features/prequotes/requirement-pricing-formatters";
+import type { RequirementPricingItem } from "@/features/prequotes/requirement-pricing-types";
 import type { TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 
 function SuggestedValue({ label, value }: { label: string; value: string | null }) {
@@ -14,7 +16,11 @@ function SuggestedValue({ label, value }: { label: string; value: string | null 
   );
 }
 
-export function TechnicalProposalItemCard({ item }: { item: TechnicalProposalItem }) {
+export function TechnicalProposalItemCard({ item, pricing, currency }: {
+  item: TechnicalProposalItem;
+  pricing: RequirementPricingItem | null;
+  currency: string | null;
+}) {
   const status = item.requiresReview ? "Requiere revisión" : item.isTechnicallyComplete ? "Listo" : "Incompleto";
   return (
     <Surface padding="md" className="min-w-0 space-y-4">
@@ -41,6 +47,36 @@ export function TechnicalProposalItemCard({ item }: { item: TechnicalProposalIte
           <span>{item.historicalEvidence.supportCount} referencias históricas{item.historicalEvidence.bestSimilarity === null ? "" : ` · Mejor similitud ${Math.round(item.historicalEvidence.bestSimilarity * 100)}%`}</span>
         ) : null}
       </div>
+
+      {pricing && currency ? (
+        <div className="rounded-sm border border-border-subtle bg-surface-subtle p-3">
+          {pricing.status === "NOT_PRICEABLE" ? (
+            <div>
+              <p className="text-sm font-semibold text-foreground">Precio pendiente</p>
+              <ul className="mt-2 space-y-1 text-sm text-warning">
+                {[...pricing.mappingWarnings, ...pricing.missingData].map((warning, index) => (
+                  <li key={`${warning}-${index}`}>{formatPricingWarning(warning)}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">Precio estimado</p>
+                {pricing.requiresReview ? <span className="text-xs font-medium text-warning">Estimación sujeta a revisión</span> : null}
+              </div>
+              <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div><dt className="text-xs text-foreground-secondary">Precio unitario</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.unit.expected, currency)}</dd></div>
+                <div><dt className="text-xs text-foreground-secondary">Total del elemento</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.line.expected, currency)}</dd></div>
+              </dl>
+              <p className="mt-2 text-xs text-foreground-secondary">
+                Rango estimado: {formatRequirementMoney(pricing.line.minimum, currency)} – {formatRequirementMoney(pricing.line.maximum, currency)}
+              </p>
+              {pricing.comparables.length > 0 ? <p className="mt-2 text-xs text-foreground-secondary">Basado en {pricing.comparables.length} referencias históricas</p> : null}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {item.reviewReasons.length > 0 ? (
         <ul className="space-y-2 border-t border-border-subtle pt-3">
