@@ -66,6 +66,8 @@ export interface TechnicalProposalEvidence {
   sheetName: string | null;
   cellRange: string | null;
   sourceId: string | null;
+  sourceFileName: string | null;
+  contextLabel: string | null;
   confidence: number | null;
   status: string;
 }
@@ -97,6 +99,9 @@ export interface TechnicalProposalItem {
   confidence: { overall: number; system: number; glass: number; finish: number };
   requiresReview: boolean;
   reviewReasons: string[];
+  systemResolutionReasons: string[];
+  glassResolutionReasons: string[];
+  finishResolutionReasons: string[];
   isTechnicallyComplete: boolean;
   isPriceable: boolean;
   historicalEvidence: {
@@ -120,6 +125,7 @@ export interface TechnicalProposalItem {
     finishColorRaw: string | null;
     finishColorNormalized: string | null;
     specialFeatures: string[];
+    geometryType: string | null;
   };
   evidence: TechnicalProposalEvidence[];
 }

@@ -59,7 +59,7 @@ export function RequirementAnalysisProgress({ completed = false }: { completed?:
         {completed ? "Preparando la propuesta técnica…" : message}
       </p>
       <p className="mt-2 text-sm text-foreground-secondary">
-        El avance es estimado. El análisis puede tomar entre 2 y 4 minutos.
+        El avance es estimado. El análisis puede tomar entre 10 y 15 minutos dependiendo de la cantidad de elementos a cotizar.
       </p>
     </Surface>
   );

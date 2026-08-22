@@ -66,6 +66,7 @@ function isProposalItem(value: unknown): boolean {
     isRecord(evidence) && isNullableNumber(evidence.pageNumber) && isString(evidence.sourceType) &&
     isString(evidence.text) && isNullableString(evidence.sheetName) &&
     isNullableString(evidence.cellRange) && isNullableString(evidence.sourceId) &&
+    isNullableString(evidence.sourceFileName) && isNullableString(evidence.contextLabel) &&
     isNullableNumber(evidence.confidence) && isString(evidence.status));
 
   return isNonEmptyString(value.itemId) && isNonEmptyString(value.extractedItemId) &&
@@ -82,10 +83,12 @@ function isProposalItem(value: unknown): boolean {
     Array.isArray(alternatives.finishes) && alternatives.finishes.every((item) => isAlternative(item, isFinishOption)) &&
     ["overall", "system", "glass", "finish"].every((key) => isNumber(confidence[key])) &&
     typeof value.requiresReview === "boolean" && isStringArray(value.reviewReasons) &&
+    isStringArray(value.systemResolutionReasons) && isStringArray(value.glassResolutionReasons) &&
+    isStringArray(value.finishResolutionReasons) &&
     typeof value.isTechnicallyComplete === "boolean" && typeof value.isPriceable === "boolean" &&
     isString(historical.status) && isNonNegativeInteger(historical.supportCount) &&
     isNullableNumber(historical.bestSimilarity) && isNullableNumber(historical.averageSimilarity) && examplesValid &&
-    ["requestedSystemRaw", "requestedProfileRaw", "functionalType", "operation", "glassRawSpecification", "glassTypeRaw", "glassTypeNormalized", "finishRawDescription", "finishNormalizedType", "finishColorRaw", "finishColorNormalized"]
+    ["requestedSystemRaw", "requestedProfileRaw", "functionalType", "operation", "glassRawSpecification", "glassTypeRaw", "glassTypeNormalized", "finishRawDescription", "finishNormalizedType", "finishColorRaw", "finishColorNormalized", "geometryType"]
       .every((key) => isNullableString(trace[key])) &&
     isNullableNumber(trace.glassThicknessMm) && isStringArray(trace.specialFeatures) && evidenceValid;
 }
