@@ -9,7 +9,6 @@ import {
   formatProjectStatus,
 } from "@/features/projects/project-detail-formatters";
 import {
-  formatDocumentCount,
   formatPreQuoteDateTime,
   formatPreQuoteIdentifier,
 } from "@/features/prequotes/prequote-formatters";
@@ -130,10 +129,6 @@ export function PreQuoteDetailView({
           <dl className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             <DetailField label="Identificador" value={preQuote.id} />
             <DetailField label="Proyecto" value={preQuote.projectId} />
-            <DetailField
-              label="Documentos"
-              value={formatDocumentCount(preQuote.documentCount)}
-            />
             <DetailField
               label="Fecha de creación"
               value={formatPreQuoteDateTime(preQuote.createdAtUtc)}

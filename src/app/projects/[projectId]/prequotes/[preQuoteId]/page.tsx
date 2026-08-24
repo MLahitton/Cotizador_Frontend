@@ -1,27 +1,17 @@
 "use client";
 
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/features/auth/auth-context";
 import { ProtectedRoute } from "@/features/auth/protected-route";
 import { PreQuoteDetailPageContent } from "@/features/prequotes/components/prequote-detail-page-content";
 
-function parseDocumentsPage(values: string[]): number {
-  if (values.length !== 1 || !values[0]) {
-    return 1;
-  }
-
-  const page = Number(values[0]);
-  return Number.isInteger(page) && page >= 1 ? page : 1;
-}
-
 function ProjectPreQuoteDetailContent() {
   const params = useParams<{
     projectId?: string | string[];
     preQuoteId?: string | string[];
   }>();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const { signOut, user } = useAuth();
 
@@ -38,9 +28,6 @@ function ProjectPreQuoteDetailContent() {
     typeof params.projectId === "string" ? params.projectId : "";
   const preQuoteId =
     typeof params.preQuoteId === "string" ? params.preQuoteId : "";
-  const documentsPage = parseDocumentsPage(
-    searchParams.getAll("documentsPage"),
-  );
 
   const handleSignOut = () => {
     signOut();
@@ -57,7 +44,6 @@ function ProjectPreQuoteDetailContent() {
       <PreQuoteDetailPageContent
         projectId={projectId}
         preQuoteId={preQuoteId}
-        documentsPage={documentsPage}
       />
     </AppShell>
   );

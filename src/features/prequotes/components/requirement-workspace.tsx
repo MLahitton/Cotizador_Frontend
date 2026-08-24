@@ -27,7 +27,6 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
   return (
     <section aria-labelledby="requirement-workspace-title" className="space-y-4">
       <div>
-        <p className="text-sm font-medium text-brand">Flujo tecnico NEWPIPE</p>
         <h2 id="requirement-workspace-title" className="mt-1 text-lg font-semibold text-foreground">Requerimiento y propuesta tecnica</h2>
         <p className="mt-1 text-sm leading-6 text-foreground-secondary">Adjunta los documentos del requerimiento, analizalos y revisa las configuraciones sugeridas por Steel & Glass.</p>
       </div>
