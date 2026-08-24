@@ -111,6 +111,11 @@ export async function processRequirement(requirementId: string): Promise<Process
   return response;
 }
 
+function getProblemDetailsCode(error: ApiError): string | null {
+  const value = error.problemDetails?.errorCode ?? error.problemDetails?.code;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
 export function getRequirementErrorMessage(error: unknown, operation: "upload" | "process" | "current"): string {
   const fallback = operation === "upload"
     ? "No fue posible crear el requerimiento."
@@ -118,12 +123,31 @@ export function getRequirementErrorMessage(error: unknown, operation: "upload" |
       ? "No fue posible cargar el analisis guardado."
       : "No fue posible analizar el requerimiento.";
   if (!(error instanceof ApiError)) return fallback;
-  const code = error.problemDetails?.errorCode ?? error.problemDetails?.code;
-  if (code === "REQUIREMENT_PROCESSING_ALREADY_ACTIVE") {
-    return "Este requerimiento ya se esta procesando.";
-  }
+  const code = getProblemDetailsCode(error);
+  const codeMessages: Record<string, string> = {
+    REQUIREMENT_PROCESSING_ALREADY_ACTIVE: "Este requerimiento ya se encuentra en analisis.",
+    REQUIREMENT_AI2_SERVICE_UNAVAILABLE: "No fue posible conectar con el servicio de analisis.",
+    REQUIREMENT_AI2_TIMEOUT: "El analisis tomo mas tiempo del permitido.",
+    REQUIREMENT_AI2_REJECTED: "El servicio de analisis rechazo la solicitud.",
+    AI_INVALID_RESPONSE: "El analisis no devolvio una respuesta valida.",
+    REQUIREMENT_AI2_SERVICE_ERROR: "El servicio de analisis no pudo completar la solicitud.",
+    REQUIREMENT_PERSISTENCE_ERROR: "No fue posible guardar el resultado del analisis.",
+    REQUIREMENT_STORAGE_ERROR: "No fue posible leer o guardar los archivos del requerimiento.",
+    REQUIREMENT_PROCESSING_POLL_TIMEOUT: "El analisis esta tardando mas de lo esperado. Puedes volver a consultar el estado mas adelante.",
+    REQUIREMENT_PROCESSING_FAILED: "El analisis del requerimiento no pudo completarse.",
+    REQUIREMENT_NO_FILES: "El requerimiento no tiene archivos disponibles para analizar.",
+    REQUIREMENT_UNSUPPORTED_FILE_TYPE: "Uno de los archivos tiene un formato no compatible.",
+    REQUIREMENT_EMPTY_FILE: "Uno de los archivos esta vacio.",
+    REQUIREMENT_FILE_TOO_LARGE: "Uno de los archivos supera el limite permitido.",
+    REQUIREMENT_TOO_MANY_FILES: "Se supero la cantidad maxima de archivos permitida.",
+    REQUIREMENT_PROJECT_INACTIVE: "El proyecto esta inactivo.",
+    REQUIREMENT_CLIENT_INACTIVE: "El cliente asociado esta inactivo.",
+    REQUIREMENT_PREQUOTE_NOT_FOUND: "No se encontro la precotizacion asociada.",
+    REQUIREMENT_NOT_FOUND: "No se encontro el requerimiento.",
+  };
+  if (code && code in codeMessages) return codeMessages[code];
   const messages: Record<number, string> = {
-    0: "No fue posible conectar con el servidor. Intentalo nuevamente.",
+    0: fallback,
     400: "La solicitud del requerimiento no es valida.",
     401: "Tu sesion expiro. Inicia sesion nuevamente.",
     403: "No tienes acceso para realizar esta operacion.",

@@ -19,7 +19,7 @@ export function TechnicalProposalSummary({ proposal, pricing }: {
     <section aria-labelledby="technical-proposal-title" className="space-y-4">
       <Surface variant="elevated" padding="lg">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><p className="text-sm font-medium text-brand">NEWPIPE</p><h3 id="technical-proposal-title" className="mt-1 text-xl font-semibold text-foreground">Propuesta técnica</h3></div>
+          <div><h3 id="technical-proposal-title" className="text-xl font-semibold text-foreground">Propuesta técnica</h3></div>
           <Badge tone={proposal.itemsRequiringReview > 0 ? "warning" : "success"}>{proposal.itemsRequiringReview > 0 ? "Requiere revisión" : "Lista"}</Badge>
         </div>
         <dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

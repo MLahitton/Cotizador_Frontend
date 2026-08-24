@@ -19,10 +19,11 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
   const workspace = useRequirementWorkspace(preQuoteId);
   const isUploading = workspace.phase === "uploading";
   const isProcessing = workspace.phase === "processing" || workspace.phase === "completing";
+  const hasAttentionState = workspace.phase.endsWith("error") || workspace.phase === "processing-timeout";
   const fileCount = workspace.requirement && "fileCount" in workspace.requirement
     ? workspace.requirement.fileCount
     : null;
-  const fileNames = workspace.files.map((file) => file.name).join(" Â· ");
+  const fileNames = workspace.files.map((file) => file.name).join(" · ");
 
   return (
     <section aria-labelledby="requirement-workspace-title" className="space-y-4">
@@ -71,8 +72,8 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
           {workspace.phase === "ready" ? (
             <Button type="button" disabled={isProcessing} onClick={workspace.process}><Play aria-hidden="true" size={17} />Iniciar analisis</Button>
           ) : (
-            <Badge tone={workspace.phase === "complete" ? "success" : workspace.phase.endsWith("error") ? "warning" : "brand"}>
-              {workspace.phase === "complete" ? "Propuesta disponible" : workspace.phase.endsWith("error") ? "Atencion requerida" : "En analisis"}
+            <Badge tone={workspace.phase === "complete" ? "success" : hasAttentionState ? "warning" : "brand"}>
+              {workspace.phase === "complete" ? "Propuesta disponible" : hasAttentionState ? "Atencion requerida" : "En analisis"}
             </Badge>
           )}
         </Surface>
@@ -81,6 +82,7 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
       {isProcessing ? <RequirementAnalysisProgress completed={workspace.phase === "completing"} /> : null}
       {workspace.phase === "proposal-loading" ? <PreQuotesLoading message="Cargando propuesta tecnica..." /> : null}
       {workspace.phase === "process-error" ? <PreQuotesError title="No fue posible completar el analisis" message={getRequirementErrorMessage(workspace.error, "process")} onRetry={workspace.process} /> : null}
+      {workspace.phase === "processing-timeout" ? <PreQuotesError title="El analisis sigue en curso" message={getRequirementErrorMessage(workspace.error, "process")} onRetry={workspace.retryCurrent} /> : null}
       {workspace.phase === "proposal-error" ? <PreQuotesError title="No fue posible cargar la propuesta tecnica" message={getTechnicalProposalErrorMessage(workspace.error)} onRetry={workspace.retryProposal} /> : null}
       {workspace.proposal ? (
         <div className="flex justify-end">
