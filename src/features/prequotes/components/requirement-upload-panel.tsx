@@ -21,7 +21,7 @@ export function RequirementUploadPanel({
       <div>
         <h3 className="font-semibold text-foreground">Agregar requerimiento</h3>
         <p className="mt-1 text-sm leading-6 text-foreground-secondary">
-          Adjunta de 1 a 10 documentos. Se agruparán en un único requerimiento técnico.
+          Adjunta de 1 a 10 documentos. Se agruparan en un unico requerimiento tecnico.
         </p>
       </div>
       <input
@@ -33,6 +33,7 @@ export function RequirementUploadPanel({
         className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-foreground file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-background disabled:opacity-60"
         onChange={(event) => {
           onFilesSelect(Array.from(event.target.files ?? []));
+          event.target.value = "";
         }}
       />
       <p className="text-xs text-foreground-secondary">
@@ -44,7 +45,7 @@ export function RequirementUploadPanel({
             <li key={`${file.name}-${file.size}-${file.lastModified}`} className="flex min-w-0 items-center gap-3 rounded-sm border border-border-subtle bg-surface p-3">
               <FileText aria-hidden="true" size={18} className="shrink-0 text-foreground-secondary" />
               <div className="min-w-0 flex-1 text-sm">
-                <p className="truncate font-medium text-foreground">{file.name}</p>
+                <p className="truncate font-medium text-foreground" title={file.name}>{file.name}</p>
                 <p className="text-foreground-secondary">{getSupportedDocumentFormat(file.name, file.type)} · {formatFileSize(file.size)}</p>
               </div>
               <Button type="button" variant="ghost" size="icon" disabled={isUploading} aria-label={`Quitar ${file.name}`} onClick={() => onFileRemove(index)}>

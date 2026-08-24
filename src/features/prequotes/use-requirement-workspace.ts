@@ -342,6 +342,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
       if (!mountedRef.current || preQuoteIdRef.current !== preQuoteId) return;
       if (getProblemCode(cause) === "REQUIREMENT_PROCESSING_ALREADY_ACTIVE") {
         busyRef.current = false;
+        setCurrentReloadKey((current) => current + 1);
         setPhase("processing");
         return;
       }

@@ -5,14 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Surface } from "@/components/ui/surface";
 
 const MESSAGES = [
-  "Preparando la información del requerimiento…",
-  "Interpretando puertas, ventanas y elementos…",
-  "Revisando dimensiones y configuraciones…",
-  "Contrastando sistemas compatibles de Steel & Glass…",
-  "Revisando vidrio y acabado solicitados…",
-  "Buscando referencias históricas comparables…",
-  "Organizando la propuesta técnica…",
-  "Validando elementos que puedan requerir revisión…",
+  "Preparando la informacion del requerimiento...",
+  "Interpretando puertas, ventanas y elementos...",
+  "Revisando dimensiones y configuraciones...",
+  "Contrastando sistemas compatibles de Steel & Glass...",
+  "Revisando vidrio y acabado solicitados...",
+  "Buscando referencias historicas comparables...",
+  "Organizando la propuesta tecnica...",
+  "Validando elementos que puedan requerir revision...",
   "Seguimos trabajando. Los documentos complejos pueden tomar algunos minutos.",
 ];
 
@@ -43,7 +43,7 @@ export function RequirementAnalysisProgress({ completed = false }: { completed?:
   return (
     <Surface variant="elevated" padding="lg">
       <h3 className="text-lg font-semibold text-foreground">
-        {completed ? "Análisis completado" : "Analizando tu requerimiento"}
+        {completed ? "Analisis completado" : "Analizando tu requerimiento"}
       </h3>
       <div
         className="mt-5 h-2 overflow-hidden rounded-full bg-surface-muted"
@@ -51,15 +51,15 @@ export function RequirementAnalysisProgress({ completed = false }: { completed?:
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={progress}
-        aria-label="Progreso estimado del análisis"
+        aria-label="Progreso estimado del analisis"
       >
         <div className="h-full rounded-full bg-brand motion-safe:transition-[width] motion-safe:duration-1000" style={{ width: `${progress}%` }} />
       </div>
       <p className="mt-3 text-sm font-medium text-foreground" role="status" aria-live="polite">
-        {completed ? "Preparando la propuesta técnica…" : message}
+        {completed ? "Preparando la propuesta tecnica..." : message}
       </p>
       <p className="mt-2 text-sm text-foreground-secondary">
-        El avance es estimado. El análisis puede tomar entre 10 y 15 minutos dependiendo de la cantidad de elementos a cotizar.
+        El avance es estimado. El analisis puede tomar entre 10 y 15 minutos dependiendo de la cantidad de elementos a cotizar.
       </p>
     </Surface>
   );

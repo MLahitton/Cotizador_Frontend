@@ -23,10 +23,12 @@ export function PreQuotesError({
   title,
   message,
   onRetry,
+  retryLabel = "Reintentar",
 }: {
   title: string;
   message: string;
   onRetry: () => void;
+  retryLabel?: string;
 }) {
   return (
     <Surface>
@@ -48,7 +50,7 @@ export function PreQuotesError({
             className="mt-4"
             onClick={onRetry}
           >
-            Reintentar
+            {retryLabel}
           </Button>
         </div>
       </div>

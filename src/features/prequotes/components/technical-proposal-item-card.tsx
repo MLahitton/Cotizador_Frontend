@@ -38,6 +38,12 @@ function resolutionNote(reasons: string[], code: string, message: string): strin
   return reasons.includes(code) ? message : null;
 }
 
+function pricingStatusLabel(status: string): string {
+  if (status === "NO_ESTIMATE") return "Sin estimacion";
+  if (status === "NOT_PRICEABLE") return "Precio pendiente";
+  return "Precio estimado";
+}
+
 export function TechnicalProposalItemCard({ item, pricing, currency }: {
   item: TechnicalProposalItem;
   pricing: RequirementPricingItem | null;
@@ -46,14 +52,16 @@ export function TechnicalProposalItemCard({ item, pricing, currency }: {
   const status = item.requiresReview ? "Requiere revision" : item.isTechnicallyComplete ? "Listo" : "Incompleto";
   const visibleReviewReasons = uniqueVisibleReviewReasons(item.reviewReasons);
   const provenance = sourceLabel(item);
+  const pricingIssues = pricing ? [...pricing.mappingWarnings, ...pricing.missingData] : [];
+  const hasPriceEstimate = pricing?.status === "PRICEABLE";
   return (
     <Surface padding="md" className="min-w-0 space-y-4">
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <h4 className="truncate font-semibold text-foreground">{item.reference || `Elemento ${item.sequence}`}</h4>
-          {provenance ? <p className="mt-1 text-xs text-foreground-secondary">{provenance}</p> : null}
-          <p className="mt-1 text-sm text-foreground-secondary">
-            {formatProposalNumber(item.quantity)} unidades · {formatProposalNumber(item.widthMm, " mm")} × {formatProposalNumber(item.heightMm, " mm")} · {formatProposalNumber(item.areaM2, " m²")}
+          {provenance ? <p className="mt-1 break-words text-xs text-foreground-secondary">{provenance}</p> : null}
+          <p className="mt-1 break-words text-sm text-foreground-secondary">
+            {formatProposalNumber(item.quantity)} unidades · {formatProposalNumber(item.widthMm, " mm")} x {formatProposalNumber(item.heightMm, " mm")} · {formatProposalNumber(item.areaM2, " m2")}
           </p>
         </div>
         <Badge tone={item.requiresReview ? "warning" : item.isTechnicallyComplete ? "success" : "neutral"}>{status}</Badge>
@@ -67,37 +75,40 @@ export function TechnicalProposalItemCard({ item, pricing, currency }: {
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-foreground-secondary">
         <span>{formatProposalConfidence(item.confidence.overall)}</span>
-        {item.isPriceable ? <span className="flex items-center gap-1"><CheckCircle2 aria-hidden="true" size={14} /> Configuración lista para cotizar</span> : null}
+        {item.isPriceable ? <span className="flex items-center gap-1"><CheckCircle2 aria-hidden="true" size={14} /> Configuracion lista para cotizar</span> : null}
         {item.historicalEvidence.supportCount > 0 ? (
-          <span>{item.historicalEvidence.supportCount} referencias históricas{item.historicalEvidence.bestSimilarity === null ? "" : ` · Mejor similitud ${Math.round(item.historicalEvidence.bestSimilarity * 100)}%`}</span>
+          <span>{item.historicalEvidence.supportCount} referencias historicas{item.historicalEvidence.bestSimilarity === null ? "" : ` · Mejor similitud ${Math.round(item.historicalEvidence.bestSimilarity * 100)}%`}</span>
         ) : null}
       </div>
 
       {pricing && currency ? (
         <div className="rounded-sm border border-border-subtle bg-surface-subtle p-3">
-          {pricing.status === "NOT_PRICEABLE" ? (
+          {!hasPriceEstimate ? (
             <div>
-              <p className="text-sm font-semibold text-foreground">Precio pendiente</p>
-              <ul className="mt-2 space-y-1 text-sm text-warning">
-                {[...pricing.mappingWarnings, ...pricing.missingData].map((warning, index) => (
-                  <li key={`${warning}-${index}`}>{formatPricingWarning(warning)}</li>
-                ))}
-              </ul>
+              <p className="text-sm font-semibold text-foreground">{pricingStatusLabel(pricing.status)}</p>
+              <p className="mt-1 text-sm text-foreground-secondary">Este elemento no suma al subtotal actual.</p>
+              {pricingIssues.length > 0 ? (
+                <ul className="mt-2 space-y-1 text-sm text-warning">
+                  {pricingIssues.map((warning, index) => (
+                    <li key={`${warning}-${index}`}>{formatPricingWarning(warning)}</li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           ) : (
             <div>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="text-sm font-semibold text-foreground">Precio estimado</p>
-                {pricing.requiresReview ? <span className="text-xs font-medium text-warning">Estimación sujeta a revisión</span> : null}
+                {pricing.requiresReview ? <span className="text-xs font-medium text-warning">Estimacion sujeta a revision</span> : null}
               </div>
               <dl className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div><dt className="text-xs text-foreground-secondary">Precio unitario</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.unit.expected, currency)}</dd></div>
                 <div><dt className="text-xs text-foreground-secondary">Total del elemento</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.line.expected, currency)}</dd></div>
               </dl>
               <p className="mt-2 text-xs text-foreground-secondary">
-                Rango estimado: {formatRequirementMoney(pricing.line.minimum, currency)} – {formatRequirementMoney(pricing.line.maximum, currency)}
+                Rango estimado: {formatRequirementMoney(pricing.line.minimum, currency)} - {formatRequirementMoney(pricing.line.maximum, currency)}
               </p>
-              {pricing.comparables.length > 0 ? <p className="mt-2 text-xs text-foreground-secondary">Basado en {pricing.comparables.length} referencias históricas</p> : null}
+              {pricing.comparables.length > 0 ? <p className="mt-2 text-xs text-foreground-secondary">Basado en {pricing.comparables.length} referencias historicas</p> : null}
             </div>
           )}
         </div>

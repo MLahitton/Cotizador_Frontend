@@ -19,14 +19,14 @@ export function TechnicalProposalSummary({ proposal, pricing }: {
     <section aria-labelledby="technical-proposal-title" className="space-y-4">
       <Surface variant="elevated" padding="lg">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><h3 id="technical-proposal-title" className="text-xl font-semibold text-foreground">Propuesta técnica</h3></div>
-          <Badge tone={proposal.itemsRequiringReview > 0 ? "warning" : "success"}>{proposal.itemsRequiringReview > 0 ? "Requiere revisión" : "Lista"}</Badge>
+          <div><h3 id="technical-proposal-title" className="text-xl font-semibold text-foreground">Propuesta tecnica</h3></div>
+          <Badge tone={proposal.itemsRequiringReview > 0 ? "warning" : "success"}>{proposal.itemsRequiringReview > 0 ? "Requiere revision" : "Lista"}</Badge>
         </div>
         <dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Metric label="Elementos encontrados" value={proposal.itemCount} />
-          <Metric label="Técnicamente completos" value={proposal.technicallyCompleteItems} />
+          <Metric label="Tecnicamente completos" value={proposal.technicallyCompleteItems} />
           <Metric label="Listos para cotizar" value={proposal.priceableItems} />
-          <Metric label="Requieren revisión" value={proposal.itemsRequiringReview} />
+          <Metric label="Requieren revision" value={proposal.itemsRequiringReview} />
         </dl>
       </Surface>
       <div>
