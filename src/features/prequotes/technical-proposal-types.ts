@@ -49,6 +49,8 @@ export interface TechnicalProposalAlternative<T> {
   reasons: string[];
 }
 
+export type HistoricalEvidenceStatus = "AVAILABLE" | "NO_COMPARABLES" | "SIMILARITY_UNAVAILABLE";
+
 export interface TechnicalProposalHistoricalExample {
   candidateId: string;
   quoteId: string;
@@ -91,6 +93,14 @@ export interface TechnicalProposalItem {
     glass: TechnicalProposalGlassOption | null;
     finish: TechnicalProposalFinishOption | null;
   };
+  selected: {
+    system: TechnicalProposalSystemOption | null;
+    glass: TechnicalProposalGlassOption | null;
+    finish: TechnicalProposalFinishOption | null;
+    selectedAtUtc: string;
+    selectedByUserId: string;
+  } | null;
+  selectionState: "UNCONFIRMED" | "CONFIRMED_AS_SUGGESTED" | "MODIFIED";
   alternatives: {
     systems: TechnicalProposalAlternative<TechnicalProposalSystemOption>[];
     glass: TechnicalProposalAlternative<TechnicalProposalGlassOption>[];
@@ -136,6 +146,7 @@ export interface TechnicalProposal {
   processingAttemptId: string;
   extractionResultId: string;
   status: string;
+  commercialLine: import("@/features/prequotes/requirement-types").RequirementCommercialLine | null;
   createdAtUtc: string;
   itemCount: number;
   itemsRequiringReview: number;

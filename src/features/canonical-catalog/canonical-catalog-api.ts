@@ -83,6 +83,9 @@ function isCanonicalCatalogSystem(
   return (
     isCanonicalCode(value.code) &&
     isTrimmedStringWithLength(value.name, 100) &&
+    ["technicalName", "commercialName", "functionalType", "family", "series", "commercialLine", "variant"]
+      .every((key) => value[key] === null || typeof value[key] === "string") &&
+    typeof value.isSelectable === "boolean" &&
     typeof value.activeForRecognition === "boolean" &&
     typeof value.priceable === "boolean" &&
     typeof value.futurePriceable === "boolean" &&

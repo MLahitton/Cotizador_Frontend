@@ -23,6 +23,7 @@ export interface RequirementPricingItem {
   reference: string | null;
   description: string;
   status: string;
+  configurationSource: "SUGGESTED" | "SELECTED";
   quantity: number | null;
   pricingAreaM2: number | null;
   unit: RequirementPricingRange;

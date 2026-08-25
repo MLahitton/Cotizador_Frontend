@@ -7,6 +7,14 @@ export type CanonicalCatalogAliasMatchPolicy =
 export interface CanonicalCatalogSystem {
   code: string;
   name: string;
+  technicalName: string | null;
+  commercialName: string | null;
+  functionalType: string | null;
+  family: string | null;
+  series: string | null;
+  commercialLine: string | null;
+  variant: string | null;
+  isSelectable: boolean;
   activeForRecognition: boolean;
   priceable: boolean;
   futurePriceable: boolean;

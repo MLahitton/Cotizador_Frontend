@@ -4,14 +4,18 @@ import { FileText, Trash2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
+import { Select } from "@/components/ui/select";
 import { DOCUMENT_FILE_ACCEPT, formatFileSize, getSupportedDocumentFormat } from "@/features/prequotes/prequote-document-formatters";
+import type { RequirementCommercialLine } from "@/features/prequotes/requirement-types";
 
 export function RequirementUploadPanel({
-  files, validationError, isUploading, onFilesSelect, onFileRemove, onUpload,
+  files, commercialLine, validationError, isUploading, onCommercialLineChange, onFilesSelect, onFileRemove, onUpload,
 }: {
   files: File[];
+  commercialLine: RequirementCommercialLine | null;
   validationError: string | null;
   isUploading: boolean;
+  onCommercialLineChange: (line: RequirementCommercialLine) => void;
   onFilesSelect: (files: File[]) => void;
   onFileRemove: (index: number) => void;
   onUpload: () => void;
@@ -23,6 +27,22 @@ export function RequirementUploadPanel({
         <p className="mt-1 text-sm leading-6 text-foreground-secondary">
           Adjunta de 1 a 10 documentos. Se agruparan en un unico requerimiento tecnico.
         </p>
+      </div>
+      <div className="space-y-2">
+        <label htmlFor="requirement-commercial-line" className="text-sm font-medium text-foreground">Linea comercial</label>
+        <Select
+          id="requirement-commercial-line"
+          value={commercialLine ?? ""}
+          disabled={isUploading}
+          onChange={(event) => onCommercialLineChange(event.target.value as RequirementCommercialLine)}
+        >
+          <option value="" disabled>Selecciona una linea comercial</option>
+          <option value="CLASSIC">Classic</option>
+          <option value="ESSENTIAL">Essential</option>
+          <option value="BIOCONFORT">Bioconfort</option>
+          <option value="SIGNATURE">Signature</option>
+        </Select>
+        <p className="text-xs text-foreground-secondary">La linea quedara asociada al requerimiento y no se podra cambiar despues de crearlo.</p>
       </div>
       <input
         type="file"
@@ -57,7 +77,7 @@ export function RequirementUploadPanel({
       ) : null}
       {validationError ? <p role="alert" className="text-sm font-medium text-danger">{validationError}</p> : null}
       <div className="flex justify-end">
-        <Button type="button" disabled={isUploading || files.length === 0 || Boolean(validationError)} onClick={onUpload}>
+        <Button type="button" disabled={isUploading || !commercialLine || files.length === 0 || Boolean(validationError)} onClick={onUpload}>
           <Upload aria-hidden="true" size={17} />
           {isUploading ? "Creando requerimiento..." : "Crear requerimiento"}
         </Button>

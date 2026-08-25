@@ -10,6 +10,7 @@ import {
   isStringArray,
 } from "@/features/prequotes/newpipe-guards";
 import type {
+  HistoricalEvidenceStatus,
   TechnicalProposal,
   TechnicalProposalAlternative,
   TechnicalProposalFinishOption,
@@ -47,12 +48,17 @@ function isAlternative<T>(value: unknown, optionGuard: (option: unknown) => opti
     isStringArray(value.reasons);
 }
 
+function isHistoricalEvidenceStatus(value: unknown): value is HistoricalEvidenceStatus {
+  return value === "AVAILABLE" || value === "NO_COMPARABLES" || value === "SIMILARITY_UNAVAILABLE";
+}
+
 function isProposalItem(value: unknown): boolean {
   if (!isRecord(value) || !isRecord(value.suggested) ||
       !isRecord(value.alternatives) || !isRecord(value.confidence) ||
       !isRecord(value.historicalEvidence) || !isRecord(value.trace)) return false;
 
   const suggested = value.suggested;
+  const selected = value.selected;
   const alternatives = value.alternatives;
   const confidence = value.confidence;
   const historical = value.historicalEvidence;
@@ -78,6 +84,12 @@ function isProposalItem(value: unknown): boolean {
     (suggested.system === null || isSystemOption(suggested.system)) &&
     (suggested.glass === null || isGlassOption(suggested.glass)) &&
     (suggested.finish === null || isFinishOption(suggested.finish)) &&
+    (selected === null || (isRecord(selected) &&
+      (selected.system === null || isSystemOption(selected.system)) &&
+      (selected.glass === null || isGlassOption(selected.glass)) &&
+      (selected.finish === null || isFinishOption(selected.finish)) &&
+      isDateTime(selected.selectedAtUtc) && isNonEmptyString(selected.selectedByUserId))) &&
+    ["UNCONFIRMED", "CONFIRMED_AS_SUGGESTED", "MODIFIED"].includes(String(value.selectionState)) &&
     Array.isArray(alternatives.systems) && alternatives.systems.every((item) => isAlternative(item, isSystemOption)) &&
     Array.isArray(alternatives.glass) && alternatives.glass.every((item) => isAlternative(item, isGlassOption)) &&
     Array.isArray(alternatives.finishes) && alternatives.finishes.every((item) => isAlternative(item, isFinishOption)) &&
@@ -86,7 +98,7 @@ function isProposalItem(value: unknown): boolean {
     isStringArray(value.systemResolutionReasons) && isStringArray(value.glassResolutionReasons) &&
     isStringArray(value.finishResolutionReasons) &&
     typeof value.isTechnicallyComplete === "boolean" && typeof value.isPriceable === "boolean" &&
-    isString(historical.status) && isNonNegativeInteger(historical.supportCount) &&
+    isHistoricalEvidenceStatus(historical.status) && isNonNegativeInteger(historical.supportCount) &&
     isNullableNumber(historical.bestSimilarity) && isNullableNumber(historical.averageSimilarity) && examplesValid &&
     ["requestedSystemRaw", "requestedProfileRaw", "functionalType", "operation", "glassRawSpecification", "glassTypeRaw", "glassTypeNormalized", "finishRawDescription", "finishNormalizedType", "finishColorRaw", "finishColorNormalized", "geometryType"]
       .every((key) => isNullableString(trace[key])) &&
@@ -97,6 +109,7 @@ function isTechnicalProposal(value: unknown): value is TechnicalProposal {
   return isRecord(value) && isNonEmptyString(value.requirementId) &&
     isNonEmptyString(value.technicalProposalId) && isNonEmptyString(value.processingAttemptId) &&
     isNonEmptyString(value.extractionResultId) && isString(value.status) && isDateTime(value.createdAtUtc) &&
+    (value.commercialLine === null || ["CLASSIC", "ESSENTIAL", "BIOCONFORT", "SIGNATURE"].includes(String(value.commercialLine))) &&
     isNonNegativeInteger(value.itemCount) && isNonNegativeInteger(value.itemsRequiringReview) &&
     isNonNegativeInteger(value.technicallyCompleteItems) && isNonNegativeInteger(value.priceableItems) &&
     Array.isArray(value.items) && value.items.every(isProposalItem);
@@ -110,23 +123,23 @@ export async function getTechnicalProposal(requirementId: string): Promise<Techn
   if (!isTechnicalProposal(response)) {
     throw new ApiError({
       status: 0,
-      title: "Respuesta inválida",
-      detail: "El servidor devolvió una propuesta técnica con un formato inesperado.",
+      title: "Respuesta invÃ¡lida",
+      detail: "El servidor devolviÃ³ una propuesta tÃ©cnica con un formato inesperado.",
     });
   }
   return response;
 }
 
 export function getTechnicalProposalErrorMessage(error: unknown): string {
-  if (!(error instanceof ApiError)) return "No fue posible consultar la propuesta técnica.";
+  if (!(error instanceof ApiError)) return "No fue posible consultar la propuesta tÃ©cnica.";
   const messages: Record<number, string> = {
     0: "No fue posible conectar con el servidor.",
-    400: "El requerimiento indicado no es válido.",
-    401: "Tu sesión expiró. Inicia sesión nuevamente.",
-    403: "No tienes acceso a esta propuesta técnica.",
-    404: "La propuesta técnica todavía no está disponible.",
-    409: "La propuesta técnica no está disponible en el estado actual.",
-    500: "No fue posible consultar la propuesta técnica.",
+    400: "El requerimiento indicado no es vÃ¡lido.",
+    401: "Tu sesiÃ³n expirÃ³. Inicia sesiÃ³n nuevamente.",
+    403: "No tienes acceso a esta propuesta tÃ©cnica.",
+    404: "La propuesta tÃ©cnica todavÃ­a no estÃ¡ disponible.",
+    409: "La propuesta tÃ©cnica no estÃ¡ disponible en el estado actual.",
+    500: "No fue posible consultar la propuesta tÃ©cnica.",
   };
-  return messages[error.status] ?? "No fue posible consultar la propuesta técnica.";
+  return messages[error.status] ?? "No fue posible consultar la propuesta tÃ©cnica.";
 }

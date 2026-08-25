@@ -9,7 +9,8 @@ import {
 import { createRequirement, getCurrentRequirement, processRequirement } from "@/features/prequotes/requirement-api";
 import { getRequirementPricing } from "@/features/prequotes/requirement-pricing-api";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
-import type { CreatedRequirement, CurrentRequirement, ProcessedRequirement } from "@/features/prequotes/requirement-types";
+import type { CreatedRequirement, CurrentRequirement, ProcessedRequirement, RequirementCommercialLine } from "@/features/prequotes/requirement-types";
+import { updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 import { getTechnicalProposal } from "@/features/prequotes/technical-proposal-api";
 import type { TechnicalProposal } from "@/features/prequotes/technical-proposal-types";
 import { ApiError } from "@/lib/http/api-error";
@@ -93,6 +94,7 @@ function processingTimeoutError(): ApiError {
 
 export function useRequirementWorkspace(preQuoteId: string) {
   const [files, setFiles] = useState<File[]>([]);
+  const [commercialLine, setCommercialLine] = useState<RequirementCommercialLine | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [phase, setPhase] = useState<RequirementWorkspacePhase>("hydrating");
   const [requirement, setRequirement] = useState<WorkspaceRequirement | null>(null);
@@ -101,6 +103,9 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const [pricing, setPricing] = useState<RequirementPricing | null>(null);
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingError, setPricingError] = useState<unknown | null>(null);
+  const [savingSelectionItemIds, setSavingSelectionItemIds] = useState<string[]>([]);
+  const [selectionErrors, setSelectionErrors] = useState<Record<string, unknown>>({});
+  const [pricingAfterSelectionError, setPricingAfterSelectionError] = useState(false);
   const [error, setError] = useState<unknown | null>(null);
   const [currentReloadKey, setCurrentReloadKey] = useState(0);
   const mountedRef = useRef(true);
@@ -162,6 +167,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
       await Promise.resolve();
       if (cancelled || !mountedRef.current || preQuoteIdRef.current !== preQuoteId || workspaceTokenRef.current !== token) return;
       setFiles([]);
+      setCommercialLine(null);
       setValidationError(null);
       setRequirement(null);
       setProcessingResult(null);
@@ -169,6 +175,9 @@ export function useRequirementWorkspace(preQuoteId: string) {
       setPricing(null);
       setPricingError(null);
       setPricingLoading(false);
+      setSavingSelectionItemIds([]);
+      setSelectionErrors({});
+      setPricingAfterSelectionError(false);
       setError(null);
       setPhase("hydrating");
 
@@ -181,6 +190,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
         }
 
         setRequirement(current);
+        setCommercialLine(current.commercialLine);
         if (current.hasTechnicalProposal) {
           await loadProposal(current.requirementId, { preQuoteId, token });
           return;
@@ -300,13 +310,15 @@ export function useRequirementWorkspace(preQuoteId: string) {
 
   const upload = useCallback(async () => {
     if (busyRef.current || requirement) return;
-    const issue = validateFiles(files) ?? (files.length === 0 ? "Selecciona al menos un archivo." : null);
+    const issue = !commercialLine
+      ? "Selecciona una linea comercial."
+      : validateFiles(files) ?? (files.length === 0 ? "Selecciona al menos un archivo." : null);
     if (issue) { setValidationError(issue); return; }
     busyRef.current = true;
     setError(null);
     setPhase("uploading");
     try {
-      const created = await createRequirement(preQuoteId, files);
+      const created = await createRequirement(preQuoteId, files, commercialLine!);
       if (!mountedRef.current || preQuoteIdRef.current !== preQuoteId) return;
       setRequirement(created);
       setPhase("ready");
@@ -317,7 +329,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
     } finally {
       busyRef.current = false;
     }
-  }, [files, preQuoteId, requirement]);
+  }, [commercialLine, files, preQuoteId, requirement]);
 
   const process = useCallback(async () => {
     if (busyRef.current || !requirement || isRequirementProcessing(requirement)) return;
@@ -381,6 +393,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
         response.technicalProposalId.toLowerCase() !== expectedProposalId.toLowerCase()
       ) return;
       setPricing(response);
+      setPricingAfterSelectionError(false);
     } catch (cause) {
       if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId || pricingRequestRef.current !== requestId) return;
       setPricingError(cause);
@@ -392,10 +405,46 @@ export function useRequirementWorkspace(preQuoteId: string) {
     }
   }, [preQuoteId, proposal, requirement]);
 
+  const saveSelection = useCallback(async (itemId: string, request: TechnicalProposalSelectionRequest) => {
+    if (!requirement || !proposal || savingSelectionItemIds.includes(itemId)) return;
+    const expectedPreQuoteId = preQuoteId;
+    setSavingSelectionItemIds((current) => [...current, itemId]);
+    setSelectionErrors((current) => {
+      const next = { ...current };
+      delete next[itemId];
+      return next;
+    });
+    setPricingAfterSelectionError(false);
+    try {
+      await updateTechnicalProposalItemSelection(proposal.technicalProposalId, itemId, request);
+      const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+      setProposal(refreshedProposal);
+      try {
+        const refreshedPricing = await getRequirementPricing(requirement.requirementId);
+        if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+        setPricing(refreshedPricing);
+        setPricingError(null);
+      } catch (cause) {
+        if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+        setPricingError(cause);
+        setPricingAfterSelectionError(true);
+      }
+    } catch (cause) {
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+      setSelectionErrors((current) => ({ ...current, [itemId]: cause }));
+    } finally {
+      if (mountedRef.current && preQuoteIdRef.current === expectedPreQuoteId) {
+        setSavingSelectionItemIds((current) => current.filter((id) => id !== itemId));
+      }
+    }
+  }, [preQuoteId, proposal, requirement, savingSelectionItemIds]);
+
   return {
-    files, validationError, phase, requirement, processingResult, proposal, error,
-    pricing, pricingLoading, pricingError,
+    files, commercialLine, validationError, phase, requirement, processingResult, proposal, error,
+    pricing, pricingLoading, pricingError, pricingAfterSelectionError, savingSelectionItemIds, selectionErrors,
+    setCommercialLine,
     selectFiles, removeFile, upload, process, retryProposal, retryCurrent,
-    calculatePricing,
+    calculatePricing, saveSelection,
   };
 }

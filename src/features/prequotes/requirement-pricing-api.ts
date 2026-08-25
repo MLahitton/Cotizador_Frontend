@@ -26,6 +26,7 @@ function isPricingItem(value: unknown): boolean {
   return isNonEmptyString(value.proposalItemId) && isNonEmptyString(value.extractedItemId) &&
     isNullableString(value.elementId) && isNonNegativeInteger(value.sequence) &&
     isNullableString(value.reference) && isString(value.description) && isNonEmptyString(value.status) &&
+    (value.configurationSource === "SUGGESTED" || value.configurationSource === "SELECTED") &&
     isNullableNumber(value.quantity) && isNullableNumber(value.pricingAreaM2) &&
     isNullableNumber(value.confidenceScore) && isNullableString(value.confidenceLevel) &&
     typeof value.requiresReview === "boolean" && isStringArray(value.mappingWarnings) &&

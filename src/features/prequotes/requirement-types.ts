@@ -4,10 +4,17 @@ export type RequirementStatus =
   | "PROCESSED"
   | "FAILED";
 
+export type RequirementCommercialLine =
+  | "CLASSIC"
+  | "ESSENTIAL"
+  | "BIOCONFORT"
+  | "SIGNATURE";
+
 export interface CreatedRequirement {
   requirementId: string;
   preQuoteId: string;
   fileCount: number;
+  commercialLine: RequirementCommercialLine;
   status: RequirementStatus;
   createdAtUtc: string;
 }
@@ -40,6 +47,7 @@ export interface CurrentRequirement {
   requirementId: string;
   preQuoteId: string;
   status: RequirementStatus;
+  commercialLine: RequirementCommercialLine | null;
   createdAtUtc: string;
   hasTechnicalProposal: boolean;
   technicalProposalId: string | null;

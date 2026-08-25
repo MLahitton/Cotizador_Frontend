@@ -2,10 +2,21 @@ import { CheckCircle2, CircleAlert } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Surface } from "@/components/ui/surface";
-import { formatProposalConfidence, formatProposalNumber, formatReviewReason } from "@/features/prequotes/technical-proposal-formatters";
+import { TechnicalProposalSelectionEditor } from "@/features/prequotes/components/technical-proposal-selection-editor";
+import {
+  deriveDisplayAreaM2,
+  deriveDisplayTotalAreaM2,
+  formatProposalAreaM2,
+  formatHistoricalEvidenceSummary,
+  formatProposalConfidence,
+  formatProposalNumber,
+  formatProposalQuantity,
+  formatReviewReason,
+} from "@/features/prequotes/technical-proposal-formatters";
 import { formatPricingWarning, formatRequirementMoney } from "@/features/prequotes/requirement-pricing-formatters";
 import type { RequirementPricingItem } from "@/features/prequotes/requirement-pricing-types";
 import type { TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
+import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 
 function SuggestedValue({ label, value, note }: { label: string; value: string | null; note?: string | null }) {
   return (
@@ -44,16 +55,21 @@ function pricingStatusLabel(status: string): string {
   return "Precio estimado";
 }
 
-export function TechnicalProposalItemCard({ item, pricing, currency }: {
+export function TechnicalProposalItemCard({ item, pricing, currency, isSavingSelection, selectionErrorMessage, onSaveSelection }: {
   item: TechnicalProposalItem;
   pricing: RequirementPricingItem | null;
   currency: string | null;
+  isSavingSelection: boolean;
+  selectionErrorMessage: string | null;
+  onSaveSelection: (request: TechnicalProposalSelectionRequest) => void;
 }) {
   const status = item.requiresReview ? "Requiere revision" : item.isTechnicallyComplete ? "Listo" : "Incompleto";
   const visibleReviewReasons = uniqueVisibleReviewReasons(item.reviewReasons);
   const provenance = sourceLabel(item);
   const pricingIssues = pricing ? [...pricing.mappingWarnings, ...pricing.missingData] : [];
   const hasPriceEstimate = pricing?.status === "PRICEABLE";
+  const displayAreaM2 = deriveDisplayAreaM2(item.areaM2, item.widthMm, item.heightMm);
+  const displayTotalAreaM2 = deriveDisplayTotalAreaM2(item.areaM2, item.widthMm, item.heightMm, item.quantity);
   return (
     <Surface padding="md" className="min-w-0 space-y-4">
       <div className="flex min-w-0 items-start justify-between gap-3">
@@ -61,10 +77,18 @@ export function TechnicalProposalItemCard({ item, pricing, currency }: {
           <h4 className="truncate font-semibold text-foreground">{item.reference || `Elemento ${item.sequence}`}</h4>
           {provenance ? <p className="mt-1 break-words text-xs text-foreground-secondary">{provenance}</p> : null}
           <p className="mt-1 break-words text-sm text-foreground-secondary">
-            {formatProposalNumber(item.quantity)} unidades · {formatProposalNumber(item.widthMm, " mm")} x {formatProposalNumber(item.heightMm, " mm")} · {formatProposalNumber(item.areaM2, " m2")}
+            {formatProposalQuantity(item.quantity)} Â· Ancho: {formatProposalNumber(item.widthMm, " mm")} Â· Alto: {formatProposalNumber(item.heightMm, " mm")}
+          </p>
+          <p className="mt-1 break-words text-sm font-medium text-foreground-secondary">
+            Ãrea unitaria: {formatProposalAreaM2(displayAreaM2)} Â· Ãrea total: {formatProposalAreaM2(displayTotalAreaM2)}
           </p>
         </div>
-        <Badge tone={item.requiresReview ? "warning" : item.isTechnicallyComplete ? "success" : "neutral"}>{status}</Badge>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <Badge tone={item.requiresReview ? "warning" : item.isTechnicallyComplete ? "success" : "neutral"}>{status}</Badge>
+          <span className="text-xs text-foreground-secondary">
+            {item.selectionState === "UNCONFIRMED" ? "Sugerencia sin confirmar" : item.selectionState === "CONFIRMED_AS_SUGGESTED" ? "Sugerencia confirmada" : "Configuracion modificada"}
+          </span>
+        </div>
       </div>
 
       <dl className="grid gap-4 border-t border-border-subtle pt-4">
@@ -73,16 +97,23 @@ export function TechnicalProposalItemCard({ item, pricing, currency }: {
         <SuggestedValue label="Acabado sugerido S&G" value={item.suggested.finish?.displayName ?? null} note={resolutionNote(item.finishResolutionReasons, "HISTORICAL_DEFAULT_FINISH", "Predeterminado historico")} />
       </dl>
 
+      {item.selected ? (
+        <dl className="grid gap-4 rounded-sm border border-brand bg-brand-soft p-3">
+          <SuggestedValue label="Sistema seleccionado" value={item.selected.system?.displayName ?? null} />
+          <SuggestedValue label="Vidrio seleccionado" value={item.selected.glass?.displayName ?? null} />
+          <SuggestedValue label="Acabado seleccionado" value={item.selected.finish?.displayName ?? null} />
+        </dl>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2 text-xs text-foreground-secondary">
         <span>{formatProposalConfidence(item.confidence.overall)}</span>
         {item.isPriceable ? <span className="flex items-center gap-1"><CheckCircle2 aria-hidden="true" size={14} /> Configuracion lista para cotizar</span> : null}
-        {item.historicalEvidence.supportCount > 0 ? (
-          <span>{item.historicalEvidence.supportCount} referencias historicas{item.historicalEvidence.bestSimilarity === null ? "" : ` · Mejor similitud ${Math.round(item.historicalEvidence.bestSimilarity * 100)}%`}</span>
-        ) : null}
+        <span>{formatHistoricalEvidenceSummary(item.historicalEvidence)}</span>
       </div>
 
       {pricing && currency ? (
         <div className="rounded-sm border border-border-subtle bg-surface-subtle p-3">
+          <p className="mb-2 text-xs text-foreground-secondary">Configuracion usada: {pricing.configurationSource === "SELECTED" ? "seleccionada" : "sugerida"}</p>
           {!hasPriceEstimate ? (
             <div>
               <p className="text-sm font-semibold text-foreground">{pricingStatusLabel(pricing.status)}</p>
@@ -113,6 +144,13 @@ export function TechnicalProposalItemCard({ item, pricing, currency }: {
           )}
         </div>
       ) : null}
+
+      <TechnicalProposalSelectionEditor
+        item={item}
+        isSaving={isSavingSelection}
+        errorMessage={selectionErrorMessage}
+        onSave={onSaveSelection}
+      />
 
       {visibleReviewReasons.length > 0 ? (
         <ul className="space-y-2 border-t border-border-subtle pt-3">

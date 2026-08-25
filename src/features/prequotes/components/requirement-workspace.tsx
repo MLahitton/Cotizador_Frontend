@@ -13,6 +13,7 @@ import { TechnicalProposalSummary } from "@/features/prequotes/components/techni
 import { getRequirementErrorMessage } from "@/features/prequotes/requirement-api";
 import { getRequirementPricingErrorMessage } from "@/features/prequotes/requirement-pricing-api";
 import { getTechnicalProposalErrorMessage } from "@/features/prequotes/technical-proposal-api";
+import { getTechnicalProposalSelectionErrorMessage } from "@/features/prequotes/technical-proposal-selection-api";
 import { useRequirementWorkspace } from "@/features/prequotes/use-requirement-workspace";
 
 export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuoteId: string; projectIsActive: boolean }) {
@@ -43,8 +44,10 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
       {!workspace.requirement && projectIsActive && workspace.phase !== "hydrating" && workspace.phase !== "current-error" ? (
         <RequirementUploadPanel
           files={workspace.files}
+          commercialLine={workspace.commercialLine}
           validationError={workspace.validationError}
           isUploading={isUploading}
+          onCommercialLineChange={workspace.setCommercialLine}
           onFilesSelect={workspace.selectFiles}
           onFileRemove={workspace.removeFile}
           onUpload={workspace.upload}
@@ -66,6 +69,11 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
               ) : (
                 <p className="mt-1 text-sm text-foreground-secondary">Analisis existente asociado a esta precotizacion.</p>
               )}
+              <p className="mt-1 text-sm text-foreground-secondary">
+                Linea comercial: {workspace.requirement.commercialLine
+                  ? workspace.requirement.commercialLine.charAt(0) + workspace.requirement.commercialLine.slice(1).toLowerCase()
+                  : "Linea no disponible"}
+              </p>
               {fileNames ? <p className="mt-1 truncate text-xs text-foreground-secondary">{fileNames}</p> : null}
             </div>
           </div>
@@ -93,10 +101,30 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
         </div>
       ) : null}
       {workspace.pricingError ? (
-        <PreQuotesError title="No fue posible calcular los precios" message={getRequirementPricingErrorMessage(workspace.pricingError)} onRetry={workspace.calculatePricing} />
+        <PreQuotesError
+          title={workspace.pricingAfterSelectionError ? "Seleccion guardada; precios pendientes" : "No fue posible calcular los precios"}
+          message={workspace.pricingAfterSelectionError
+            ? "La configuracion se guardo correctamente, pero no fue posible actualizar sus precios. Puedes reintentar sin volver a guardar la seleccion."
+            : getRequirementPricingErrorMessage(workspace.pricingError)}
+          onRetry={workspace.calculatePricing}
+          retryLabel={workspace.pricingAfterSelectionError ? "Reintentar precios" : undefined}
+        />
       ) : null}
       {workspace.pricing ? <RequirementPricingSummary pricing={workspace.pricing} /> : null}
-      {workspace.proposal ? <TechnicalProposalSummary proposal={workspace.proposal} pricing={workspace.pricing} /> : null}
+      {workspace.proposal ? (
+        <TechnicalProposalSummary
+          proposal={workspace.proposal}
+          pricing={workspace.pricing}
+          savingSelectionItemIds={workspace.savingSelectionItemIds}
+          selectionErrorMessages={Object.fromEntries(
+            Object.entries(workspace.selectionErrors).map(([itemId, error]) => [
+              itemId,
+              getTechnicalProposalSelectionErrorMessage(error),
+            ]),
+          )}
+          onSaveSelection={workspace.saveSelection}
+        />
+      ) : null}
     </section>
   );
 }

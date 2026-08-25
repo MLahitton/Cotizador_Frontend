@@ -12,6 +12,7 @@ import type {
   RequirementProcessingOutcome,
   RequirementProcessingState,
   RequirementStatus,
+  RequirementCommercialLine,
 } from "@/features/prequotes/requirement-types";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
@@ -19,6 +20,7 @@ import { ApiError } from "@/lib/http/api-error";
 const REQUIREMENT_STATUSES = ["PENDING", "PROCESSING", "PROCESSED", "FAILED"] as const;
 const PROCESSING_STATES = ["Pending", "Processing", "Finished"] as const;
 const PROCESSING_OUTCOMES = ["Completed", "RequiresReview", "Failed"] as const;
+const COMMERCIAL_LINES = ["CLASSIC", "ESSENTIAL", "BIOCONFORT", "SIGNATURE"] as const;
 
 function isOneOf<T extends string>(value: unknown, values: readonly T[]): value is T {
   return typeof value === "string" && values.includes(value as T);
@@ -29,6 +31,7 @@ function isCreatedRequirement(value: unknown): value is CreatedRequirement {
     isNonEmptyString(value.requirementId) &&
     isNonEmptyString(value.preQuoteId) &&
     isNonNegativeInteger(value.fileCount) && value.fileCount > 0 &&
+    isOneOf<RequirementCommercialLine>(value.commercialLine, COMMERCIAL_LINES) &&
     isOneOf<RequirementStatus>(value.status, REQUIREMENT_STATUSES) &&
     isDateTime(value.createdAtUtc);
 }
@@ -38,6 +41,7 @@ function isCurrentRequirement(value: unknown): value is CurrentRequirement {
     isNonEmptyString(value.requirementId) &&
     isNonEmptyString(value.preQuoteId) &&
     isOneOf<RequirementStatus>(value.status, REQUIREMENT_STATUSES) &&
+    (value.commercialLine === null || isOneOf<RequirementCommercialLine>(value.commercialLine, COMMERCIAL_LINES)) &&
     isDateTime(value.createdAtUtc) &&
     typeof value.hasTechnicalProposal === "boolean" &&
     (value.technicalProposalId === null || isNonEmptyString(value.technicalProposalId)) &&
@@ -69,9 +73,10 @@ function invalidResponse(detail: string): ApiError {
   return new ApiError({ status: 0, title: "Respuesta invalida", detail });
 }
 
-export async function createRequirement(preQuoteId: string, files: File[]): Promise<CreatedRequirement> {
+export async function createRequirement(preQuoteId: string, files: File[], commercialLine: RequirementCommercialLine): Promise<CreatedRequirement> {
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
+  formData.append("commercialLine", commercialLine);
   const response = await apiRequest(
     `/api/v2/prequotes/${encodeURIComponent(preQuoteId)}/requirements`,
     { method: "POST", authenticated: true, body: formData },
