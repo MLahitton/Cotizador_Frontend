@@ -1,4 +1,4 @@
-import type { HistoricalEvidenceStatus } from "@/features/prequotes/technical-proposal-types";
+﻿import type { HistoricalEvidenceStatus } from "@/features/prequotes/technical-proposal-types";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 const areaFormatter = new Intl.NumberFormat("es-CO", {
@@ -51,7 +51,7 @@ export function deriveDisplayTotalAreaM2(
 }
 
 export function formatProposalAreaM2(value: number | null): string {
-  return value === null ? "Por definir" : `${areaFormatter.format(value)} mÂ²`;
+  return value === null ? "Por definir" : `${areaFormatter.format(value)} m²`;
 }
 
 export function calculateProposalPhysicalTotals(items: ProposalPhysicalValues[]): {

@@ -1,4 +1,4 @@
-export function formatRequirementMoney(value: number | null, currency: string): string {
+﻿export function formatRequirementMoney(value: number | null, currency: string): string {
   if (value === null) return "No disponible";
   try {
     return new Intl.NumberFormat("es-CO", {

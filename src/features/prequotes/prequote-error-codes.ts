@@ -1,4 +1,4 @@
-export const PREQUOTE_ERROR_CODES = {
+﻿export const PREQUOTE_ERROR_CODES = {
   invalidRequest: "PREQUOTE_INVALID_REQUEST",
   unauthorized: "AUTH_UNAUTHORIZED",
   inactiveUser: "AUTH_USER_INACTIVE",

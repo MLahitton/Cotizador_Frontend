@@ -1,4 +1,4 @@
-export type DocumentProcessingAvailability =
+﻿export type DocumentProcessingAvailability =
   | "NOT_PROCESSED"
   | "PENDING"
   | "PROCESSING"

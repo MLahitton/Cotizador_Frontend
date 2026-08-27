@@ -1,4 +1,4 @@
-import {
+﻿import {
   isNonEmptyString,
   isNonNegativeInteger,
   isNullableNumber,
@@ -26,7 +26,7 @@ function isPricingItem(value: unknown): boolean {
   return isNonEmptyString(value.proposalItemId) && isNonEmptyString(value.extractedItemId) &&
     isNullableString(value.elementId) && isNonNegativeInteger(value.sequence) &&
     isNullableString(value.reference) && isString(value.description) && isNonEmptyString(value.status) &&
-    (value.configurationSource === "SUGGESTED" || value.configurationSource === "SELECTED") &&
+    value.configurationSource === "SELECTED" &&
     isNullableNumber(value.quantity) && isNullableNumber(value.pricingAreaM2) &&
     isNullableNumber(value.confidenceScore) && isNullableString(value.confidenceLevel) &&
     typeof value.requiresReview === "boolean" && isStringArray(value.mappingWarnings) &&
@@ -60,23 +60,23 @@ export async function getRequirementPricing(requirementId: string): Promise<Requ
   ) {
     throw new ApiError({
       status: 0,
-      title: "Respuesta inválida",
-      detail: "El servidor devolvió una estimación económica con un formato inesperado.",
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio una estimacion economica con un formato inesperado.",
     });
   }
   return response;
 }
 
 export function getRequirementPricingErrorMessage(error: unknown): string {
-  if (!(error instanceof ApiError)) return "No fue posible calcular la estimación económica.";
+  if (!(error instanceof ApiError)) return "No fue posible calcular la estimacion economica.";
   const messages: Record<number, string> = {
     0: "No fue posible conectar con el servidor.",
-    400: "El requerimiento indicado no es válido.",
-    401: "Tu sesión expiró. Inicia sesión nuevamente.",
-    403: "No tienes acceso para calcular esta estimación.",
-    404: "El requerimiento o su propuesta técnica no está disponible.",
-    409: "No es posible calcular precios en el estado actual.",
-    500: "No fue posible calcular la estimación económica.",
+    400: "El requerimiento indicado no es valido.",
+    401: "Tu sesion expiro. Inicia sesion nuevamente.",
+    403: "No tienes acceso para calcular esta estimacion.",
+    404: "El requerimiento o su propuesta tecnica no esta disponible.",
+    409: "Confirma las configuraciones antes de calcular precios.",
+    500: "No fue posible calcular la estimacion economica.",
   };
-  return messages[error.status] ?? "No fue posible calcular la estimación económica.";
+  return messages[error.status] ?? "No fue posible calcular la estimacion economica.";
 }

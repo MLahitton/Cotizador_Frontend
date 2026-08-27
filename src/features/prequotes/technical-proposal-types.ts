@@ -1,4 +1,4 @@
-export interface TechnicalProposalSystemOption {
+﻿export interface TechnicalProposalSystemOption {
   id: string;
   code: string;
   displayName: string;
@@ -50,6 +50,13 @@ export interface TechnicalProposalAlternative<T> {
 }
 
 export type HistoricalEvidenceStatus = "AVAILABLE" | "NO_COMPARABLES" | "SIMILARITY_UNAVAILABLE";
+export type TechnicalProposalCommercialConfirmationState = "PENDING_CONFIRMATION" | "CONFIRMED";
+
+export interface TechnicalProposalCommercialConfirmation {
+  state: TechnicalProposalCommercialConfirmationState;
+  confirmedAtUtc: string | null;
+  confirmedByUserId: string | null;
+}
 
 export interface TechnicalProposalHistoricalExample {
   candidateId: string;
@@ -115,7 +122,7 @@ export interface TechnicalProposalItem {
   isTechnicallyComplete: boolean;
   isPriceable: boolean;
   historicalEvidence: {
-    status: string;
+    status: HistoricalEvidenceStatus;
     supportCount: number;
     bestSimilarity: number | null;
     averageSimilarity: number | null;
@@ -147,6 +154,7 @@ export interface TechnicalProposal {
   extractionResultId: string;
   status: string;
   commercialLine: import("@/features/prequotes/requirement-types").RequirementCommercialLine | null;
+  commercialConfirmation: TechnicalProposalCommercialConfirmation;
   createdAtUtc: string;
   itemCount: number;
   itemsRequiringReview: number;

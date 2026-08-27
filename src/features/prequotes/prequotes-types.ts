@@ -1,4 +1,4 @@
-import type { ProjectDetails } from "@/features/projects/projects-types";
+﻿import type { ProjectDetails } from "@/features/projects/projects-types";
 
 export interface PreQuoteListItem {
   id: string;

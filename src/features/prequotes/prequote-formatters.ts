@@ -1,4 +1,4 @@
-const EMPTY_VALUE = "-";
+﻿const EMPTY_VALUE = "-";
 
 const dateFormatter = new Intl.DateTimeFormat("es-CO", {
   day: "2-digit",

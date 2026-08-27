@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Calculator, FileCheck2, Play } from "lucide-react";
 
@@ -13,7 +13,7 @@ import { TechnicalProposalSummary } from "@/features/prequotes/components/techni
 import { getRequirementErrorMessage } from "@/features/prequotes/requirement-api";
 import { getRequirementPricingErrorMessage } from "@/features/prequotes/requirement-pricing-api";
 import { getTechnicalProposalErrorMessage } from "@/features/prequotes/technical-proposal-api";
-import { getTechnicalProposalSelectionErrorMessage } from "@/features/prequotes/technical-proposal-selection-api";
+import { getTechnicalProposalSelectionConfirmationErrorMessage, getTechnicalProposalSelectionErrorMessage } from "@/features/prequotes/technical-proposal-selection-api";
 import { useRequirementWorkspace } from "@/features/prequotes/use-requirement-workspace";
 
 export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuoteId: string; projectIsActive: boolean }) {
@@ -25,6 +25,7 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
     ? workspace.requirement.fileCount
     : null;
   const fileNames = workspace.files.map((file) => file.name).join(" · ");
+  const proposalConfirmed = workspace.proposal?.commercialConfirmation.state === "CONFIRMED";
 
   return (
     <section aria-labelledby="requirement-workspace-title" className="space-y-4">
@@ -93,12 +94,32 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
       {workspace.phase === "processing-timeout" ? <PreQuotesError title="El analisis sigue en curso" message={getRequirementErrorMessage(workspace.error, "process")} onRetry={workspace.retryCurrent} retryLabel="Consultar estado" /> : null}
       {workspace.phase === "proposal-error" ? <PreQuotesError title="No fue posible cargar la propuesta tecnica" message={getTechnicalProposalErrorMessage(workspace.error)} onRetry={workspace.retryProposal} /> : null}
       {workspace.proposal ? (
-        <div className="flex justify-end">
-          <Button type="button" disabled={workspace.pricingLoading} onClick={workspace.calculatePricing}>
-            <Calculator aria-hidden="true" size={17} />
-            {workspace.pricingLoading ? "Calculando precios…" : workspace.pricing ? "Actualizar estimación" : "Calcular precios"}
-          </Button>
+        <div className="flex flex-col items-end gap-2">
+          {proposalConfirmed ? (
+            <Button type="button" disabled={workspace.pricingLoading} onClick={workspace.calculatePricing}>
+              <Calculator aria-hidden="true" size={17} />
+              {workspace.pricingLoading ? "Calculando precios..." : workspace.pricing ? "Actualizar estimacion" : "Calcular precios"}
+            </Button>
+          ) : (
+            <Button type="button" disabled={workspace.confirmationLoading} onClick={workspace.confirmSelection}>
+              <Calculator aria-hidden="true" size={17} />
+              {workspace.confirmationLoading ? "Confirmando..." : "Confirmar configuraciones"}
+            </Button>
+          )}
+          <p className="text-right text-xs text-foreground-secondary">
+            {proposalConfirmed
+              ? "Configuraciones confirmadas para pricing."
+              : "Confirma las configuraciones para habilitar el calculo de precios."}
+          </p>
         </div>
+      ) : null}
+      {workspace.confirmationError ? (
+        <PreQuotesError
+          title="No fue posible confirmar las configuraciones"
+          message={getTechnicalProposalSelectionConfirmationErrorMessage(workspace.confirmationError)}
+          onRetry={workspace.confirmSelection}
+          retryLabel="Reintentar confirmacion"
+        />
       ) : null}
       {workspace.pricingError ? (
         <PreQuotesError

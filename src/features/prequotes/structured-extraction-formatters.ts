@@ -1,4 +1,4 @@
-import {
+﻿import {
   formatDuration,
   formatProcessingAvailability,
 } from "@/features/prequotes/prequote-document-formatters";
@@ -65,7 +65,7 @@ export function formatEvidenceSource(value: EvidenceSourceType): string {
 
 export function formatEvidenceLocation(value: StructuredEvidence): string {
   if (value.sourceType === "XLSX") {
-    return `Hoja ${value.sheetName} Â· ${value.cellRange}`;
+    return `Hoja ${value.sheetName} · ${value.cellRange}`;
   }
 
   return value.pageNumber === null

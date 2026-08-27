@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FileText, Trash2, Upload, X } from "lucide-react";
 import { type ChangeEvent, useRef } from "react";

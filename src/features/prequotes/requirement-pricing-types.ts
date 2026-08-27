@@ -1,4 +1,4 @@
-export interface RequirementPricingRange {
+﻿export interface RequirementPricingRange {
   minimum: number | null;
   expected: number | null;
   maximum: number | null;

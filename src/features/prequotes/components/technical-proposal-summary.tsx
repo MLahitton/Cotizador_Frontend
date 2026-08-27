@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+﻿import { Badge } from "@/components/ui/badge";
 import { Surface } from "@/components/ui/surface";
 import { TechnicalProposalItemCard } from "@/features/prequotes/components/technical-proposal-item-card";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";

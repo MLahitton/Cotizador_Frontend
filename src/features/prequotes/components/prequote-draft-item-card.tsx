@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+﻿import { Badge } from "@/components/ui/badge";
 import { PreQuoteDraftItemValuation } from "@/features/prequotes/components/prequote-draft-item-valuation";
 import { TechnicalClassificationDetails } from "@/features/prequotes/components/technical-classification-details";
 import {

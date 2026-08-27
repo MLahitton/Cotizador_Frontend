@@ -1,4 +1,4 @@
-export type TechnicalClassificationSource =
+﻿export type TechnicalClassificationSource =
   | "EXPLICIT"
   | "ALIAS"
   | "INFERRED"

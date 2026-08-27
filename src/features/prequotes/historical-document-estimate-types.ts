@@ -1,4 +1,4 @@
-export type HistoricalDocumentPricingStatus =
+﻿export type HistoricalDocumentPricingStatus =
   | "PRICEABLE"
   | "NOT_PRICEABLE"
   | "TECHNICAL_FAILURE";

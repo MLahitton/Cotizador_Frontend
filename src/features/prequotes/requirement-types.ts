@@ -1,4 +1,4 @@
-export type RequirementStatus =
+﻿export type RequirementStatus =
   | "PENDING"
   | "PROCESSING"
   | "PROCESSED"

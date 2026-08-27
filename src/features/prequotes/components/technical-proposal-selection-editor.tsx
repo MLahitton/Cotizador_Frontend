@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 
@@ -83,11 +83,6 @@ export function TechnicalProposalSelectionEditor({ item, isSaving, errorMessage,
   if (!isEditing) {
     return (
       <div className="flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3">
-        {item.selectionState === "UNCONFIRMED" ? (
-          <Button type="button" size="sm" disabled={isSaving} onClick={() => onSave({ confirmSuggested: true, systemId: null, glassId: null, finishId: null })}>
-            {isSaving ? "Guardando..." : "Confirmar sugerida"}
-          </Button>
-        ) : null}
         <Button type="button" size="sm" variant="secondary" disabled={isSaving} onClick={beginEditing}>Modificar configuracion</Button>
         {errorMessage ? <p role="alert" className="w-full text-sm text-danger">{errorMessage}</p> : null}
       </div>

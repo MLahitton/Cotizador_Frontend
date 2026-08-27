@@ -1,4 +1,4 @@
-import {
+﻿import {
   isDateTime,
   isNonEmptyString,
   isNonNegativeInteger,
@@ -50,6 +50,13 @@ function isAlternative<T>(value: unknown, optionGuard: (option: unknown) => opti
 
 function isHistoricalEvidenceStatus(value: unknown): value is HistoricalEvidenceStatus {
   return value === "AVAILABLE" || value === "NO_COMPARABLES" || value === "SIMILARITY_UNAVAILABLE";
+}
+
+function isCommercialConfirmation(value: unknown): boolean {
+  return isRecord(value) &&
+    (value.state === "PENDING_CONFIRMATION" || value.state === "CONFIRMED") &&
+    (value.confirmedAtUtc === null || isDateTime(value.confirmedAtUtc)) &&
+    isNullableString(value.confirmedByUserId);
 }
 
 function isProposalItem(value: unknown): boolean {
@@ -110,6 +117,7 @@ function isTechnicalProposal(value: unknown): value is TechnicalProposal {
     isNonEmptyString(value.technicalProposalId) && isNonEmptyString(value.processingAttemptId) &&
     isNonEmptyString(value.extractionResultId) && isString(value.status) && isDateTime(value.createdAtUtc) &&
     (value.commercialLine === null || ["CLASSIC", "ESSENTIAL", "BIOCONFORT", "SIGNATURE"].includes(String(value.commercialLine))) &&
+    isCommercialConfirmation(value.commercialConfirmation) &&
     isNonNegativeInteger(value.itemCount) && isNonNegativeInteger(value.itemsRequiringReview) &&
     isNonNegativeInteger(value.technicallyCompleteItems) && isNonNegativeInteger(value.priceableItems) &&
     Array.isArray(value.items) && value.items.every(isProposalItem);
@@ -123,23 +131,23 @@ export async function getTechnicalProposal(requirementId: string): Promise<Techn
   if (!isTechnicalProposal(response)) {
     throw new ApiError({
       status: 0,
-      title: "Respuesta invÃ¡lida",
-      detail: "El servidor devolviÃ³ una propuesta tÃ©cnica con un formato inesperado.",
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio una propuesta tecnica con un formato inesperado.",
     });
   }
   return response;
 }
 
 export function getTechnicalProposalErrorMessage(error: unknown): string {
-  if (!(error instanceof ApiError)) return "No fue posible consultar la propuesta tÃ©cnica.";
+  if (!(error instanceof ApiError)) return "No fue posible consultar la propuesta tecnica.";
   const messages: Record<number, string> = {
     0: "No fue posible conectar con el servidor.",
-    400: "El requerimiento indicado no es vÃ¡lido.",
-    401: "Tu sesiÃ³n expirÃ³. Inicia sesiÃ³n nuevamente.",
-    403: "No tienes acceso a esta propuesta tÃ©cnica.",
-    404: "La propuesta tÃ©cnica todavÃ­a no estÃ¡ disponible.",
-    409: "La propuesta tÃ©cnica no estÃ¡ disponible en el estado actual.",
-    500: "No fue posible consultar la propuesta tÃ©cnica.",
+    400: "El requerimiento indicado no es valido.",
+    401: "Tu sesion expiro. Inicia sesion nuevamente.",
+    403: "No tienes acceso a esta propuesta tecnica.",
+    404: "La propuesta tecnica todavia no esta disponible.",
+    409: "La propuesta tecnica no esta disponible en el estado actual.",
+    500: "No fue posible consultar la propuesta tecnica.",
   };
-  return messages[error.status] ?? "No fue posible consultar la propuesta tÃ©cnica.";
+  return messages[error.status] ?? "No fue posible consultar la propuesta tecnica.";
 }

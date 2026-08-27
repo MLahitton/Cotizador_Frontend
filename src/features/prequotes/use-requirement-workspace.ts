@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -10,7 +10,7 @@ import { createRequirement, getCurrentRequirement, processRequirement } from "@/
 import { getRequirementPricing } from "@/features/prequotes/requirement-pricing-api";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 import type { CreatedRequirement, CurrentRequirement, ProcessedRequirement, RequirementCommercialLine } from "@/features/prequotes/requirement-types";
-import { updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
+import { confirmTechnicalProposalSelection, updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 import { getTechnicalProposal } from "@/features/prequotes/technical-proposal-api";
 import type { TechnicalProposal } from "@/features/prequotes/technical-proposal-types";
 import { ApiError } from "@/lib/http/api-error";
@@ -106,6 +106,8 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const [savingSelectionItemIds, setSavingSelectionItemIds] = useState<string[]>([]);
   const [selectionErrors, setSelectionErrors] = useState<Record<string, unknown>>({});
   const [pricingAfterSelectionError, setPricingAfterSelectionError] = useState(false);
+  const [confirmationLoading, setConfirmationLoading] = useState(false);
+  const [confirmationError, setConfirmationError] = useState<unknown | null>(null);
   const [error, setError] = useState<unknown | null>(null);
   const [currentReloadKey, setCurrentReloadKey] = useState(0);
   const mountedRef = useRef(true);
@@ -178,6 +180,8 @@ export function useRequirementWorkspace(preQuoteId: string) {
       setSavingSelectionItemIds([]);
       setSelectionErrors({});
       setPricingAfterSelectionError(false);
+      setConfirmationLoading(false);
+      setConfirmationError(null);
       setError(null);
       setPhase("hydrating");
 
@@ -420,16 +424,10 @@ export function useRequirementWorkspace(preQuoteId: string) {
       const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
       if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
       setProposal(refreshedProposal);
-      try {
-        const refreshedPricing = await getRequirementPricing(requirement.requirementId);
-        if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
-        setPricing(refreshedPricing);
-        setPricingError(null);
-      } catch (cause) {
-        if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
-        setPricingError(cause);
-        setPricingAfterSelectionError(true);
-      }
+      setPricing(null);
+      setPricingError(null);
+      setPricingAfterSelectionError(false);
+      setConfirmationError(null);
     } catch (cause) {
       if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
       setSelectionErrors((current) => ({ ...current, [itemId]: cause }));
@@ -440,11 +438,33 @@ export function useRequirementWorkspace(preQuoteId: string) {
     }
   }, [preQuoteId, proposal, requirement, savingSelectionItemIds]);
 
+  const confirmSelection = useCallback(async () => {
+    if (!requirement || !proposal || confirmationLoading) return;
+    const expectedPreQuoteId = preQuoteId;
+    setConfirmationLoading(true);
+    setConfirmationError(null);
+    setPricing(null);
+    setPricingError(null);
+    setPricingAfterSelectionError(false);
+    try {
+      await confirmTechnicalProposalSelection(proposal.technicalProposalId);
+      const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+      setProposal(refreshedProposal);
+    } catch (cause) {
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+      setConfirmationError(cause);
+    } finally {
+      if (mountedRef.current && preQuoteIdRef.current === expectedPreQuoteId) {
+        setConfirmationLoading(false);
+      }
+    }
+  }, [confirmationLoading, preQuoteId, proposal, requirement]);
   return {
     files, commercialLine, validationError, phase, requirement, processingResult, proposal, error,
-    pricing, pricingLoading, pricingError, pricingAfterSelectionError, savingSelectionItemIds, selectionErrors,
+    pricing, pricingLoading, pricingError, pricingAfterSelectionError, confirmationLoading, confirmationError, savingSelectionItemIds, selectionErrors,
     setCommercialLine,
     selectFiles, removeFile, upload, process, retryProposal, retryCurrent,
-    calculatePricing, saveSelection,
+    calculatePricing, confirmSelection, saveSelection,
   };
 }

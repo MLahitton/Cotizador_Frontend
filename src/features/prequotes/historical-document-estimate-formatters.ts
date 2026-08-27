@@ -1,4 +1,4 @@
-import type { HistoricalDocumentPricingStatus } from "@/features/prequotes/historical-document-estimate-types";
+﻿import type { HistoricalDocumentPricingStatus } from "@/features/prequotes/historical-document-estimate-types";
 
 const numberFormatter = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 const percentFormatter = new Intl.NumberFormat("es-CO", { style: "percent", maximumFractionDigits: 0 });
