@@ -2,7 +2,9 @@
   | "PENDING"
   | "PROCESSING"
   | "PROCESSED"
-  | "FAILED";
+  | "FAILED"
+  | "CANCELLED"
+  | "SUPERSEDED";
 
 export type RequirementCommercialLine =
   | "CLASSIC"
@@ -16,7 +18,53 @@ export interface CreatedRequirement {
   fileCount: number;
   commercialLine: RequirementCommercialLine;
   status: RequirementStatus;
+  canEditDocuments: boolean;
+  canCancel: boolean;
+  canReplace: boolean;
+  isCurrent: boolean;
+  supersedesRequirementId: string | null;
+  supersededByRequirementId: string | null;
   createdAtUtc: string;
+  documents: RequirementDocument[];
+}
+
+export interface RequirementDocument {
+  requirementFileId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  createdAtUtc: string;
+}
+
+export interface RequirementLifecycleCapabilities {
+  canEditDocuments: boolean;
+  canCancel: boolean;
+  canReplace: boolean;
+  isCurrent: boolean;
+}
+
+export interface RequirementDetails extends RequirementLifecycleCapabilities {
+  requirementId: string;
+  preQuoteId: string;
+  status: RequirementStatus;
+  commercialLine: RequirementCommercialLine | null;
+  supersedesRequirementId: string | null;
+  supersededByRequirementId: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+  documents: RequirementDocument[];
+}
+
+export interface RequirementLifecycleResponse extends RequirementLifecycleCapabilities {
+  requirementId: string;
+  preQuoteId: string;
+  fileCount: number;
+  commercialLine: RequirementCommercialLine | null;
+  status: RequirementStatus;
+  supersedesRequirementId: string | null;
+  supersededByRequirementId: string | null;
+  updatedAtUtc: string;
+  documents: RequirementDocument[];
 }
 
 export type RequirementProcessingState = "Pending" | "Processing" | "Finished";
@@ -54,4 +102,11 @@ export interface CurrentRequirement {
   latestAttemptState: RequirementProcessingState | null;
   latestAttemptOutcome: RequirementProcessingOutcome | null;
   latestAttemptErrorCode: string | null;
+  canEditDocuments: boolean;
+  canCancel: boolean;
+  canReplace: boolean;
+  isCurrent: boolean;
+  supersedesRequirementId: string | null;
+  supersededByRequirementId: string | null;
+  documents: RequirementDocument[];
 }

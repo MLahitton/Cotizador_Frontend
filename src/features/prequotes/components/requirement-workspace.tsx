@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { PreQuotesError, PreQuotesLoading } from "@/features/prequotes/components/prequotes-status";
 import { RequirementAnalysisProgress } from "@/features/prequotes/components/requirement-analysis-progress";
+import { RequirementDocumentsLifecycle } from "@/features/prequotes/components/requirement-documents-lifecycle";
 import { RequirementPricingSummary } from "@/features/prequotes/components/requirement-pricing-summary";
 import { RequirementUploadPanel } from "@/features/prequotes/components/requirement-upload-panel";
 import { TechnicalProposalSummary } from "@/features/prequotes/components/technical-proposal-summary";
@@ -113,6 +114,8 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
           </p>
         </div>
       ) : null}
+
+      {workspace.requirement ? <RequirementDocumentsLifecycle key={workspace.requirement.requirementId} requirementId={workspace.requirement.requirementId} onCurrentChanged={workspace.retryCurrent} /> : null}
       {workspace.confirmationError ? (
         <PreQuotesError
           title="No fue posible confirmar las configuraciones"

@@ -13,17 +13,37 @@ import type {
   RequirementProcessingState,
   RequirementStatus,
   RequirementCommercialLine,
+  RequirementDetails,
+  RequirementDocument,
+  RequirementLifecycleResponse,
 } from "@/features/prequotes/requirement-types";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
 
-const REQUIREMENT_STATUSES = ["PENDING", "PROCESSING", "PROCESSED", "FAILED"] as const;
+const REQUIREMENT_STATUSES = ["PENDING", "PROCESSING", "PROCESSED", "FAILED", "CANCELLED", "SUPERSEDED"] as const;
 const PROCESSING_STATES = ["Pending", "Processing", "Finished"] as const;
 const PROCESSING_OUTCOMES = ["Completed", "RequiresReview", "Failed"] as const;
 const COMMERCIAL_LINES = ["CLASSIC", "ESSENTIAL", "BIOCONFORT", "SIGNATURE"] as const;
 
 function isOneOf<T extends string>(value: unknown, values: readonly T[]): value is T {
   return typeof value === "string" && values.includes(value as T);
+}
+
+function isNullableGuid(value: unknown): value is string | null {
+  return value === null || isNonEmptyString(value);
+}
+
+function isRequirementDocument(value: unknown): value is RequirementDocument {
+  return isRecord(value) && isNonEmptyString(value.requirementFileId) &&
+    isNonEmptyString(value.fileName) && isNonEmptyString(value.contentType) &&
+    isNonNegativeInteger(value.sizeBytes) && isDateTime(value.createdAtUtc);
+}
+
+function hasLifecycle(value: Record<string, unknown>): boolean {
+  return typeof value.canEditDocuments === "boolean" && typeof value.canCancel === "boolean" &&
+    typeof value.canReplace === "boolean" && typeof value.isCurrent === "boolean" &&
+    isNullableGuid(value.supersedesRequirementId) && isNullableGuid(value.supersededByRequirementId) &&
+    Array.isArray(value.documents) && value.documents.every(isRequirementDocument);
 }
 
 function isCreatedRequirement(value: unknown): value is CreatedRequirement {
@@ -33,7 +53,7 @@ function isCreatedRequirement(value: unknown): value is CreatedRequirement {
     isNonNegativeInteger(value.fileCount) && value.fileCount > 0 &&
     isOneOf<RequirementCommercialLine>(value.commercialLine, COMMERCIAL_LINES) &&
     isOneOf<RequirementStatus>(value.status, REQUIREMENT_STATUSES) &&
-    isDateTime(value.createdAtUtc);
+    isDateTime(value.createdAtUtc) && hasLifecycle(value);
 }
 
 function isCurrentRequirement(value: unknown): value is CurrentRequirement {
@@ -47,7 +67,21 @@ function isCurrentRequirement(value: unknown): value is CurrentRequirement {
     (value.technicalProposalId === null || isNonEmptyString(value.technicalProposalId)) &&
     (value.latestAttemptState === null || isOneOf<RequirementProcessingState>(value.latestAttemptState, PROCESSING_STATES)) &&
     (value.latestAttemptOutcome === null || isOneOf<RequirementProcessingOutcome>(value.latestAttemptOutcome, PROCESSING_OUTCOMES)) &&
-    isNullableString(value.latestAttemptErrorCode);
+    isNullableString(value.latestAttemptErrorCode) && hasLifecycle(value);
+}
+
+function isRequirementDetails(value: unknown): value is RequirementDetails {
+  return isRecord(value) && isNonEmptyString(value.requirementId) && isNonEmptyString(value.preQuoteId) &&
+    isOneOf<RequirementStatus>(value.status, REQUIREMENT_STATUSES) &&
+    (value.commercialLine === null || isOneOf<RequirementCommercialLine>(value.commercialLine, COMMERCIAL_LINES)) &&
+    isDateTime(value.createdAtUtc) && isDateTime(value.updatedAtUtc) && hasLifecycle(value);
+}
+
+function isLifecycleResponse(value: unknown): value is RequirementLifecycleResponse {
+  return isRecord(value) && isNonEmptyString(value.requirementId) && isNonEmptyString(value.preQuoteId) &&
+    isNonNegativeInteger(value.fileCount) && isOneOf<RequirementStatus>(value.status, REQUIREMENT_STATUSES) &&
+    (value.commercialLine === null || isOneOf<RequirementCommercialLine>(value.commercialLine, COMMERCIAL_LINES)) &&
+    isDateTime(value.updatedAtUtc) && hasLifecycle(value);
 }
 
 function isProcessedRequirement(value: unknown): value is ProcessedRequirement {
@@ -116,12 +150,56 @@ export async function processRequirement(requirementId: string): Promise<Process
   return response;
 }
 
+export async function getRequirementById(requirementId: string): Promise<RequirementDetails> {
+  const response = await apiRequest(`/api/v2/requirements/${encodeURIComponent(requirementId)}`, { authenticated: true });
+  if (!isRequirementDetails(response)) throw invalidResponse("El servidor no devolvio el detalle del requerimiento.");
+  return response;
+}
+
+export async function getRequirementDocuments(requirementId: string): Promise<RequirementDocument[]> {
+  const response = await apiRequest(`/api/v2/requirements/${encodeURIComponent(requirementId)}/documents`, { authenticated: true });
+  if (!Array.isArray(response) || !response.every(isRequirementDocument)) throw invalidResponse("El servidor no devolvio los documentos del requerimiento.");
+  return response;
+}
+
+function documentForm(files: File[]): FormData {
+  const form = new FormData();
+  files.forEach((file) => form.append("files", file));
+  return form;
+}
+
+async function lifecycleRequest(path: string, method: "POST" | "PUT" | "DELETE", files?: File[]): Promise<RequirementLifecycleResponse> {
+  const response = await apiRequest(path, { method, authenticated: true, body: files ? documentForm(files) : undefined });
+  if (!isLifecycleResponse(response)) throw invalidResponse("El servidor no devolvio el estado actualizado del requerimiento.");
+  return response;
+}
+
+export function addRequirementDocument(requirementId: string, file: File) {
+  return lifecycleRequest(`/api/v2/requirements/${encodeURIComponent(requirementId)}/documents`, "POST", [file]);
+}
+
+export function removeRequirementDocument(requirementId: string, requirementFileId: string) {
+  return lifecycleRequest(`/api/v2/requirements/${encodeURIComponent(requirementId)}/documents/${encodeURIComponent(requirementFileId)}`, "DELETE");
+}
+
+export function replaceRequirementDocument(requirementId: string, requirementFileId: string, file: File) {
+  return lifecycleRequest(`/api/v2/requirements/${encodeURIComponent(requirementId)}/documents/${encodeURIComponent(requirementFileId)}`, "PUT", [file]);
+}
+
+export function cancelRequirement(requirementId: string) {
+  return lifecycleRequest(`/api/v2/requirements/${encodeURIComponent(requirementId)}/cancel`, "POST");
+}
+
+export function replaceRequirement(requirementId: string, files: File[]) {
+  return lifecycleRequest(`/api/v2/requirements/${encodeURIComponent(requirementId)}/replacement`, "POST", files);
+}
+
 function getProblemDetailsCode(error: ApiError): string | null {
   const value = error.problemDetails?.errorCode ?? error.problemDetails?.code;
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
-export function getRequirementErrorMessage(error: unknown, operation: "upload" | "process" | "current"): string {
+export function getRequirementErrorMessage(error: unknown, operation: "upload" | "process" | "current" | "lifecycle"): string {
   const fallback = operation === "upload"
     ? "No fue posible crear el requerimiento."
     : operation === "current"
@@ -149,6 +227,8 @@ export function getRequirementErrorMessage(error: unknown, operation: "upload" |
     REQUIREMENT_CLIENT_INACTIVE: "El cliente asociado esta inactivo.",
     REQUIREMENT_PREQUOTE_NOT_FOUND: "No se encontro la precotizacion asociada.",
     REQUIREMENT_NOT_FOUND: "No se encontro el requerimiento.",
+    REQUIREMENT_NOT_MUTABLE: "Los documentos ya no se pueden modificar. Se actualizo el estado del Requirement.",
+    REQUIREMENT_NOT_REPLACEABLE: "Este Requirement ya no se puede reemplazar. Se actualizo su estado.",
   };
   if (code && code in codeMessages) return codeMessages[code];
   const messages: Record<number, string> = {
