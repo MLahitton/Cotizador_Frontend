@@ -1,4 +1,4 @@
-﻿import {
+import {
   isDateTime,
   isNonEmptyString,
   isNonNegativeInteger,
@@ -15,6 +15,9 @@ import type {
   TechnicalProposalAlternative,
   TechnicalProposalFinishOption,
   TechnicalProposalGlassOption,
+  TechnicalProposalPendingCategory,
+  TechnicalProposalPendingSeverity,
+  TechnicalProposalReadinessState,
   TechnicalProposalSystemOption,
 } from "@/features/prequotes/technical-proposal-types";
 import { apiRequest } from "@/lib/http/api-client";
@@ -51,6 +54,45 @@ function isAlternative<T>(value: unknown, optionGuard: (option: unknown) => opti
 function isHistoricalEvidenceStatus(value: unknown): value is HistoricalEvidenceStatus {
   return value === "AVAILABLE" || value === "NO_COMPARABLES" || value === "SIMILARITY_UNAVAILABLE";
 }
+function isReadinessState(value: unknown): value is TechnicalProposalReadinessState {
+  return value === "READY" || value === "REVIEW_REQUIRED" || value === "BLOCKED";
+}
+
+function isPendingCategory(value: unknown): value is TechnicalProposalPendingCategory {
+  return ["SYSTEM", "GLASS", "FINISH", "GEOMETRY", "QUANTITY", "MEASUREMENTS", "COMMERCIAL", "EVIDENCE", "RULE", "OTHER"].includes(String(value));
+}
+
+function isPendingSeverity(value: unknown): value is TechnicalProposalPendingSeverity {
+  return value === "BLOCKING" || value === "WARNING" || value === "INFO";
+}
+
+function isCategoryCounts(value: unknown): value is Record<string, number> {
+  return isRecord(value) && Object.values(value).every(isNonNegativeInteger);
+}
+
+function isPendingDefinition(value: unknown): boolean {
+  return isRecord(value) && isNonEmptyString(value.code) && isPendingCategory(value.category) &&
+    isPendingSeverity(value.severity) && isNonEmptyString(value.field) && isNonEmptyString(value.title) &&
+    isNonEmptyString(value.message) && isNullableString(value.currentValue) && isNonEmptyString(value.requiredAction) &&
+    typeof value.blocksConfirmation === "boolean" && typeof value.blocksPricing === "boolean" &&
+    isStringArray(value.relatedReasonCodes);
+}
+
+function isItemReadiness(value: unknown): boolean {
+  return isRecord(value) && isReadinessState(value.state) && isNonNegativeInteger(value.blockingCount) &&
+    isNonNegativeInteger(value.warningCount) && Array.isArray(value.pendingDefinitions) &&
+    value.pendingDefinitions.every(isPendingDefinition);
+}
+
+function isProposalReadiness(value: unknown): boolean {
+  return isRecord(value) && isReadinessState(value.state) &&
+    typeof value.isReadyForConfirmation === "boolean" && typeof value.isReadyForPricing === "boolean" &&
+    isNonNegativeInteger(value.blockingItems) && isNonNegativeInteger(value.warningItems) &&
+    isNonNegativeInteger(value.blockingDefinitions) && isNonNegativeInteger(value.warningDefinitions) &&
+    isNonNegativeInteger(value.pricingBlockingItems) && isNonNegativeInteger(value.pricingBlockingDefinitions) &&
+    isCategoryCounts(value.categories);
+}
+
 
 function isCommercialConfirmation(value: unknown): boolean {
   return isRecord(value) &&
@@ -62,7 +104,7 @@ function isCommercialConfirmation(value: unknown): boolean {
 function isProposalItem(value: unknown): boolean {
   if (!isRecord(value) || !isRecord(value.suggested) ||
       !isRecord(value.alternatives) || !isRecord(value.confidence) ||
-      !isRecord(value.historicalEvidence) || !isRecord(value.trace)) return false;
+      !isRecord(value.historicalEvidence) || !isRecord(value.trace) || !isItemReadiness(value.readiness)) return false;
 
   const suggested = value.suggested;
   const selected = value.selected;
@@ -86,7 +128,10 @@ function isProposalItem(value: unknown): boolean {
     isNullableString(value.elementId) && isNonNegativeInteger(value.sequence) &&
     isNullableString(value.reference) && isString(value.description) && isString(value.elementType) &&
     isNullableNumber(value.quantity) && isNullableNumber(value.widthMm) &&
-    isNullableNumber(value.heightMm) && isNullableNumber(value.areaM2) &&
+    isNullableNumber(value.heightMm) && isNullableNumber(value.manualQuantityOverride) &&
+    isNullableNumber(value.manualWidthMmOverride) && isNullableNumber(value.manualHeightMmOverride) &&
+    isNullableNumber(value.effectiveQuantity) && isNullableNumber(value.effectiveWidthMm) &&
+    isNullableNumber(value.effectiveHeightMm) && isNullableNumber(value.areaM2) &&
     isNullableNumber(value.extractionConfidence) && isString(value.extractionStatus) &&
     (suggested.system === null || isSystemOption(suggested.system)) &&
     (suggested.glass === null || isGlassOption(suggested.glass)) &&
@@ -120,6 +165,7 @@ function isTechnicalProposal(value: unknown): value is TechnicalProposal {
     isCommercialConfirmation(value.commercialConfirmation) &&
     isNonNegativeInteger(value.itemCount) && isNonNegativeInteger(value.itemsRequiringReview) &&
     isNonNegativeInteger(value.technicallyCompleteItems) && isNonNegativeInteger(value.priceableItems) &&
+    isProposalReadiness(value.readiness) &&
     Array.isArray(value.items) && value.items.every(isProposalItem);
 }
 

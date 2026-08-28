@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -7,12 +7,12 @@ import {
   MAX_DOCUMENT_SIZE_BYTES,
 } from "@/features/prequotes/prequote-document-formatters";
 import { createRequirement, getCurrentRequirement, processRequirement } from "@/features/prequotes/requirement-api";
-import { getRequirementPricing } from "@/features/prequotes/requirement-pricing-api";
-import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
+import { getRequirementPricing, repriceRequirementPricingItem } from "@/features/prequotes/requirement-pricing-api";
+import type { RepriceRequirementPricingItemResponse, RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 import type { CreatedRequirement, CurrentRequirement, ProcessedRequirement, RequirementCommercialLine } from "@/features/prequotes/requirement-types";
 import { confirmTechnicalProposalSelection, updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 import { getTechnicalProposal } from "@/features/prequotes/technical-proposal-api";
-import type { TechnicalProposal } from "@/features/prequotes/technical-proposal-types";
+import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 import { ApiError } from "@/lib/http/api-error";
 
 const MAX_FILES = 10;
@@ -83,6 +83,117 @@ function processingResultError(response: ProcessedRequirement): ApiError {
   });
 }
 
+
+function findItemOption<T extends { id: string }>(
+  item: TechnicalProposalItem,
+  kind: "system" | "glass" | "finish",
+  id: string | null,
+): T | null {
+  if (!id) return null;
+  const current = item.selected?.[kind] ?? null;
+  const suggested = item.suggested[kind] ?? null;
+  const alternatives = kind === "system"
+    ? item.alternatives.systems.map(({ option }) => option)
+    : kind === "glass"
+      ? item.alternatives.glass.map(({ option }) => option)
+      : item.alternatives.finishes.map(({ option }) => option);
+  const options = [current, suggested, ...alternatives];
+  return (options.find((option) => option?.id.toLowerCase() === id.toLowerCase()) ?? null) as T | null;
+}
+
+function applyRepricedSelection(
+  proposal: TechnicalProposal,
+  response: RepriceRequirementPricingItemResponse,
+): TechnicalProposal {
+  return {
+    ...proposal,
+    items: proposal.items.map((item) => {
+      if (item.itemId.toLowerCase() !== response.technicalProposalItemId.toLowerCase()) return item;
+      const selectedAtUtc = item.selected?.selectedAtUtc ?? new Date().toISOString();
+      const selectedByUserId = item.selected?.selectedByUserId ?? "local-reprice";
+      return {
+        ...item,
+        selected: {
+          system: findItemOption(item, "system", response.configuration.systemId),
+          glass: findItemOption(item, "glass", response.configuration.glassTypeId),
+          finish: findItemOption(item, "finish", response.configuration.finishTypeId),
+          selectedAtUtc,
+          selectedByUserId,
+        },
+        selectionState: "MODIFIED",
+      };
+    }),
+  };
+}
+
+function applyRepricedPricing(
+  pricing: RequirementPricing,
+  response: RepriceRequirementPricingItemResponse,
+): RequirementPricing {
+  const nextItems = pricing.items.map((item) => {
+    if (item.proposalItemId.toLowerCase() !== response.technicalProposalItemId.toLowerCase()) return item;
+    const unit = {
+      minimum: null,
+      expected: response.pricing.currentUnitPrice,
+      maximum: null,
+    };
+    const line = {
+      minimum: null,
+      expected: response.pricing.currentLineTotal,
+      maximum: null,
+    };
+    return {
+      ...item,
+      status: response.pricing.state,
+      configurationSource: "SELECTED" as const,
+      unit,
+      line,
+      originalUnit: {
+        minimum: null,
+        expected: response.pricing.originalUnitPrice,
+        maximum: null,
+      },
+      currentUnit: unit,
+      deltaUnit: {
+        minimum: null,
+        expected: response.pricing.deltaUnitPrice,
+        maximum: null,
+      },
+      originalLine: {
+        minimum: null,
+        expected: response.pricing.originalLineTotal,
+        maximum: null,
+      },
+      currentLine: line,
+      deltaLine: {
+        minimum: null,
+        expected: response.pricing.deltaLineTotal,
+        maximum: null,
+      },
+      comparables: response.comparables,
+      missingData: response.pricing.currentLineTotal === null ? ["NO_COMPARABLES"] : item.missingData,
+      requiresReview: response.pricing.state !== "PRICEABLE" || item.requiresReview,
+    };
+  });
+  const pricedItemCount = nextItems.filter((item) => item.status === "PRICEABLE").length;
+  const notPriceableItemCount = nextItems.length - pricedItemCount;
+  return {
+    ...pricing,
+    items: nextItems,
+    pricedItemCount,
+    notPriceableItemCount,
+    itemsRequiringReview: nextItems.filter((item) => item.requiresReview).length,
+    estimatedSubtotal: {
+      ...pricing.estimatedSubtotal,
+      expected: response.summary.currentGrandTotal,
+    },
+    isCompleteTotal: notPriceableItemCount === 0,
+    requiresReview: nextItems.some((item) => item.requiresReview),
+    originalGrandTotal: response.summary.originalGrandTotal,
+    currentGrandTotal: response.summary.currentGrandTotal,
+    deltaGrandTotal: response.summary.deltaGrandTotal,
+  };
+}
 function processingTimeoutError(): ApiError {
   return new ApiError({
     status: 0,
@@ -410,7 +521,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
   }, [preQuoteId, proposal, requirement]);
 
   const saveSelection = useCallback(async (itemId: string, request: TechnicalProposalSelectionRequest) => {
-    if (!requirement || !proposal || savingSelectionItemIds.includes(itemId)) return;
+    if (!requirement || !proposal || savingSelectionItemIds.includes(itemId)) return false;
     const expectedPreQuoteId = preQuoteId;
     setSavingSelectionItemIds((current) => [...current, itemId]);
     setSelectionErrors((current) => {
@@ -420,23 +531,44 @@ export function useRequirementWorkspace(preQuoteId: string) {
     });
     setPricingAfterSelectionError(false);
     try {
+      if (pricing && proposal.commercialConfirmation.state === "CONFIRMED") {
+        const response = await repriceRequirementPricingItem(requirement.requirementId, itemId, {
+          systemId: request.systemId,
+          glassTypeId: request.glassId,
+          finishTypeId: request.finishId,
+          quantity: request.quantity,
+          widthMm: request.widthMm,
+          heightMm: request.heightMm,
+        });
+        const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
+        if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
+        setProposal(applyRepricedSelection(refreshedProposal, response));
+        setPricing((current) => current ? applyRepricedPricing(current, response) : current);
+        setPricingError(null);
+        setPricingAfterSelectionError(false);
+        setConfirmationError(null);
+        return true;
+      }
+
       await updateTechnicalProposalItemSelection(proposal.technicalProposalId, itemId, request);
       const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
-      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
       setProposal(refreshedProposal);
       setPricing(null);
       setPricingError(null);
       setPricingAfterSelectionError(false);
       setConfirmationError(null);
+      return true;
     } catch (cause) {
-      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
       setSelectionErrors((current) => ({ ...current, [itemId]: cause }));
+      return false;
     } finally {
       if (mountedRef.current && preQuoteIdRef.current === expectedPreQuoteId) {
         setSavingSelectionItemIds((current) => current.filter((id) => id !== itemId));
       }
     }
-  }, [preQuoteId, proposal, requirement, savingSelectionItemIds]);
+  }, [preQuoteId, pricing, proposal, requirement, savingSelectionItemIds]);
 
   const confirmSelection = useCallback(async () => {
     if (!requirement || !proposal || confirmationLoading) return;
@@ -449,10 +581,10 @@ export function useRequirementWorkspace(preQuoteId: string) {
     try {
       await confirmTechnicalProposalSelection(proposal.technicalProposalId);
       const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
-      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
       setProposal(refreshedProposal);
     } catch (cause) {
-      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
       setConfirmationError(cause);
     } finally {
       if (mountedRef.current && preQuoteIdRef.current === expectedPreQuoteId) {

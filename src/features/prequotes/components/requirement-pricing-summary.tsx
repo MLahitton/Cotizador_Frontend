@@ -5,8 +5,21 @@ import { Surface } from "@/components/ui/surface";
 import { formatRequirementMoney } from "@/features/prequotes/requirement-pricing-formatters";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 
+function formatDeltaMoney(value: number | null, currency: string): string {
+  if (value === null) return "No disponible";
+  if (value === 0) return "$0";
+  const formatted = formatRequirementMoney(Math.abs(value), currency);
+  return `${value > 0 ? "+" : "-"}${formatted}`;
+}
+
+function deltaTone(value: number | null): string {
+  if (value === null || value === 0) return "text-foreground";
+  return value > 0 ? "text-warning" : "text-success";
+}
+
 export function RequirementPricingSummary({ pricing }: { pricing: RequirementPricing }) {
   const subtotalLabel = pricing.isCompleteTotal ? "Subtotal esperado" : "Subtotal parcial esperado";
+  const hasSnapshot = pricing.originalGrandTotal !== null || pricing.currentGrandTotal !== null || pricing.deltaGrandTotal !== null;
   return (
     <section aria-labelledby="requirement-pricing-title">
       <Surface variant="elevated" padding="lg">
@@ -23,10 +36,29 @@ export function RequirementPricingSummary({ pricing }: { pricing: RequirementPri
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[1.3fr_1fr]">
           <div className="rounded-sm bg-brand-soft p-4">
-            <p className="text-xs font-semibold uppercase text-foreground-secondary">{subtotalLabel}</p>
-            <p className="mt-2 break-words text-2xl font-semibold text-foreground">
-              {formatRequirementMoney(pricing.estimatedSubtotal.expected, pricing.currency)}
-            </p>
+            {hasSnapshot ? (
+              <dl className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <dt className="text-xs font-semibold uppercase text-foreground-secondary">Total original</dt>
+                  <dd className="mt-2 break-words text-2xl font-semibold text-foreground">{formatRequirementMoney(pricing.originalGrandTotal, pricing.currency)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase text-foreground-secondary">Total actual</dt>
+                  <dd className="mt-2 break-words text-2xl font-semibold text-foreground">{formatRequirementMoney(pricing.currentGrandTotal, pricing.currency)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase text-foreground-secondary">Variacion total</dt>
+                  <dd className={`mt-2 break-words text-2xl font-semibold ${deltaTone(pricing.deltaGrandTotal)}`}>{formatDeltaMoney(pricing.deltaGrandTotal, pricing.currency)}</dd>
+                </div>
+              </dl>
+            ) : (
+              <>
+                <p className="text-xs font-semibold uppercase text-foreground-secondary">{subtotalLabel}</p>
+                <p className="mt-2 break-words text-2xl font-semibold text-foreground">
+                  {formatRequirementMoney(pricing.estimatedSubtotal.expected, pricing.currency)}
+                </p>
+              </>
+            )}
             <p className="mt-2 text-sm text-foreground-secondary">
               Rango estimado: {formatRequirementMoney(pricing.estimatedSubtotal.minimum, pricing.currency)} - {formatRequirementMoney(pricing.estimatedSubtotal.maximum, pricing.currency)}
             </p>

@@ -1,4 +1,4 @@
-﻿import { CheckCircle2, CircleAlert } from "lucide-react";
+import { CheckCircle2, CircleAlert } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Surface } from "@/components/ui/surface";
@@ -11,7 +11,6 @@ import {
   formatProposalConfidence,
   formatProposalNumber,
   formatProposalQuantity,
-  formatReviewReason,
 } from "@/features/prequotes/technical-proposal-formatters";
 import { formatPricingWarning, formatRequirementMoney } from "@/features/prequotes/requirement-pricing-formatters";
 import type { RequirementPricingItem } from "@/features/prequotes/requirement-pricing-types";
@@ -28,16 +27,6 @@ function SuggestedValue({ label, value, note }: { label: string; value: string |
   );
 }
 
-function uniqueVisibleReviewReasons(reasons: string[]): string[] {
-  const seen = new Set<string>();
-  return reasons.filter((reason) => {
-    const message = formatReviewReason(reason);
-    if (seen.has(message)) return false;
-    seen.add(message);
-    return true;
-  });
-}
-
 function sourceLabel(item: TechnicalProposalItem): string | null {
   const first = item.evidence.find((evidence) => evidence.contextLabel || evidence.sourceFileName);
   if (!first) return null;
@@ -49,10 +38,43 @@ function resolutionNote(reasons: string[], code: string, message: string): strin
   return reasons.includes(code) ? message : null;
 }
 
+
+function formatDeltaMoney(value: number | null, currency: string): string {
+  if (value === null) return "No disponible";
+  if (value === 0) return "$0";
+  const formatted = formatRequirementMoney(Math.abs(value), currency);
+  return `${value > 0 ? "+" : "-"}${formatted}`;
+}
+
+function deltaTone(value: number | null): string {
+  if (value === null || value === 0) return "text-foreground";
+  return value > 0 ? "text-warning" : "text-success";
+}
 function pricingStatusLabel(status: string): string {
   if (status === "NO_ESTIMATE") return "Sin estimacion";
   if (status === "NOT_PRICEABLE") return "Precio pendiente";
   return "Precio estimado";
+}
+
+function actionLabel(field: string): string {
+  if (field === "system" || field === "glass" || field === "finish") return "Modificar configuracion";
+  if (field.includes("Geometry") || field === "measurements") return "Modificar configuracion";
+  if (field === "quantity") return "Modificar configuracion";
+  if (field === "evidence") return "Revisar evidencia";
+  return "Revisar configuracion";
+}
+
+function readinessStatus(state: string): { label: string; tone: "success" | "warning" | "neutral" } {
+  if (state === "READY") return { label: "Listo", tone: "success" };
+  if (state === "BLOCKED") return { label: "Conviene revisar", tone: "warning" };
+  if (state === "REVIEW_REQUIRED") return { label: "Revisar", tone: "warning" };
+  return { label: state, tone: "neutral" };
+}
+
+function pendingBadge(definition: { blocksConfirmation: boolean; blocksPricing: boolean }): string {
+  if (definition.blocksPricing) return "Bloquea pricing";
+  if (definition.blocksConfirmation) return "Revisar antes de confirmar";
+  return "Advertencia";
 }
 
 export function TechnicalProposalItemCard({ item, pricing, currency, isSavingSelection, selectionErrorMessage, onSaveSelection }: {
@@ -61,15 +83,15 @@ export function TechnicalProposalItemCard({ item, pricing, currency, isSavingSel
   currency: string | null;
   isSavingSelection: boolean;
   selectionErrorMessage: string | null;
-  onSaveSelection: (request: TechnicalProposalSelectionRequest) => void;
+  onSaveSelection: (request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
 }) {
-  const status = item.requiresReview ? "Requiere revision" : item.isTechnicallyComplete ? "Listo" : "Incompleto";
-  const visibleReviewReasons = uniqueVisibleReviewReasons(item.reviewReasons);
+  const status = readinessStatus(item.readiness.state);
   const provenance = sourceLabel(item);
   const pricingIssues = pricing ? [...pricing.mappingWarnings, ...pricing.missingData] : [];
   const hasPriceEstimate = pricing?.status === "PRICEABLE";
-  const displayAreaM2 = deriveDisplayAreaM2(item.areaM2, item.widthMm, item.heightMm);
-  const displayTotalAreaM2 = deriveDisplayTotalAreaM2(item.areaM2, item.widthMm, item.heightMm, item.quantity);
+  const hasPricingSnapshot = Boolean(pricing?.originalLine || pricing?.currentLine || pricing?.deltaLine);
+  const displayAreaM2 = deriveDisplayAreaM2(item.areaM2, item.effectiveWidthMm, item.effectiveHeightMm);
+  const displayTotalAreaM2 = deriveDisplayTotalAreaM2(item.areaM2, item.effectiveWidthMm, item.effectiveHeightMm, item.effectiveQuantity);
   return (
     <Surface padding="md" className="min-w-0 space-y-4">
       <div className="flex min-w-0 items-start justify-between gap-3">
@@ -77,14 +99,14 @@ export function TechnicalProposalItemCard({ item, pricing, currency, isSavingSel
           <h4 className="truncate font-semibold text-foreground">{item.reference || `Elemento ${item.sequence}`}</h4>
           {provenance ? <p className="mt-1 break-words text-xs text-foreground-secondary">{provenance}</p> : null}
           <p className="mt-1 break-words text-sm text-foreground-secondary">
-            {formatProposalQuantity(item.quantity)} · Ancho: {formatProposalNumber(item.widthMm, " mm")} · Alto: {formatProposalNumber(item.heightMm, " mm")}
+            {formatProposalQuantity(item.effectiveQuantity)} Ã‚Â· Ancho: {formatProposalNumber(item.effectiveWidthMm, " mm")} Ã‚Â· Alto: {formatProposalNumber(item.effectiveHeightMm, " mm")}
           </p>
           <p className="mt-1 break-words text-sm font-medium text-foreground-secondary">
-            Area unitaria: {formatProposalAreaM2(displayAreaM2)} · Area total: {formatProposalAreaM2(displayTotalAreaM2)}
+            Area unitaria: {formatProposalAreaM2(displayAreaM2)} Ã‚Â· Area total: {formatProposalAreaM2(displayTotalAreaM2)}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
-          <Badge tone={item.requiresReview ? "warning" : item.isTechnicallyComplete ? "success" : "neutral"}>{status}</Badge>
+          <Badge tone={status.tone}>{status.label}</Badge>
           <span className="text-xs text-foreground-secondary">
             {item.selectionState === "UNCONFIRMED" ? "Sugerencia sin confirmar" : item.selectionState === "CONFIRMED_AS_SUGGESTED" ? "Sugerencia confirmada" : "Configuracion modificada"}
           </span>
@@ -117,7 +139,14 @@ export function TechnicalProposalItemCard({ item, pricing, currency, isSavingSel
           {!hasPriceEstimate ? (
             <div>
               <p className="text-sm font-semibold text-foreground">{pricingStatusLabel(pricing.status)}</p>
-              <p className="mt-1 text-sm text-foreground-secondary">Este elemento no suma al subtotal actual.</p>
+              <p className="mt-1 text-sm text-foreground-secondary">No hay suficiente referencia historica para calcular el precio actual de esta configuracion.</p>
+              {hasPricingSnapshot ? (
+                <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div><dt className="text-xs text-foreground-secondary">Antes</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.originalLine?.expected ?? null, currency)}</dd></div>
+                  <div><dt className="text-xs text-foreground-secondary">Ahora</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.currentLine?.expected ?? null, currency)}</dd></div>
+                  <div><dt className="text-xs text-foreground-secondary">Diferencia</dt><dd className={`mt-1 font-semibold ${deltaTone(pricing.deltaLine?.expected ?? null)}`}>{formatDeltaMoney(pricing.deltaLine?.expected ?? null, currency)}</dd></div>
+                </dl>
+              ) : null}
               {pricingIssues.length > 0 ? (
                 <ul className="mt-2 space-y-1 text-sm text-warning">
                   {pricingIssues.map((warning, index) => (
@@ -132,10 +161,18 @@ export function TechnicalProposalItemCard({ item, pricing, currency, isSavingSel
                 <p className="text-sm font-semibold text-foreground">Precio estimado</p>
                 {pricing.requiresReview ? <span className="text-xs font-medium text-warning">Estimacion sujeta a revision</span> : null}
               </div>
-              <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div><dt className="text-xs text-foreground-secondary">Precio unitario</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.unit.expected, currency)}</dd></div>
-                <div><dt className="text-xs text-foreground-secondary">Total del elemento</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.line.expected, currency)}</dd></div>
-              </dl>
+              {hasPricingSnapshot ? (
+                <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div><dt className="text-xs text-foreground-secondary">Antes</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.originalLine?.expected ?? null, currency)}</dd></div>
+                  <div><dt className="text-xs text-foreground-secondary">Ahora</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.currentLine?.expected ?? null, currency)}</dd></div>
+                  <div><dt className="text-xs text-foreground-secondary">Diferencia</dt><dd className={`mt-1 font-semibold ${deltaTone(pricing.deltaLine?.expected ?? null)}`}>{formatDeltaMoney(pricing.deltaLine?.expected ?? null, currency)}</dd></div>
+                </dl>
+              ) : (
+                <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div><dt className="text-xs text-foreground-secondary">Precio unitario</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.unit.expected, currency)}</dd></div>
+                  <div><dt className="text-xs text-foreground-secondary">Total del elemento</dt><dd className="mt-1 font-semibold text-foreground">{formatRequirementMoney(pricing.line.expected, currency)}</dd></div>
+                </dl>
+              )}
               <p className="mt-2 text-xs text-foreground-secondary">
                 Rango estimado: {formatRequirementMoney(pricing.line.minimum, currency)} - {formatRequirementMoney(pricing.line.maximum, currency)}
               </p>
@@ -145,23 +182,48 @@ export function TechnicalProposalItemCard({ item, pricing, currency, isSavingSel
         </div>
       ) : null}
 
+      {item.readiness.pendingDefinitions.length > 0 ? (
+        <section className="rounded-sm border border-warning bg-warning/10 p-3" aria-label="Pendientes del item">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-foreground">Pendientes accionables</p>
+            <Badge tone={item.readiness.pendingDefinitions.some((definition) => definition.blocksPricing) ? "warning" : "neutral"}>{item.readiness.pendingDefinitions.some((definition) => definition.blocksPricing) ? "Bloquea pricing" : "Revisar antes de confirmar"}</Badge>
+          </div>
+          <ul className="mt-3 divide-y divide-border-subtle rounded-sm border border-border-subtle bg-surface">
+            {item.readiness.pendingDefinitions.map((definition) => (
+              <li key={`${definition.code}-${definition.field}`} className="p-3">
+                <div className="flex items-start gap-2">
+                  <CircleAlert aria-hidden="true" className="mt-0.5 shrink-0 text-warning" size={16} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">{definition.title}</p>
+                      <Badge tone={definition.blocksPricing ? "warning" : "neutral"}>{pendingBadge(definition)}</Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-foreground-secondary">{definition.message}</p>
+                    {definition.currentValue ? <p className="mt-1 text-xs text-foreground-secondary">Valor actual: {definition.currentValue}</p> : null}
+                    <p className="mt-2 text-xs font-semibold text-foreground">{definition.requiredAction}</p>
+                    <p className="mt-1 text-xs text-foreground-secondary">Accion sugerida: {actionLabel(definition.field)}</p>
+                    {definition.relatedReasonCodes.length > 0 ? (
+                      <details className="mt-2 text-xs text-foreground-secondary">
+                        <summary className="cursor-pointer font-medium text-foreground-secondary">Ver detalle tecnico</summary>
+                        <p className="mt-1 break-words text-[11px]">{definition.relatedReasonCodes.join(", ")}</p>
+                      </details>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <TechnicalProposalSelectionEditor
         item={item}
         isSaving={isSavingSelection}
         errorMessage={selectionErrorMessage}
+        submitLabel={pricing ? "Aplicar cambio" : "Guardar seleccion"}
+        savingLabel={pricing ? "Recalculando..." : "Guardando..."}
         onSave={onSaveSelection}
       />
 
-      {visibleReviewReasons.length > 0 ? (
-        <ul className="space-y-2 border-t border-border-subtle pt-3">
-          {visibleReviewReasons.map((reason, index) => (
-            <li key={`${reason}-${index}`} className="flex items-start gap-2 text-sm leading-6 text-warning">
-              <CircleAlert aria-hidden="true" className="mt-1 shrink-0" size={15} />
-              {formatReviewReason(reason)}
-            </li>
-          ))}
-        </ul>
-      ) : null}
     </Surface>
   );
 }

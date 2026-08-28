@@ -1,4 +1,4 @@
-﻿import { isDateTime, isNonEmptyString, isNullableString, isRecord } from "@/features/prequotes/newpipe-guards";
+import { isDateTime, isNonEmptyString, isNullableString, isRecord } from "@/features/prequotes/newpipe-guards";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
 
@@ -14,6 +14,9 @@ export interface TechnicalProposalSelectionRequest {
   systemId?: string | null;
   glassId?: string | null;
   finishId?: string | null;
+  quantity?: number | null;
+  widthMm?: number | null;
+  heightMm?: number | null;
 }
 
 function isConfirmationResponse(value: unknown): value is TechnicalProposalSelectionConfirmationResponse {

@@ -1,4 +1,4 @@
-﻿export interface RequirementPricingRange {
+export interface RequirementPricingRange {
   minimum: number | null;
   expected: number | null;
   maximum: number | null;
@@ -35,6 +35,12 @@ export interface RequirementPricingItem {
   assumptions: string[];
   missingData: string[];
   comparables: RequirementPricingComparable[];
+  originalUnit: RequirementPricingRange | null;
+  currentUnit: RequirementPricingRange | null;
+  deltaUnit: RequirementPricingRange | null;
+  originalLine: RequirementPricingRange | null;
+  currentLine: RequirementPricingRange | null;
+  deltaLine: RequirementPricingRange | null;
 }
 
 export interface RequirementPricing {
@@ -52,4 +58,42 @@ export interface RequirementPricing {
   assumptions: string[];
   missingData: string[];
   items: RequirementPricingItem[];
+  originalGrandTotal: number | null;
+  currentGrandTotal: number | null;
+  deltaGrandTotal: number | null;
+}
+
+export interface RepriceRequirementPricingItemRequest {
+  systemId?: string | null;
+  glassTypeId?: string | null;
+  finishTypeId?: string | null;
+  quantity?: number | null;
+  widthMm?: number | null;
+  heightMm?: number | null;
+}
+
+export interface RepriceRequirementPricingItemResponse {
+  requirementId: string;
+  technicalProposalId: string;
+  technicalProposalItemId: string;
+  configuration: {
+    systemId: string | null;
+    glassTypeId: string | null;
+    finishTypeId: string | null;
+  };
+  pricing: {
+    originalUnitPrice: number | null;
+    currentUnitPrice: number | null;
+    deltaUnitPrice: number | null;
+    originalLineTotal: number | null;
+    currentLineTotal: number | null;
+    deltaLineTotal: number | null;
+    state: string;
+  };
+  summary: {
+    originalGrandTotal: number | null;
+    currentGrandTotal: number | null;
+    deltaGrandTotal: number | null;
+  };
+  comparables: RequirementPricingComparable[];
 }

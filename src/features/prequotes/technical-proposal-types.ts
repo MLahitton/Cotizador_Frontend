@@ -1,4 +1,4 @@
-﻿export interface TechnicalProposalSystemOption {
+export interface TechnicalProposalSystemOption {
   id: string;
   code: string;
   displayName: string;
@@ -68,6 +68,43 @@ export interface TechnicalProposalHistoricalExample {
   technicalExplanation: string;
 }
 
+export type TechnicalProposalReadinessState = "READY" | "REVIEW_REQUIRED" | "BLOCKED";
+export type TechnicalProposalPendingCategory = "SYSTEM" | "GLASS" | "FINISH" | "GEOMETRY" | "QUANTITY" | "MEASUREMENTS" | "COMMERCIAL" | "EVIDENCE" | "RULE" | "OTHER";
+export type TechnicalProposalPendingSeverity = "BLOCKING" | "WARNING" | "INFO";
+
+export interface TechnicalProposalPendingDefinition {
+  code: string;
+  category: TechnicalProposalPendingCategory;
+  severity: TechnicalProposalPendingSeverity;
+  field: string;
+  title: string;
+  message: string;
+  currentValue: string | null;
+  requiredAction: string;
+  blocksConfirmation: boolean;
+  blocksPricing: boolean;
+  relatedReasonCodes: string[];
+}
+
+export interface TechnicalProposalItemReadiness {
+  state: TechnicalProposalReadinessState;
+  blockingCount: number;
+  warningCount: number;
+  pendingDefinitions: TechnicalProposalPendingDefinition[];
+}
+
+export interface TechnicalProposalReadiness {
+  state: TechnicalProposalReadinessState;
+  isReadyForConfirmation: boolean;
+  isReadyForPricing: boolean;
+  blockingItems: number;
+  warningItems: number;
+  blockingDefinitions: number;
+  warningDefinitions: number;
+  pricingBlockingItems: number;
+  pricingBlockingDefinitions: number;
+  categories: Record<string, number>;
+}
 export interface TechnicalProposalEvidence {
   pageNumber: number | null;
   sourceType: string;
@@ -92,6 +129,12 @@ export interface TechnicalProposalItem {
   quantity: number | null;
   widthMm: number | null;
   heightMm: number | null;
+  manualQuantityOverride: number | null;
+  manualWidthMmOverride: number | null;
+  manualHeightMmOverride: number | null;
+  effectiveQuantity: number | null;
+  effectiveWidthMm: number | null;
+  effectiveHeightMm: number | null;
   areaM2: number | null;
   extractionConfidence: number | null;
   extractionStatus: string;
@@ -121,7 +164,8 @@ export interface TechnicalProposalItem {
   finishResolutionReasons: string[];
   isTechnicallyComplete: boolean;
   isPriceable: boolean;
-  historicalEvidence: {
+    readiness: TechnicalProposalItemReadiness;
+historicalEvidence: {
     status: HistoricalEvidenceStatus;
     supportCount: number;
     bestSimilarity: number | null;
@@ -160,5 +204,6 @@ export interface TechnicalProposal {
   itemsRequiringReview: number;
   technicallyCompleteItems: number;
   priceableItems: number;
-  items: TechnicalProposalItem[];
+    readiness: TechnicalProposalReadiness;
+items: TechnicalProposalItem[];
 }
