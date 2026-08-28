@@ -41,6 +41,9 @@ export interface RequirementPricingItem {
   originalLine: RequirementPricingRange | null;
   currentLine: RequirementPricingRange | null;
   deltaLine: RequirementPricingRange | null;
+  priceSource: string | null;
+  repriceAttemptState: string | null;
+  repriceAttemptReason: string | null;
 }
 
 export interface RequirementPricing {
@@ -89,6 +92,9 @@ export interface RepriceRequirementPricingItemResponse {
     currentLineTotal: number | null;
     deltaLineTotal: number | null;
     state: string;
+    priceSource: string | null;
+    repriceAttemptState: string | null;
+    repriceAttemptReason: string | null;
   };
   summary: {
     originalGrandTotal: number | null;

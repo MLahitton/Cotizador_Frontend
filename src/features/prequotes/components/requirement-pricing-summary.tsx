@@ -1,4 +1,4 @@
-﻿import { CircleAlert } from "lucide-react";
+import { CircleAlert } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Surface } from "@/components/ui/surface";
@@ -20,6 +20,7 @@ function deltaTone(value: number | null): string {
 export function RequirementPricingSummary({ pricing }: { pricing: RequirementPricing }) {
   const subtotalLabel = pricing.isCompleteTotal ? "Subtotal esperado" : "Subtotal parcial esperado";
   const hasSnapshot = pricing.originalGrandTotal !== null || pricing.currentGrandTotal !== null || pricing.deltaGrandTotal !== null;
+  const preservedItems = pricing.items.filter((item) => item.priceSource === "LAST_VALID_CURRENT");
   return (
     <section aria-labelledby="requirement-pricing-title">
       <Surface variant="elevated" padding="lg">
@@ -76,6 +77,12 @@ export function RequirementPricingSummary({ pricing }: { pricing: RequirementPri
           <p className="mt-3 flex items-start gap-2 rounded-sm border border-warning bg-warning-soft p-3 text-sm leading-6 text-warning">
             <CircleAlert aria-hidden="true" className="mt-1 shrink-0" size={16} />
             El subtotal es parcial: los elementos pendientes no estan incluidos en este valor.
+          </p>
+        ) : null}
+        {preservedItems.length > 0 ? (
+          <p className="mt-3 flex items-start gap-2 rounded-sm border border-warning bg-warning-soft p-3 text-sm leading-6 text-warning">
+            <CircleAlert aria-hidden="true" className="mt-1 shrink-0" size={16} />
+            {preservedItems.length} item{preservedItems.length === 1 ? "" : "s"} conserva{preservedItems.length === 1 ? "" : "n"} el ultimo precio valido porque no se encontro un nuevo estimado para la configuracion seleccionada.
           </p>
         ) : null}
       </Surface>

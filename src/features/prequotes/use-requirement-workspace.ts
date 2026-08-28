@@ -171,8 +171,13 @@ function applyRepricedPricing(
         maximum: null,
       },
       comparables: response.comparables,
-      missingData: response.pricing.currentLineTotal === null ? ["NO_COMPARABLES"] : item.missingData,
-      requiresReview: response.pricing.state !== "PRICEABLE" || item.requiresReview,
+      priceSource: response.pricing.priceSource,
+      repriceAttemptState: response.pricing.repriceAttemptState,
+      repriceAttemptReason: response.pricing.repriceAttemptReason,
+      missingData: response.pricing.repriceAttemptState && response.pricing.repriceAttemptState !== "PRICEABLE"
+        ? Array.from(new Set([...item.missingData, response.pricing.repriceAttemptReason, "LAST_VALID_PRICE_PRESERVED"].filter((value): value is string => Boolean(value))))
+        : response.pricing.currentLineTotal === null ? ["NO_COMPARABLES"] : item.missingData,
+      requiresReview: response.pricing.state !== "PRICEABLE" || response.pricing.repriceAttemptState === "NO_ESTIMATE" || item.requiresReview,
     };
   });
   const pricedItemCount = nextItems.filter((item) => item.status === "PRICEABLE").length;
