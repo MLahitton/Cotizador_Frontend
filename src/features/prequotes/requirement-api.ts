@@ -22,7 +22,7 @@ import { ApiError } from "@/lib/http/api-error";
 
 const REQUIREMENT_STATUSES = ["PENDING", "PROCESSING", "PROCESSED", "FAILED", "CANCELLED", "SUPERSEDED"] as const;
 const PROCESSING_STATES = ["Pending", "Processing", "Finished"] as const;
-const PROCESSING_OUTCOMES = ["Completed", "RequiresReview", "Failed"] as const;
+const PROCESSING_OUTCOMES = ["Completed", "RequiresReview", "Failed", "Cancelled"] as const;
 const COMMERCIAL_LINES = ["CLASSIC", "ESSENTIAL", "BIOCONFORT", "SIGNATURE"] as const;
 
 function isOneOf<T extends string>(value: unknown, values: readonly T[]): value is T {
@@ -150,6 +150,18 @@ export async function processRequirement(requirementId: string): Promise<Process
   return response;
 }
 
+export async function cancelRequirementProcessing(requirementId: string): Promise<ProcessedRequirement> {
+  const response = await apiRequest(`/api/v2/requirements/${encodeURIComponent(requirementId)}/process/cancel`, { method: "POST", authenticated: true });
+  if (!isProcessedRequirement(response)) throw invalidResponse("El servidor no devolvio el resultado de cancelacion del analisis.");
+  return response;
+}
+
+export async function cancelRequirementProcessingAttempt(processingAttemptId: string): Promise<ProcessedRequirement> {
+  const response = await apiRequest(`/api/v2/processing-attempts/${encodeURIComponent(processingAttemptId)}/cancel`, { method: "POST", authenticated: true });
+  if (!isProcessedRequirement(response)) throw invalidResponse("El servidor no devolvio el resultado de cancelacion del analisis.");
+  return response;
+}
+
 export async function getRequirementById(requirementId: string): Promise<RequirementDetails> {
   const response = await apiRequest(`/api/v2/requirements/${encodeURIComponent(requirementId)}`, { authenticated: true });
   if (!isRequirementDetails(response)) throw invalidResponse("El servidor no devolvio el detalle del requerimiento.");
@@ -218,6 +230,7 @@ export function getRequirementErrorMessage(error: unknown, operation: "upload" |
     REQUIREMENT_STORAGE_ERROR: "No fue posible leer o guardar los archivos del requerimiento.",
     REQUIREMENT_PROCESSING_POLL_TIMEOUT: "El analisis esta tardando mas de lo esperado. Puedes volver a consultar el estado mas adelante.",
     REQUIREMENT_PROCESSING_FAILED: "El analisis del requerimiento no pudo completarse.",
+    REQUIREMENT_PROCESSING_CANCELLED: "Extraccion detenida. Puedes iniciar el analisis nuevamente.",
     REQUIREMENT_NO_FILES: "El requerimiento no tiene archivos disponibles para analizar.",
     REQUIREMENT_UNSUPPORTED_FILE_TYPE: "Uno de los archivos tiene un formato no compatible.",
     REQUIREMENT_EMPTY_FILE: "Uno de los archivos esta vacio.",

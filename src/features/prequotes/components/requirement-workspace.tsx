@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Calculator, FileCheck2, Play } from "lucide-react";
+import { Calculator, FileCheck2, Play, StopCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { useRequirementWorkspace } from "@/features/prequotes/use-requirement-wo
 export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuoteId: string; projectIsActive: boolean }) {
   const workspace = useRequirementWorkspace(preQuoteId);
   const isUploading = workspace.phase === "uploading";
-  const isProcessing = workspace.phase === "processing" || workspace.phase === "completing";
+  const isProcessing = workspace.phase === "processing" || workspace.phase === "processing-cancelling" || workspace.phase === "completing";
   const hasAttentionState = workspace.phase.endsWith("error") || workspace.phase === "processing-timeout";
   const fileCount = workspace.requirement && "fileCount" in workspace.requirement
     ? workspace.requirement.fileCount
@@ -79,7 +79,7 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
               {fileNames ? <p className="mt-1 truncate text-xs text-foreground-secondary">{fileNames}</p> : null}
             </div>
           </div>
-          {workspace.phase === "ready" ? (
+          {workspace.phase === "ready" || workspace.phase === "processing-cancelled" ? (
             <Button type="button" disabled={isProcessing} onClick={workspace.process}><Play aria-hidden="true" size={17} />Iniciar analisis</Button>
           ) : (
             <Badge tone={workspace.phase === "complete" ? "success" : hasAttentionState ? "warning" : "brand"}>
@@ -89,7 +89,23 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
         </Surface>
       ) : null}
 
-      {isProcessing ? <RequirementAnalysisProgress completed={workspace.phase === "completing"} /> : null}
+      {isProcessing ? (
+        <div className="space-y-3">
+          <RequirementAnalysisProgress completed={workspace.phase === "completing"} />
+          <Surface variant="subtle" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-foreground-secondary">
+              {workspace.phase === "processing-cancelling" ? "Deteniendo..." : "Procesando documentos..."}
+            </p>
+            <Button type="button" variant="ghost" disabled={workspace.phase !== "processing"} onClick={workspace.cancelProcessing}>
+              <StopCircle aria-hidden="true" size={17} />
+              {workspace.phase === "processing-cancelling" ? "Deteniendo..." : "Detener extraccion"}
+            </Button>
+          </Surface>
+        </div>
+      ) : null}
+      {workspace.phase === "processing-cancelled" ? (
+        <Surface variant="subtle"><p className="text-sm text-foreground-secondary">Extraccion detenida. Puedes iniciar el analisis nuevamente.</p></Surface>
+      ) : null}
       {workspace.phase === "proposal-loading" ? <PreQuotesLoading message="Cargando propuesta tecnica..." /> : null}
       {workspace.phase === "process-error" ? <PreQuotesError title="No fue posible completar el analisis" message={getRequirementErrorMessage(workspace.error, "process")} onRetry={workspace.process} /> : null}
       {workspace.phase === "processing-timeout" ? <PreQuotesError title="El analisis sigue en curso" message={getRequirementErrorMessage(workspace.error, "process")} onRetry={workspace.retryCurrent} retryLabel="Consultar estado" /> : null}
@@ -123,6 +139,9 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
           onRetry={workspace.confirmSelection}
           retryLabel="Reintentar confirmacion"
         />
+      ) : null}
+      {workspace.pricingCancelMessage ? (
+        <Surface variant="subtle"><p className="text-sm text-foreground-secondary">{workspace.pricingCancelMessage}</p></Surface>
       ) : null}
       {workspace.pricingError ? (
         <PreQuotesError

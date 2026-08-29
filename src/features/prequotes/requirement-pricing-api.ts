@@ -96,6 +96,10 @@ export async function getRequirementPricing(requirementId: string): Promise<Requ
   return response;
 }
 
+export async function cancelRequirementPricing(requirementId: string): Promise<void> {
+  await apiRequest(`/api/v2/requirements/${encodeURIComponent(requirementId)}/pricing/cancel`, { method: "POST", authenticated: true });
+}
+
 export async function repriceRequirementPricingItem(
   requirementId: string,
   technicalProposalItemId: string,
@@ -127,7 +131,7 @@ export function getRequirementPricingErrorMessage(error: unknown): string {
     401: "Tu sesion expiro. Inicia sesion nuevamente.",
     403: "No tienes acceso para calcular esta estimacion.",
     404: "El requerimiento, la propuesta o el item ya no esta disponible.",
-    409: "Confirma las configuraciones antes de calcular precios.",
+    409: "Confirma las configuraciones antes de calcular precios o espera a que termine la cancelacion.",
     500: "No fue posible calcular la estimacion economica.",
   };
   return messages[error.status] ?? "No fue posible calcular la estimacion economica.";
