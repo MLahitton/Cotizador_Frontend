@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -6,8 +6,8 @@ import {
   getSupportedDocumentFormat,
   MAX_DOCUMENT_SIZE_BYTES,
 } from "@/features/prequotes/prequote-document-formatters";
-import { createRequirement, getCurrentRequirement, processRequirement } from "@/features/prequotes/requirement-api";
-import { getRequirementPricing, repriceRequirementPricingItem } from "@/features/prequotes/requirement-pricing-api";
+import { cancelRequirementProcessing, createRequirement, getCurrentRequirement, processRequirement } from "@/features/prequotes/requirement-api";
+import { cancelRequirementPricing, getRequirementPricing, repriceRequirementPricingItem } from "@/features/prequotes/requirement-pricing-api";
 import type { RepriceRequirementPricingItemResponse, RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 import type { CreatedRequirement, CurrentRequirement, ProcessedRequirement, RequirementCommercialLine } from "@/features/prequotes/requirement-types";
 import { confirmTechnicalProposalSelection, updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
@@ -21,7 +21,7 @@ const PROCESSING_POLL_INTERVAL_MS = 7000;
 const PROCESSING_POLL_LIMIT_MS = 15 * 60 * 1000;
 
 export type RequirementWorkspacePhase =
-  | "hydrating" | "idle" | "uploading" | "ready" | "processing" | "completing"
+  | "hydrating" | "idle" | "uploading" | "ready" | "processing" | "processing-cancelling" | "processing-cancelled" | "completing"
   | "proposal-loading" | "complete" | "upload-error" | "process-error" | "proposal-error" | "current-error"
   | "processing-timeout";
 
@@ -222,6 +222,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const [savingSelectionItemIds, setSavingSelectionItemIds] = useState<string[]>([]);
   const [selectionErrors, setSelectionErrors] = useState<Record<string, unknown>>({});
   const [pricingAfterSelectionError, setPricingAfterSelectionError] = useState(false);
+  const [pricingCancelMessage, setPricingCancelMessage] = useState<string | null>(null);
   const [confirmationLoading, setConfirmationLoading] = useState(false);
   const [confirmationError, setConfirmationError] = useState<unknown | null>(null);
   const [error, setError] = useState<unknown | null>(null);
@@ -234,6 +235,8 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const proposalRequestRef = useRef(0);
   const pricingRequestRef = useRef(0);
   const processingPollRef = useRef<{ requirementId: string; startedAt: number } | null>(null);
+  const processingCancellationRequestedRef = useRef(false);
+  const pricingCancellationRequestedRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -296,6 +299,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
       setSavingSelectionItemIds([]);
       setSelectionErrors({});
       setPricingAfterSelectionError(false);
+      setPricingCancelMessage(null);
       setConfirmationLoading(false);
       setConfirmationError(null);
       setError(null);
@@ -318,6 +322,11 @@ export function useRequirementWorkspace(preQuoteId: string) {
 
         if (isRequirementProcessing(current)) {
           setPhase("processing");
+          return;
+        }
+
+        if (current.latestAttemptOutcome === "Cancelled") {
+          setPhase("processing-cancelled");
           return;
         }
 
@@ -384,6 +393,11 @@ export function useRequirementWorkspace(preQuoteId: string) {
         setRequirement(current);
         if (current.hasTechnicalProposal || current.status === "PROCESSED") {
           await loadProposal(current.requirementId, { preQuoteId: expectedPreQuoteId, token });
+          return;
+        }
+
+        if (current.latestAttemptOutcome === "Cancelled") {
+          setPhase("processing-cancelled");
           return;
         }
 
@@ -460,6 +474,10 @@ export function useRequirementWorkspace(preQuoteId: string) {
       const response = await processRequirement(requirement.requirementId);
       if (!mountedRef.current || preQuoteIdRef.current !== preQuoteId) return;
       setProcessingResult(response);
+      if (response.outcome === "Cancelled") {
+        setPhase("processing-cancelled");
+        return;
+      }
       if (response.outcome === "Failed") {
         setError(processingResultError(response));
         setPhase("process-error");
@@ -485,6 +503,32 @@ export function useRequirementWorkspace(preQuoteId: string) {
     }
   }, [loadProposal, preQuoteId, requirement]);
 
+
+  const cancelProcessing = useCallback(async () => {
+    if (!requirement || phase !== "processing") return;
+    processingCancellationRequestedRef.current = true;
+    setPhase("processing-cancelling");
+    setError(null);
+    try {
+      const cancelled = await cancelRequirementProcessing(requirement.requirementId);
+      if (!mountedRef.current || preQuoteIdRef.current !== preQuoteId) return;
+      setProcessingResult(cancelled);
+      const current = await getCurrentRequirement(preQuoteId);
+      if (!mountedRef.current || preQuoteIdRef.current !== preQuoteId) return;
+      setRequirement(current);
+      setPhase("processing-cancelled");
+    } catch (cause) {
+      if (!mountedRef.current || preQuoteIdRef.current !== preQuoteId) return;
+      if (getProblemCode(cause) === "REQUIREMENT_PROCESSING_ATTEMPT_NOT_FOUND") {
+        setCurrentReloadKey((current) => current + 1);
+        return;
+      }
+      setError(cause);
+      setPhase("process-error");
+    } finally {
+      processingCancellationRequestedRef.current = false;
+    }
+  }, [phase, preQuoteId, requirement]);
   const retryProposal = useCallback(async () => {
     if (busyRef.current || !requirement) return;
     busyRef.current = true;
@@ -514,8 +558,14 @@ export function useRequirementWorkspace(preQuoteId: string) {
       ) return;
       setPricing(response);
       setPricingAfterSelectionError(false);
+      setPricingCancelMessage(null);
     } catch (cause) {
       if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId || pricingRequestRef.current !== requestId) return;
+      if (pricingCancellationRequestedRef.current || getProblemCode(cause) === "REQUIREMENT_PRICING_CANCELLED") {
+        setPricingError(null);
+        setPricingCancelMessage(pricing ? "Calculo detenido. Se conserva el ultimo precio valido." : "Calculo detenido. No se genero una precotizacion.");
+        return;
+      }
       setPricingError(cause);
     } finally {
       pricingBusyRef.current = false;
@@ -523,8 +573,27 @@ export function useRequirementWorkspace(preQuoteId: string) {
         setPricingLoading(false);
       }
     }
-  }, [preQuoteId, proposal, requirement]);
+  }, [preQuoteId, pricing, proposal, requirement]);
 
+
+  const cancelPricing = useCallback(async () => {
+    if (!requirement || !pricingLoading) return;
+    pricingCancellationRequestedRef.current = true;
+    setPricingError(null);
+    try {
+      await cancelRequirementPricing(requirement.requirementId);
+      if (!mountedRef.current || preQuoteIdRef.current !== preQuoteId) return;
+      pricingRequestRef.current += 1;
+      pricingBusyRef.current = false;
+      setPricingLoading(false);
+      setPricingCancelMessage(pricing ? "Calculo detenido. Se conserva el ultimo precio valido." : "Calculo detenido. No se genero una precotizacion.");
+    } catch (cause) {
+      if (!mountedRef.current || preQuoteIdRef.current !== preQuoteId) return;
+      setPricingError(cause);
+    } finally {
+      pricingCancellationRequestedRef.current = false;
+    }
+  }, [preQuoteId, pricing, pricingLoading, requirement]);
   const saveSelection = useCallback(async (itemId: string, request: TechnicalProposalSelectionRequest) => {
     if (!requirement || !proposal || savingSelectionItemIds.includes(itemId)) return false;
     const expectedPreQuoteId = preQuoteId;
@@ -551,6 +620,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
         setPricing((current) => current ? applyRepricedPricing(current, response) : current);
         setPricingError(null);
         setPricingAfterSelectionError(false);
+      setPricingCancelMessage(null);
         setConfirmationError(null);
         return true;
       }
@@ -562,6 +632,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
       setPricing(null);
       setPricingError(null);
       setPricingAfterSelectionError(false);
+      setPricingCancelMessage(null);
       setConfirmationError(null);
       return true;
     } catch (cause) {
@@ -599,9 +670,9 @@ export function useRequirementWorkspace(preQuoteId: string) {
   }, [confirmationLoading, preQuoteId, proposal, requirement]);
   return {
     files, commercialLine, validationError, phase, requirement, processingResult, proposal, error,
-    pricing, pricingLoading, pricingError, pricingAfterSelectionError, confirmationLoading, confirmationError, savingSelectionItemIds, selectionErrors,
+    pricing, pricingLoading, pricingError, pricingAfterSelectionError, pricingCancelMessage, confirmationLoading, confirmationError, savingSelectionItemIds, selectionErrors,
     setCommercialLine,
-    selectFiles, removeFile, upload, process, retryProposal, retryCurrent,
-    calculatePricing, confirmSelection, saveSelection,
+    selectFiles, removeFile, upload, process, cancelProcessing, retryProposal, retryCurrent,
+    calculatePricing, cancelPricing, confirmSelection, saveSelection,
   };
 }

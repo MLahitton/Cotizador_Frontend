@@ -68,7 +68,7 @@ export interface RequirementLifecycleResponse extends RequirementLifecycleCapabi
 }
 
 export type RequirementProcessingState = "Pending" | "Processing" | "Finished";
-export type RequirementProcessingOutcome = "Completed" | "RequiresReview" | "Failed";
+export type RequirementProcessingOutcome = "Completed" | "RequiresReview" | "Failed" | "Cancelled";
 
 export interface RequirementProcessingSummary {
   itemCount: number;
