@@ -1,8 +1,5 @@
 import {
   BookOpenCheck,
-  Calculator,
-  Files,
-  FileText,
   FolderKanban,
   Layers3,
   LayoutDashboard,
@@ -55,27 +52,6 @@ export const appNavigationItems: AppNavigationItem[] = [
     href: "/catalogs/canonical",
     icon: BookOpenCheck,
     disabled: false,
-  },
-  {
-    id: "prequoter",
-    label: "Precotizador",
-    href: null,
-    icon: Calculator,
-    disabled: true,
-  },
-  {
-    id: "quotations",
-    label: "Cotizaciones",
-    href: null,
-    icon: FileText,
-    disabled: true,
-  },
-  {
-    id: "documents",
-    label: "Documentos",
-    href: null,
-    icon: Files,
-    disabled: true,
   },
   {
     id: "settings",
