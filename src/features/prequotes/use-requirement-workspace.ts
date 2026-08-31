@@ -13,6 +13,8 @@ import type { CreatedRequirement, CurrentRequirement, ProcessedRequirement, Requ
 import { confirmTechnicalProposalSelection, updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 import { getTechnicalProposal } from "@/features/prequotes/technical-proposal-api";
 import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
+import { getTechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-api";
+import type { TechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-types";
 import { ApiError } from "@/lib/http/api-error";
 
 const MAX_FILES = 10;
@@ -221,6 +223,9 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const [pricingError, setPricingError] = useState<unknown | null>(null);
   const [savingSelectionItemIds, setSavingSelectionItemIds] = useState<string[]>([]);
   const [selectionErrors, setSelectionErrors] = useState<Record<string, unknown>>({});
+  const [selectionCatalog, setSelectionCatalog] = useState<TechnicalSelectionCatalog | null>(null);
+  const [selectionCatalogLoading, setSelectionCatalogLoading] = useState(false);
+  const [selectionCatalogError, setSelectionCatalogError] = useState<string | null>(null);
   const [pricingAfterSelectionError, setPricingAfterSelectionError] = useState(false);
   const [pricingCancelMessage, setPricingCancelMessage] = useState<string | null>(null);
   const [confirmationLoading, setConfirmationLoading] = useState(false);
@@ -234,6 +239,8 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const workspaceTokenRef = useRef(0);
   const proposalRequestRef = useRef(0);
   const pricingRequestRef = useRef(0);
+  const selectionCatalogRequestRef = useRef(0);
+  const selectionCatalogCacheRef = useRef(new Map<RequirementCommercialLine, TechnicalSelectionCatalog>());
   const processingPollRef = useRef<{ requirementId: string; startedAt: number } | null>(null);
   const processingCancellationRequestedRef = useRef(false);
   const pricingCancellationRequestedRef = useRef(false);
@@ -241,6 +248,31 @@ export function useRequirementWorkspace(preQuoteId: string) {
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
+  }, []);
+
+  const loadSelectionCatalog = useCallback(async (line: RequirementCommercialLine, force = false) => {
+    const cached = selectionCatalogCacheRef.current.get(line);
+    if (cached && !force) {
+      setSelectionCatalog(cached);
+      setSelectionCatalogLoading(false);
+      setSelectionCatalogError(null);
+      return;
+    }
+    const requestId = ++selectionCatalogRequestRef.current;
+    const expectedPreQuoteId = preQuoteIdRef.current;
+    setSelectionCatalogLoading(true);
+    setSelectionCatalogError(null);
+    try {
+      const response = await getTechnicalSelectionCatalog(line);
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId || selectionCatalogRequestRef.current !== requestId) return;
+      setSelectionCatalog(response);
+      selectionCatalogCacheRef.current.set(line, response);
+    } catch {
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId || selectionCatalogRequestRef.current !== requestId) return;
+      setSelectionCatalogError("No fue posible cargar el catálogo completo de selección.");
+    } finally {
+      if (mountedRef.current && preQuoteIdRef.current === expectedPreQuoteId && selectionCatalogRequestRef.current === requestId) setSelectionCatalogLoading(false);
+    }
   }, []);
 
   const loadProposal = useCallback(async (
@@ -298,6 +330,9 @@ export function useRequirementWorkspace(preQuoteId: string) {
       setPricingLoading(false);
       setSavingSelectionItemIds([]);
       setSelectionErrors({});
+      setSelectionCatalog(null);
+      setSelectionCatalogLoading(false);
+      setSelectionCatalogError(null);
       setPricingAfterSelectionError(false);
       setPricingCancelMessage(null);
       setConfirmationLoading(false);
@@ -315,6 +350,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
 
         setRequirement(current);
         setCommercialLine(current.commercialLine);
+        if (current.commercialLine) void loadSelectionCatalog(current.commercialLine);
         if (current.hasTechnicalProposal) {
           await loadProposal(current.requirementId, { preQuoteId, token });
           return;
@@ -351,7 +387,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
     })();
 
     return () => { cancelled = true; };
-  }, [currentReloadKey, loadProposal, preQuoteId]);
+  }, [currentReloadKey, loadProposal, loadSelectionCatalog, preQuoteId]);
 
   const retryCurrent = useCallback(() => {
     setCurrentReloadKey((current) => current + 1);
@@ -455,6 +491,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
       const created = await createRequirement(preQuoteId, files, commercialLine!);
       if (!mountedRef.current || preQuoteIdRef.current !== preQuoteId) return;
       setRequirement(created);
+      void loadSelectionCatalog(created.commercialLine);
       setPhase("ready");
     } catch (cause) {
       if (!mountedRef.current || preQuoteIdRef.current !== preQuoteId) return;
@@ -463,7 +500,11 @@ export function useRequirementWorkspace(preQuoteId: string) {
     } finally {
       busyRef.current = false;
     }
-  }, [commercialLine, files, preQuoteId, requirement]);
+  }, [commercialLine, files, loadSelectionCatalog, preQuoteId, requirement]);
+
+  const retrySelectionCatalog = useCallback(() => {
+    if (requirement?.commercialLine) void loadSelectionCatalog(requirement.commercialLine, true);
+  }, [loadSelectionCatalog, requirement]);
 
   const process = useCallback(async () => {
     if (busyRef.current || !requirement || isRequirementProcessing(requirement)) return;
@@ -671,8 +712,9 @@ export function useRequirementWorkspace(preQuoteId: string) {
   return {
     files, commercialLine, validationError, phase, requirement, processingResult, proposal, error,
     pricing, pricingLoading, pricingError, pricingAfterSelectionError, pricingCancelMessage, confirmationLoading, confirmationError, savingSelectionItemIds, selectionErrors,
+    selectionCatalog, selectionCatalogLoading, selectionCatalogError,
     setCommercialLine,
     selectFiles, removeFile, upload, process, cancelProcessing, retryProposal, retryCurrent,
-    calculatePricing, cancelPricing, confirmSelection, saveSelection,
+    calculatePricing, cancelPricing, confirmSelection, saveSelection, retrySelectionCatalog,
   };
 }

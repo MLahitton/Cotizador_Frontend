@@ -9,6 +9,7 @@ import { PreQuotesError, PreQuotesLoading } from "@/features/prequotes/component
 import { RequirementAnalysisProgress } from "@/features/prequotes/components/requirement-analysis-progress";
 import { RequirementDocumentsLifecycle } from "@/features/prequotes/components/requirement-documents-lifecycle";
 import { RequirementPricingSummary } from "@/features/prequotes/components/requirement-pricing-summary";
+import { RequirementChatPanel } from "@/features/prequotes/components/requirement-chat-panel";
 import { RequirementUploadPanel } from "@/features/prequotes/components/requirement-upload-panel";
 import { TechnicalProposalSummary } from "@/features/prequotes/components/technical-proposal-summary";
 import { getRequirementErrorMessage } from "@/features/prequotes/requirement-api";
@@ -131,7 +132,8 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
         </div>
       ) : null}
 
-      {workspace.requirement ? <RequirementDocumentsLifecycle key={workspace.requirement.requirementId} requirementId={workspace.requirement.requirementId} onCurrentChanged={workspace.retryCurrent} /> : null}
+      {workspace.requirement ? <RequirementDocumentsLifecycle key={workspace.requirement.requirementId} requirementId={workspace.requirement!.requirementId} onCurrentChanged={workspace.retryCurrent} /> : null}
+      {workspace.requirement ? <RequirementChatPanel requirementId={workspace.requirement!.requirementId} title="Asistente de la precotizacion" /> : null}
       {workspace.confirmationError ? (
         <PreQuotesError
           title="No fue posible confirmar las configuraciones"
@@ -156,8 +158,13 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
       {workspace.pricing ? <RequirementPricingSummary pricing={workspace.pricing} /> : null}
       {workspace.proposal ? (
         <TechnicalProposalSummary
+          requirementId={workspace.requirement!.requirementId}
           proposal={workspace.proposal}
           pricing={workspace.pricing}
+          selectionCatalog={workspace.selectionCatalog}
+          selectionCatalogLoading={workspace.selectionCatalogLoading}
+          selectionCatalogError={workspace.selectionCatalogError}
+          onRetrySelectionCatalog={workspace.retrySelectionCatalog}
           savingSelectionItemIds={workspace.savingSelectionItemIds}
           selectionErrorMessages={Object.fromEntries(
             Object.entries(workspace.selectionErrors).map(([itemId, error]) => [

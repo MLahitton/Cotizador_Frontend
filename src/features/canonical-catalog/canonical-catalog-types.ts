@@ -5,6 +5,7 @@ export type CanonicalCatalogAliasMatchPolicy =
   | "TECHNICAL_PHRASE";
 
 export interface CanonicalCatalogSystem {
+  id: string;
   code: string;
   name: string;
   technicalName: string | null;
@@ -29,8 +30,10 @@ export interface CanonicalCatalogFrame {
 }
 
 export interface CanonicalCatalogFinish {
+  id: string;
   code: string;
   name: string;
+  isSelectable: boolean;
   requiresReview: boolean;
   isActive: boolean;
 }

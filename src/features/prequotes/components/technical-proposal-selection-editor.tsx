@@ -4,36 +4,28 @@ import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { SearchableCatalogCombobox, type SearchableCatalogOption } from "@/components/ui/searchable-catalog-combobox";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
+import type { TechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-types";
 import type {
-  TechnicalProposalFinishOption,
-  TechnicalProposalGlassOption,
   TechnicalProposalItem,
-  TechnicalProposalSystemOption,
 } from "@/features/prequotes/technical-proposal-types";
 
-function uniqueOptions<T extends { id: string }>(options: Array<T | null>): T[] {
-  return Array.from(new Map(options.filter((option): option is T => option !== null).map((option) => [option.id, option])).values());
+type Recommendation = SearchableCatalogOption["recommendation"];
+
+function recommendationFor(id: string, selectedId: string | null, suggestedId: string | null, alternativeIds: Set<string>): Recommendation {
+  if (id === selectedId) return "selected";
+  if (id === suggestedId) return "suggested";
+  if (alternativeIds.has(id)) return "alternative";
+  return null;
 }
 
-function Field<T extends { id: string; displayName: string }>({ label, value, options, disabled, allowEmpty, onChange }: {
-  label: string;
-  value: string;
-  options: T[];
-  disabled: boolean;
-  allowEmpty: boolean;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="space-y-2 text-sm font-medium text-foreground">
-      {label}
-      <Select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
-        <option value="" disabled={!allowEmpty}>Por definir</option>
-        {options.map((option) => <option key={option.id} value={option.id}>{option.displayName}</option>)}
-      </Select>
-    </label>
-  );
+function recommendationRank(value: Recommendation): number {
+  return value === "selected" ? 0 : value === "suggested" ? 1 : value === "alternative" ? 2 : 3;
+}
+
+function ordered(options: SearchableCatalogOption[]): SearchableCatalogOption[] {
+  return options.sort((left, right) => recommendationRank(left.recommendation) - recommendationRank(right.recommendation) || left.title.localeCompare(right.title, "es"));
 }
 
 function NumericField({ label, suffix, value, disabled, onChange }: {
@@ -72,8 +64,12 @@ function parsePositiveInteger(value: string): number | null {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-export function TechnicalProposalSelectionEditor({ item, isSaving, errorMessage, submitLabel = "Guardar seleccion", savingLabel = "Guardando...", onSave }: {
+export function TechnicalProposalSelectionEditor({ item, catalog, catalogLoading, catalogError, onRetryCatalog, isSaving, errorMessage, submitLabel = "Guardar seleccion", savingLabel = "Guardando...", onSave }: {
   item: TechnicalProposalItem;
+  catalog: TechnicalSelectionCatalog | null;
+  catalogLoading: boolean;
+  catalogError: string | null;
+  onRetryCatalog: () => void;
   isSaving: boolean;
   errorMessage: string | null;
   submitLabel?: string;
@@ -96,15 +92,44 @@ export function TechnicalProposalSelectionEditor({ item, isSaving, errorMessage,
     widthMm: toInput(item.effectiveWidthMm),
     heightMm: toInput(item.effectiveHeightMm),
   });
-  const systems = useMemo(() => uniqueOptions<TechnicalProposalSystemOption>([
-    item.selected?.system ?? null, item.suggested.system, ...item.alternatives.systems.map(({ option }) => option),
-  ]), [item]);
-  const glass = useMemo(() => uniqueOptions<TechnicalProposalGlassOption>([
-    item.selected?.glass ?? null, item.suggested.glass, ...item.alternatives.glass.map(({ option }) => option),
-  ]), [item]);
-  const finishes = useMemo(() => uniqueOptions<TechnicalProposalFinishOption>([
-    item.selected?.finish ?? null, item.suggested.finish, ...item.alternatives.finishes.map(({ option }) => option),
-  ]), [item]);
+  const systems = useMemo(() => {
+    const selectedId = item.selected?.system?.id ?? null;
+    const suggestedId = item.suggested.system?.id ?? null;
+    const alternatives = new Set(item.alternatives.systems.map(({ option }) => option.id));
+    const values = new Map<string, SearchableCatalogOption>();
+    for (const option of catalog?.systems ?? []) values.set(option.id, {
+      id: option.id,
+      title: option.name,
+      subtitle: [option.functionalType, option.commercialLine, option.variant].filter(Boolean).join(" · "),
+      searchText: [option.displayName, option.code, option.name, option.technicalName, option.commercialName, option.functionalType, option.family, option.series, option.variant].filter(Boolean).join(" "),
+      recommendation: recommendationFor(option.id, selectedId, suggestedId, alternatives),
+    });
+    for (const option of [item.selected?.system ?? null, item.suggested.system, ...item.alternatives.systems.map(({ option }) => option)]) if (option && !values.has(option.id)) values.set(option.id, {
+      id: option.id, title: option.displayName,
+      subtitle: [option.functionalType, option.commercialLine, option.variant].filter(Boolean).join(" · "),
+      searchText: [option.displayName, option.code, option.technicalName, option.commercialName, option.functionalType, option.family, option.series, option.variant].filter(Boolean).join(" "),
+      recommendation: recommendationFor(option.id, selectedId, suggestedId, alternatives),
+    });
+    return ordered([...values.values()]);
+  }, [catalog, item]);
+  const glass = useMemo(() => {
+    const selectedId = item.selected?.glass?.id ?? null;
+    const suggestedId = item.suggested.glass?.id ?? null;
+    const alternatives = new Set(item.alternatives.glass.map(({ option }) => option.id));
+    const values = new Map<string, SearchableCatalogOption>();
+    for (const option of catalog?.glasses ?? []) values.set(option.id, { id: option.id, title: option.displayName, subtitle: option.code, searchText: [option.displayName, option.code, option.description].filter(Boolean).join(" "), recommendation: recommendationFor(option.id, selectedId, suggestedId, alternatives) });
+    for (const option of [item.selected?.glass ?? null, item.suggested.glass, ...item.alternatives.glass.map(({ option }) => option)]) if (option && !values.has(option.id)) values.set(option.id, { id: option.id, title: option.displayName, subtitle: option.code, searchText: [option.displayName, option.code, option.family, option.composition, option.treatment, option.productToken].filter(Boolean).join(" "), recommendation: recommendationFor(option.id, selectedId, suggestedId, alternatives) });
+    return ordered([...values.values()]);
+  }, [catalog, item]);
+  const finishes = useMemo(() => {
+    const selectedId = item.selected?.finish?.id ?? null;
+    const suggestedId = item.suggested.finish?.id ?? null;
+    const alternatives = new Set(item.alternatives.finishes.map(({ option }) => option.id));
+    const values = new Map<string, SearchableCatalogOption>();
+    for (const option of catalog?.finishes ?? []) values.set(option.id, { id: option.id, title: option.displayName, subtitle: option.code, searchText: `${option.displayName} ${option.code}`, recommendation: recommendationFor(option.id, selectedId, suggestedId, alternatives) });
+    for (const option of [item.selected?.finish ?? null, item.suggested.finish, ...item.alternatives.finishes.map(({ option }) => option)]) if (option && !values.has(option.id)) values.set(option.id, { id: option.id, title: option.displayName, subtitle: option.code, searchText: [option.displayName, option.code, option.commercialCode, option.normalizedType, option.color].filter(Boolean).join(" "), recommendation: recommendationFor(option.id, selectedId, suggestedId, alternatives) });
+    return ordered([...values.values()]);
+  }, [catalog, item]);
 
   const setDraftSystemId = (value: string) => { draftRef.current.systemId = value; setSystemId(value); };
   const setDraftGlassId = (value: string) => { draftRef.current.glassId = value; setGlassId(value); };
@@ -183,10 +208,11 @@ export function TechnicalProposalSelectionEditor({ item, isSaving, errorMessage,
         <NumericField label="Alto" suffix="mm" value={heightMm} disabled={isSaving} onChange={setDraftHeightMm} />
       </div>
       <div className="grid gap-3">
-        <Field label="Sistema" value={systemId} options={systems} disabled={isSaving} allowEmpty={!effective.system} onChange={setDraftSystemId} />
-        <Field label="Vidrio" value={glassId} options={glass} disabled={isSaving} allowEmpty={!effective.glass} onChange={setDraftGlassId} />
-        <Field label="Acabado" value={finishId} options={finishes} disabled={isSaving} allowEmpty={!effective.finish} onChange={setDraftFinishId} />
+        <SearchableCatalogCombobox label="Sistema" value={systemId} options={systems} disabled={isSaving || Boolean(catalogError)} loading={catalogLoading} searchPlaceholder="Buscar sistema por nombre, código o contexto" allowEmpty={!effective.system} onChange={setDraftSystemId} />
+        <SearchableCatalogCombobox label="Vidrio" value={glassId} options={glass} disabled={isSaving || Boolean(catalogError)} loading={catalogLoading} searchPlaceholder="Buscar vidrio" allowEmpty={!effective.glass} onChange={setDraftGlassId} />
+        <SearchableCatalogCombobox label="Acabado" value={finishId} options={finishes} disabled={isSaving || Boolean(catalogError)} loading={catalogLoading} searchPlaceholder="Buscar acabado" allowEmpty={!effective.finish} onChange={setDraftFinishId} />
       </div>
+      {catalogError ? <div className="flex items-center justify-between gap-3 rounded-sm border border-danger/30 bg-danger-soft p-3"><p role="alert" className="text-sm text-danger">{catalogError}</p><Button type="button" size="sm" variant="outline" onClick={onRetryCatalog}>Reintentar</Button></div> : null}
       {submitLabel === "Aplicar cambio" ? <p className="text-xs text-foreground-secondary">Al aplicar cambios, el precio del item puede cambiar.</p> : null}
       {errorMessage ? <p role="alert" className="text-sm text-danger">{errorMessage}</p> : null}
       <div className="flex flex-wrap justify-end gap-2">

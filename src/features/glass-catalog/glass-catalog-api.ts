@@ -124,6 +124,7 @@ function isGlassCatalogItem(value: unknown): value is GlassCatalogItem {
     isNonEmptyString(value.code) &&
     isNonEmptyString(value.name) &&
     (typeof value.description === "string" || value.description === null) &&
+    typeof value.isSelectable === "boolean" &&
     typeof value.isActive === "boolean" &&
     (value.currentPriceRange === null ||
       isGlassPriceRange(value.currentPriceRange))

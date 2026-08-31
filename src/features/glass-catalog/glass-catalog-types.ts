@@ -17,6 +17,7 @@ export interface GlassCatalogItem {
   code: string;
   name: string;
   description: string | null;
+  isSelectable: boolean;
   isActive: boolean;
   currentPriceRange: GlassPriceRange | null;
 }

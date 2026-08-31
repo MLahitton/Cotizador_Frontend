@@ -1,7 +1,11 @@
-import { CheckCircle2, CircleAlert } from "lucide-react";
+﻿import { CheckCircle2, CircleAlert, MessageCircle } from "lucide-react";
+
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
+import { RequirementChatPanel } from "@/features/prequotes/components/requirement-chat-panel";
 import { TechnicalProposalSelectionEditor } from "@/features/prequotes/components/technical-proposal-selection-editor";
 import {
   deriveDisplayAreaM2,
@@ -16,6 +20,7 @@ import { formatPricingWarning, formatRequirementMoney } from "@/features/prequot
 import type { RequirementPricingItem } from "@/features/prequotes/requirement-pricing-types";
 import type { TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
+import type { TechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-types";
 
 function SuggestedValue({ label, value, note }: { label: string; value: string | null; note?: string | null }) {
   return (
@@ -77,14 +82,20 @@ function pendingBadge(definition: { blocksConfirmation: boolean; blocksPricing: 
   return "Advertencia";
 }
 
-export function TechnicalProposalItemCard({ item, pricing, currency, isSavingSelection, selectionErrorMessage, onSaveSelection }: {
+export function TechnicalProposalItemCard({ item, requirementId, pricing, currency, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, isSavingSelection, selectionErrorMessage, onSaveSelection }: {
   item: TechnicalProposalItem;
+  requirementId: string;
   pricing: RequirementPricingItem | null;
   currency: string | null;
+  selectionCatalog: TechnicalSelectionCatalog | null;
+  selectionCatalogLoading: boolean;
+  selectionCatalogError: string | null;
+  onRetrySelectionCatalog: () => void;
   isSavingSelection: boolean;
   selectionErrorMessage: string | null;
   onSaveSelection: (request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
 }) {
+  const [chatOpen, setChatOpen] = useState(false);
   const status = readinessStatus(item.readiness.state);
   const provenance = sourceLabel(item);
   const pricingIssues = pricing ? [...pricing.mappingWarnings, ...pricing.missingData] : [];
@@ -99,10 +110,10 @@ export function TechnicalProposalItemCard({ item, pricing, currency, isSavingSel
           <h4 className="truncate font-semibold text-foreground">{item.reference || `Elemento ${item.sequence}`}</h4>
           {provenance ? <p className="mt-1 break-words text-xs text-foreground-secondary">{provenance}</p> : null}
           <p className="mt-1 break-words text-sm text-foreground-secondary">
-            {formatProposalQuantity(item.effectiveQuantity)} · Ancho: {formatProposalNumber(item.effectiveWidthMm, " mm")} · Alto: {formatProposalNumber(item.effectiveHeightMm, " mm")}
+            {formatProposalQuantity(item.effectiveQuantity)} Â· Ancho: {formatProposalNumber(item.effectiveWidthMm, " mm")} Â· Alto: {formatProposalNumber(item.effectiveHeightMm, " mm")}
           </p>
           <p className="mt-1 break-words text-sm font-medium text-foreground-secondary">
-            Área unitaria: {formatProposalAreaM2(displayAreaM2)} · Área total: {formatProposalAreaM2(displayTotalAreaM2)}
+            Ãrea unitaria: {formatProposalAreaM2(displayAreaM2)} Â· Ãrea total: {formatProposalAreaM2(displayTotalAreaM2)}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
@@ -111,7 +122,10 @@ export function TechnicalProposalItemCard({ item, pricing, currency, isSavingSel
             {item.selectionState === "UNCONFIRMED" ? "Sugerencia sin confirmar" : item.selectionState === "CONFIRMED_AS_SUGGESTED" ? "Sugerencia confirmada" : "Configuracion modificada"}
           </span>
         </div>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setChatOpen((value) => !value)}><MessageCircle aria-hidden="true" size={15} />{chatOpen ? "Ocultar chat" : "Consultar"}</Button>
       </div>
+
+      {chatOpen ? <RequirementChatPanel requirementId={requirementId} itemId={item.itemId} title={`Asistente de ${item.reference || `Elemento ${item.sequence}`}`} compact /> : null}
 
       <dl className="grid gap-4 border-t border-border-subtle pt-4">
         <SuggestedValue label="Sistema sugerido S&G" value={item.suggested.system?.displayName ?? null} />
@@ -217,6 +231,10 @@ export function TechnicalProposalItemCard({ item, pricing, currency, isSavingSel
       ) : null}
       <TechnicalProposalSelectionEditor
         item={item}
+        catalog={selectionCatalog}
+        catalogLoading={selectionCatalogLoading}
+        catalogError={selectionCatalogError}
+        onRetryCatalog={onRetrySelectionCatalog}
         isSaving={isSavingSelection}
         errorMessage={selectionErrorMessage}
         submitLabel={pricing ? "Aplicar cambio" : "Guardar seleccion"}

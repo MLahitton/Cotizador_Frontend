@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Surface } from "@/components/ui/surface";
@@ -6,6 +6,7 @@ import { TechnicalProposalItemCard } from "@/features/prequotes/components/techn
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
+import type { TechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-types";
 import { calculateProposalPhysicalTotals, formatProposalAreaM2 } from "@/features/prequotes/technical-proposal-formatters";
 
 function Metric({ label, value }: { label: string; value: number | string }) {
@@ -47,7 +48,7 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }) {
   const categoryText = Object.entries(proposal.readiness.categories)
     .map(([category, count]) => `${count} ${category.toLowerCase()}`)
-    .join(" · ");
+    .join(" Â· ");
   const hasPricingBlockers = proposal.readiness.pricingBlockingDefinitions > 0;
   const hasConfirmationReview = proposal.readiness.blockingDefinitions > 0;
 
@@ -90,9 +91,14 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }
 
 
-export function TechnicalProposalSummary({ proposal, pricing, savingSelectionItemIds, selectionErrorMessages, onSaveSelection }: {
+export function TechnicalProposalSummary({ requirementId, proposal, pricing, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, onSaveSelection }: {
+  requirementId: string;
   proposal: TechnicalProposal;
   pricing: RequirementPricing | null;
+  selectionCatalog: TechnicalSelectionCatalog | null;
+  selectionCatalogLoading: boolean;
+  selectionCatalogError: string | null;
+  onRetrySelectionCatalog: () => void;
   savingSelectionItemIds: string[];
   selectionErrorMessages: Record<string, string>;
   onSaveSelection: (itemId: string, request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
@@ -127,8 +133,13 @@ export function TechnicalProposalSummary({ proposal, pricing, savingSelectionIte
             <TechnicalProposalItemCard
               key={item.itemId}
               item={item}
+              requirementId={requirementId}
               pricing={pricingByProposalItemId.get(item.itemId) ?? null}
               currency={pricing?.currency ?? null}
+              selectionCatalog={selectionCatalog}
+              selectionCatalogLoading={selectionCatalogLoading}
+              selectionCatalogError={selectionCatalogError}
+              onRetrySelectionCatalog={onRetrySelectionCatalog}
               isSavingSelection={savingSelectionItemIds.includes(item.itemId)}
               selectionErrorMessage={selectionErrorMessages[item.itemId] ?? null}
               onSaveSelection={(request) => onSaveSelection(item.itemId, request)}

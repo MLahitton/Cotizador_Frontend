@@ -14,6 +14,13 @@ export const INVALID_CANONICAL_CATALOG_RESPONSE_MESSAGE =
   "El servidor devolvió una respuesta inesperada al consultar el catálogo técnico.";
 
 const CANONICAL_CODE_PATTERN = /^[A-Z0-9_-]{1,30}$/;
+const CONTRACT_GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isContractGuid(value: unknown): value is string {
+  return typeof value === "string" &&
+    value.toLowerCase() !== "00000000-0000-0000-0000-000000000000" &&
+    CONTRACT_GUID_PATTERN.test(value);
+}
 
 export class InvalidCanonicalCatalogResponseError extends Error {
   constructor() {
@@ -81,6 +88,7 @@ function isCanonicalCatalogSystem(
   }
 
   return (
+    isContractGuid(value.id) &&
     isCanonicalCode(value.code) &&
     isTrimmedStringWithLength(value.name, 100) &&
     ["technicalName", "commercialName", "functionalType", "family", "series", "commercialLine", "variant"]
@@ -116,8 +124,10 @@ function isCanonicalCatalogFinish(
   }
 
   return (
+    isContractGuid(value.id) &&
     isCanonicalCode(value.code) &&
     isTrimmedStringWithLength(value.name, 100) &&
+    typeof value.isSelectable === "boolean" &&
     typeof value.requiresReview === "boolean" &&
     typeof value.isActive === "boolean"
   );
