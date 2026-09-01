@@ -48,7 +48,7 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }) {
   const categoryText = Object.entries(proposal.readiness.categories)
     .map(([category, count]) => `${count} ${category.toLowerCase()}`)
-    .join(" Â· ");
+    .join(" · ");
   const hasPricingBlockers = proposal.readiness.pricingBlockingDefinitions > 0;
   const hasConfirmationReview = proposal.readiness.blockingDefinitions > 0;
 

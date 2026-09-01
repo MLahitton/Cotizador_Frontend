@@ -110,10 +110,10 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
           <h4 className="truncate font-semibold text-foreground">{item.reference || `Elemento ${item.sequence}`}</h4>
           {provenance ? <p className="mt-1 break-words text-xs text-foreground-secondary">{provenance}</p> : null}
           <p className="mt-1 break-words text-sm text-foreground-secondary">
-            {formatProposalQuantity(item.effectiveQuantity)} Â· Ancho: {formatProposalNumber(item.effectiveWidthMm, " mm")} Â· Alto: {formatProposalNumber(item.effectiveHeightMm, " mm")}
+            {formatProposalQuantity(item.effectiveQuantity)} · Ancho: {formatProposalNumber(item.effectiveWidthMm, " mm")} · Alto: {formatProposalNumber(item.effectiveHeightMm, " mm")}
           </p>
           <p className="mt-1 break-words text-sm font-medium text-foreground-secondary">
-            Ãrea unitaria: {formatProposalAreaM2(displayAreaM2)} Â· Ãrea total: {formatProposalAreaM2(displayTotalAreaM2)}
+            Área unitaria: {formatProposalAreaM2(displayAreaM2)} · Área total: {formatProposalAreaM2(displayTotalAreaM2)}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
