@@ -3,6 +3,8 @@
 export interface PreQuoteListItem {
   id: string;
   projectId: string;
+  serial: string;
+  name: string | null;
   documentCount: number;
   createdAtUtc: string;
   updatedAtUtc: string;
@@ -28,6 +30,8 @@ export interface ProjectPreQuotesPage {
 export interface PreQuoteDetails {
   id: string;
   projectId: string;
+  serial: string;
+  name: string | null;
   documentCount: number;
   createdAtUtc: string;
   updatedAtUtc: string;
@@ -36,6 +40,8 @@ export interface PreQuoteDetails {
 export interface CreatedPreQuote {
   id: string;
   projectId: string;
+  serial: string;
+  name: string | null;
   createdAtUtc: string;
   updatedAtUtc: string;
 }

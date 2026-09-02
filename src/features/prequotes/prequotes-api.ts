@@ -14,6 +14,8 @@ const INVALID_LIST_RESPONSE_DETAIL =
   "El servidor devolvio una respuesta inesperada al consultar las precotizaciones.";
 const INVALID_DETAILS_RESPONSE_DETAIL =
   "El servidor devolvio una respuesta inesperada al consultar la precotizacion.";
+const INVALID_UPDATE_NAME_RESPONSE_DETAIL =
+  "El servidor devolvio una respuesta inesperada al actualizar la precotizacion.";
 const PREQUOTE_PROJECT_MISMATCH_DETAIL =
   "La precotizacion solicitada no pertenece a este proyecto.";
 
@@ -69,6 +71,10 @@ function isGuidOrNull(value: unknown): value is string | null {
   return value === null || (typeof value === "string" && GUID_PATTERN.test(value));
 }
 
+function isPreQuoteSerial(value: unknown): value is string {
+  return typeof value === "string" && /^PC-\d{4}-\d{4,}$/.test(value);
+}
+
 function isStringOrNull(value: unknown): value is string | null {
   return value === null || typeof value === "string";
 }
@@ -95,6 +101,8 @@ function isPreQuoteListItem(
     typeof value.projectId === "string" &&
     isValidProjectId(value.projectId) &&
     normalizeId(value.projectId) === normalizeId(requestedProjectId) &&
+    isPreQuoteSerial(value.serial) &&
+    isStringOrNull(value.name) &&
     isNonNegativeInteger(value.documentCount) &&
     isValidDateTime(value.createdAtUtc) &&
     isValidDateTime(value.updatedAtUtc) &&
@@ -149,6 +157,8 @@ function isPreQuoteDetails(value: unknown): value is PreQuoteDetails {
     isValidPreQuoteId(value.id) &&
     typeof value.projectId === "string" &&
     isValidProjectId(value.projectId) &&
+    isPreQuoteSerial(value.serial) &&
+    isStringOrNull(value.name) &&
     isNonNegativeInteger(value.documentCount) &&
     isValidDateTime(value.createdAtUtc) &&
     isValidDateTime(value.updatedAtUtc)
@@ -169,6 +179,8 @@ function isCreatedPreQuote(
     typeof value.projectId === "string" &&
     isValidProjectId(value.projectId) &&
     normalizeId(value.projectId) === normalizeId(requestedProjectId) &&
+    isPreQuoteSerial(value.serial) &&
+    isStringOrNull(value.name) &&
     isValidDateTime(value.createdAtUtc) &&
     isValidDateTime(value.updatedAtUtc)
   );
@@ -251,6 +263,33 @@ export async function getPreQuoteById(
   return response;
 }
 
+
+export async function updatePreQuoteName(
+  preQuoteId: string,
+  name: string | null,
+): Promise<PreQuoteDetails> {
+  const response = await apiRequest(
+    `/api/v1/prequotes/${encodeURIComponent(preQuoteId)}/name`,
+    {
+      method: "PATCH",
+      authenticated: true,
+      body: { name },
+    },
+  );
+
+  if (
+    !isPreQuoteDetails(response) ||
+    normalizeId(response.id) !== normalizeId(preQuoteId)
+  ) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail: INVALID_UPDATE_NAME_RESPONSE_DETAIL,
+    });
+  }
+
+  return response;
+}
 export function assertPreQuoteBelongsToProject(
   preQuote: PreQuoteDetails,
   projectId: string,

@@ -1,10 +1,9 @@
-﻿import { Eye, FilePlus2, FileText, SearchX } from "lucide-react";
+import { Eye, FilePlus2, FileText, SearchX } from "lucide-react";
 import Link from "next/link";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import {
-  formatDocumentCount,
   formatPreQuoteDateTime,
   formatPreQuoteIdentifier,
 } from "@/features/prequotes/prequote-formatters";
@@ -32,11 +31,11 @@ function formatRequirementStatus(preQuote: PreQuoteListItem): string {
 
 function formatProposalSummary(preQuote: PreQuoteListItem): string {
   if (!preQuote.hasTechnicalProposal) {
-    if (preQuote.latestAttemptErrorCode) {
-      return `Sin propuesta (${preQuote.latestAttemptErrorCode})`;
+    if (preQuote.latestAttemptOutcome === "Failed") {
+      return "No fue posible completar el analisis";
     }
 
-    return "Sin propuesta";
+    return "No disponible";
   }
 
   const itemCount = preQuote.technicalProposalItemCount;
@@ -47,6 +46,21 @@ function formatProposalSummary(preQuote: PreQuoteListItem): string {
   return itemCount === 1
     ? "1 item tecnico"
     : `${itemCount} items tecnicos`;
+}
+
+function formatAttemptOutcome(outcome: string): string {
+  switch (outcome) {
+    case "Completed":
+      return "Completado";
+    case "RequiresReview":
+      return "Requiere revision";
+    case "Failed":
+      return "Fallido";
+    case "Cancelled":
+      return "Cancelado";
+    default:
+      return outcome;
+  }
 }
 
 export function ProjectPreQuotesTable({
@@ -84,7 +98,6 @@ export function ProjectPreQuotesTable({
               <tr>
                 {[
                   "Precotizacion",
-                  "Documentos",
                   "Requirement",
                   "Propuesta tecnica",
                   "Creacion",
@@ -104,7 +117,7 @@ export function ProjectPreQuotesTable({
             <tbody className="divide-y divide-border-subtle">
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <SearchX
                       aria-hidden="true"
                       className="mx-auto text-muted"
@@ -166,25 +179,18 @@ export function ProjectPreQuotesTable({
                         </span>
                         <div className="min-w-0">
                           <p className="font-semibold text-foreground">
-                            Precotizacion
+                            {preQuote.serial}
                           </p>
-                          <p className="mt-1 break-all text-sm text-foreground-secondary">
-                            <span className="sr-only">
-                              Identificador completo:
-                            </span>
-                            {preQuote.id}
-                          </p>
-                          <p
-                            aria-hidden="true"
-                            className="mt-1 text-xs font-medium uppercase text-muted"
-                          >
-                            {formatPreQuoteIdentifier(preQuote.id)}
+                          {preQuote.name ? (
+                            <p className="mt-1 break-words text-sm text-foreground-secondary">
+                              {preQuote.name}
+                            </p>
+                          ) : null}
+                          <p className="mt-1 break-all text-xs text-muted">
+                            ID interno: {formatPreQuoteIdentifier(preQuote.id)}
                           </p>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-5 py-4 align-top text-sm font-medium text-foreground">
-                      {formatDocumentCount(preQuote.documentCount)}
                     </td>
                     <td className="px-5 py-4 align-top text-sm text-foreground-secondary">
                       <span className="font-medium text-foreground">
@@ -192,7 +198,9 @@ export function ProjectPreQuotesTable({
                       </span>
                       {preQuote.latestAttemptOutcome ? (
                         <span className="mt-1 block text-xs text-muted">
-                          Intento: {preQuote.latestAttemptOutcome}
+                          Intento: {formatAttemptOutcome(
+                            preQuote.latestAttemptOutcome,
+                          )}
                         </span>
                       ) : null}
                     </td>
@@ -214,7 +222,7 @@ export function ProjectPreQuotesTable({
                           buttonVariants({ variant: "outline", size: "sm" }),
                           "w-full",
                         )}
-                        aria-label={`Ver detalle de precotizacion ${preQuote.id}`}
+                        aria-label={`Ver detalle de precotizacion ${preQuote.serial}`}
                       >
                         <Eye aria-hidden="true" size={17} strokeWidth={1.75} />
                         Ver detalle
