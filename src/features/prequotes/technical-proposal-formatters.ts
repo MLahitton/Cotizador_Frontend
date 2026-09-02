@@ -87,7 +87,7 @@ export function formatHistoricalEvidenceSummary(evidence: HistoricalEvidenceValu
   }
 
   if (evidence.status === "NO_COMPARABLES") {
-    return "Sin referencias historicas comparables";
+    return "Varias referencias historicas comparables";
   }
 
   if (evidence.status === "SIMILARITY_UNAVAILABLE") {

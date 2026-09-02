@@ -117,7 +117,7 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
           <Badge tone={proposal.itemsRequiringReview > 0 ? "warning" : "success"}>{proposal.itemsRequiringReview > 0 ? "Requiere revision" : "Lista"}</Badge>
         </div>
         <dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Metric label="Elementos encontrados" value={proposal.itemCount} />
+          <Metric label="Items encontrados" value={proposal.itemCount} />
           <Metric label="Estructuras cotizadas" value={physicalTotals.structureCount} />
           <Metric label="Metros cuadrados totales" value={formatProposalAreaM2(physicalTotals.totalAreaM2)} />
           <Metric label="Tecnicamente completos" value={proposal.technicallyCompleteItems} />
