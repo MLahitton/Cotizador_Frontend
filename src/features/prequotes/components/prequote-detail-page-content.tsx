@@ -72,7 +72,7 @@ export function PreQuoteDetailPageContent({
 
   return (
     <div className="min-w-0 space-y-6">
-      <PreQuoteDetailHeader project={project} preQuoteId={preQuoteId} />
+      <PreQuoteDetailHeader project={project} preQuote={preQuote} />
 
       {isPreQuoteLoading ? (
         <PreQuotesLoading message="Cargando precotización..." />
@@ -88,7 +88,11 @@ export function PreQuoteDetailPageContent({
 
       {preQuote && !isPreQuoteLoading && !preQuoteError ? (
         <>
-          <PreQuoteDetailView project={project} preQuote={preQuote} />
+          <PreQuoteDetailView
+            project={project}
+            preQuote={preQuote}
+            onNameUpdated={retryPreQuote}
+          />
           <RequirementWorkspace
             preQuoteId={preQuote.id}
             projectIsActive={project.isActive}
