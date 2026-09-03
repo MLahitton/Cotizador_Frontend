@@ -72,7 +72,11 @@ function isRepriceResponse(value: unknown): value is RepriceRequirementPricingIt
     isRecord(value.pricing) && isNullableNumber(value.pricing.originalUnitPrice) &&
     isNullableNumber(value.pricing.currentUnitPrice) && isNullableNumber(value.pricing.deltaUnitPrice) &&
     isNullableNumber(value.pricing.originalLineTotal) && isNullableNumber(value.pricing.currentLineTotal) &&
-    isNullableNumber(value.pricing.deltaLineTotal) && isNonEmptyString(value.pricing.state) &&
+    isNullableNumber(value.pricing.deltaLineTotal) &&
+    isNullableRange(value.pricing.originalUnit) && isNullableRange(value.pricing.currentUnit) &&
+    isNullableRange(value.pricing.deltaUnit) && isNullableRange(value.pricing.originalLine) &&
+    isNullableRange(value.pricing.currentLine) && isNullableRange(value.pricing.deltaLine) &&
+    isNonEmptyString(value.pricing.state) &&
     isRecord(value.summary) && isNullableNumber(value.summary.originalGrandTotal) &&
     isNullableNumber(value.summary.currentGrandTotal) && isNullableNumber(value.summary.deltaGrandTotal) &&
     Array.isArray(value.comparables) && value.comparables.every(isComparable);

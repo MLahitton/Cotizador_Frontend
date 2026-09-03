@@ -134,51 +134,27 @@ function applyRepricedPricing(
 ): RequirementPricing {
   const nextItems = pricing.items.map((item) => {
     if (item.proposalItemId.toLowerCase() !== response.technicalProposalItemId.toLowerCase()) return item;
-    const unit = {
-      minimum: null,
-      expected: response.pricing.currentUnitPrice,
-      maximum: null,
-    };
-    const line = {
-      minimum: null,
-      expected: response.pricing.currentLineTotal,
-      maximum: null,
-    };
+    const unit = response.pricing.currentUnit ?? { minimum: null, expected: null, maximum: null };
+    const line = response.pricing.currentLine ?? { minimum: null, expected: null, maximum: null };
     return {
       ...item,
       status: response.pricing.state,
       configurationSource: "SELECTED" as const,
       unit,
       line,
-      originalUnit: {
-        minimum: null,
-        expected: response.pricing.originalUnitPrice,
-        maximum: null,
-      },
-      currentUnit: unit,
-      deltaUnit: {
-        minimum: null,
-        expected: response.pricing.deltaUnitPrice,
-        maximum: null,
-      },
-      originalLine: {
-        minimum: null,
-        expected: response.pricing.originalLineTotal,
-        maximum: null,
-      },
-      currentLine: line,
-      deltaLine: {
-        minimum: null,
-        expected: response.pricing.deltaLineTotal,
-        maximum: null,
-      },
+      originalUnit: response.pricing.originalUnit,
+      currentUnit: response.pricing.currentUnit,
+      deltaUnit: response.pricing.deltaUnit,
+      originalLine: response.pricing.originalLine,
+      currentLine: response.pricing.currentLine,
+      deltaLine: response.pricing.deltaLine,
       comparables: response.comparables,
       priceSource: response.pricing.priceSource,
       repriceAttemptState: response.pricing.repriceAttemptState,
       repriceAttemptReason: response.pricing.repriceAttemptReason,
       missingData: response.pricing.repriceAttemptState && response.pricing.repriceAttemptState !== "PRICEABLE"
         ? Array.from(new Set([...item.missingData, response.pricing.repriceAttemptReason, "LAST_VALID_PRICE_PRESERVED"].filter((value): value is string => Boolean(value))))
-        : response.pricing.currentLineTotal === null ? ["NO_COMPARABLES"] : item.missingData,
+        : line.expected === null ? ["NO_COMPARABLES"] : item.missingData,
       requiresReview: response.pricing.state !== "PRICEABLE" || response.pricing.repriceAttemptState === "NO_ESTIMATE" || item.requiresReview,
     };
   });
