@@ -91,7 +91,7 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }
 
 
-export function TechnicalProposalSummary({ requirementId, proposal, pricing, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, onSaveSelection }: {
+export function TechnicalProposalSummary({ requirementId, proposal, pricing, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, onSaveSelection, onUpdateInclusion, commercialMutationDisabled }: {
   requirementId: string;
   proposal: TechnicalProposal;
   pricing: RequirementPricing | null;
@@ -102,12 +102,15 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
   savingSelectionItemIds: string[];
   selectionErrorMessages: Record<string, string>;
   onSaveSelection: (itemId: string, request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
+  onUpdateInclusion: (itemId: string, isIncluded: boolean, reason?: string | null) => boolean | Promise<boolean>;
+  commercialMutationDisabled: boolean;
 }) {
   const [readinessFilter, setReadinessFilter] = useState<ReadinessFilter>("ALL");
   const pricingByProposalItemId = new Map(
     pricing?.items.map((item) => [item.proposalItemId, item]) ?? [],
   );
-  const physicalTotals = calculateProposalPhysicalTotals(proposal.items);
+  const includedItems = useMemo(() => proposal.items.filter((item) => item.isIncluded), [proposal.items]);
+  const physicalTotals = calculateProposalPhysicalTotals(includedItems);
   const visibleItems = useMemo(() => proposal.items.filter((item) => itemMatchesFilter(item, readinessFilter)), [proposal.items, readinessFilter]);
   return (
     <section aria-labelledby="technical-proposal-title" className="space-y-4">
@@ -125,10 +128,16 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
           <Metric label="Requieren revision" value={proposal.itemsRequiringReview} />
         </dl>
       </Surface>
+      {includedItems.length === 0 ? (
+        <Surface variant="subtle" className="border-warning bg-warning/10">
+          <p className="text-sm font-semibold text-foreground">No hay elementos incluidos en la propuesta.</p>
+          <p className="mt-1 text-sm text-foreground-secondary">Reactiva al menos un elemento para confirmar configuraciones y calcular precios.</p>
+        </Surface>
+      ) : null}
       <ReadinessSummary proposal={proposal} activeFilter={readinessFilter} onFilterChange={setReadinessFilter} />
       <div>
         <h3 className="text-lg font-semibold text-foreground">Elementos</h3>
-        <div className="mt-3 grid min-w-0 gap-4 lg:grid-cols-2">
+        <div className="mt-3 grid min-w-0 gap-4 xl:grid-cols-2">
           {visibleItems.map((item) => (
             <TechnicalProposalItemCard
               key={item.itemId}
@@ -143,6 +152,8 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
               isSavingSelection={savingSelectionItemIds.includes(item.itemId)}
               selectionErrorMessage={selectionErrorMessages[item.itemId] ?? null}
               onSaveSelection={(request) => onSaveSelection(item.itemId, request)}
+              onUpdateInclusion={(isIncluded, reason) => onUpdateInclusion(item.itemId, isIncluded, reason)}
+              commercialMutationDisabled={commercialMutationDisabled}
             />
           ))}
         </div>

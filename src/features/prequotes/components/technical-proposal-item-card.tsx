@@ -82,7 +82,7 @@ function pendingBadge(definition: { blocksConfirmation: boolean; blocksPricing: 
   return "Advertencia";
 }
 
-export function TechnicalProposalItemCard({ item, requirementId, pricing, currency, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, isSavingSelection, selectionErrorMessage, onSaveSelection }: {
+export function TechnicalProposalItemCard({ item, requirementId, pricing, currency, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, isSavingSelection, selectionErrorMessage, onSaveSelection, onUpdateInclusion, commercialMutationDisabled }: {
   item: TechnicalProposalItem;
   requirementId: string;
   pricing: RequirementPricingItem | null;
@@ -94,6 +94,8 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
   isSavingSelection: boolean;
   selectionErrorMessage: string | null;
   onSaveSelection: (request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
+  onUpdateInclusion: (isIncluded: boolean, reason?: string | null) => boolean | Promise<boolean>;
+  commercialMutationDisabled: boolean;
 }) {
   const [chatOpen, setChatOpen] = useState(false);
   const status = readinessStatus(item.readiness.state);
@@ -103,11 +105,16 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
   const hasPricingSnapshot = Boolean(pricing?.originalLine || pricing?.currentLine || pricing?.deltaLine);
   const displayAreaM2 = deriveDisplayAreaM2(item.areaM2, item.effectiveWidthMm, item.effectiveHeightMm);
   const displayTotalAreaM2 = deriveDisplayTotalAreaM2(item.areaM2, item.effectiveWidthMm, item.effectiveHeightMm, item.effectiveQuantity);
+  const handleInclusionChange = () => {
+    if (commercialMutationDisabled) return;
+    void onUpdateInclusion(!item.isIncluded, null);
+  };
+
   return (
-    <Surface padding="md" className="min-w-0 space-y-4">
-      <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h4 className="truncate font-semibold text-foreground">{item.reference || `Elemento ${item.sequence}`}</h4>
+    <Surface padding="md" className={`min-w-0 space-y-4 ${item.isIncluded ? "" : "border-warning bg-surface-subtle opacity-90"}`}>
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <h4 className="break-words font-semibold text-foreground">{item.reference || `Elemento ${item.sequence}`}</h4>
           {provenance ? <p className="mt-1 break-words text-xs text-foreground-secondary">{provenance}</p> : null}
           <p className="mt-1 break-words text-sm text-foreground-secondary">
             {formatProposalQuantity(item.effectiveQuantity)} · Ancho: {formatProposalNumber(item.effectiveWidthMm, " mm")} · Alto: {formatProposalNumber(item.effectiveHeightMm, " mm")}
@@ -116,13 +123,19 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
             Área unitaria: {formatProposalAreaM2(displayAreaM2)} · Área total: {formatProposalAreaM2(displayTotalAreaM2)}
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
-          <Badge tone={status.tone}>{status.label}</Badge>
+        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          {!item.isIncluded ? <Badge tone="warning">Excluido</Badge> : null}
+          <Badge tone={item.isIncluded ? status.tone : "neutral"}>{item.isIncluded ? status.label : "Fuera del alcance"}</Badge>
           <span className="text-xs text-foreground-secondary">
             {item.selectionState === "UNCONFIRMED" ? "Sugerencia sin confirmar" : item.selectionState === "CONFIRMED_AS_SUGGESTED" ? "Sugerencia confirmada" : "Configuracion modificada"}
           </span>
         </div>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setChatOpen((value) => !value)}><MessageCircle aria-hidden="true" size={15} />{chatOpen ? "Ocultar chat" : "Consultar"}</Button>
+        <div className="flex shrink-0 flex-wrap justify-start gap-2 sm:justify-end">
+          <Button type="button" variant={item.isIncluded ? "outline" : "secondary"} size="sm" disabled={isSavingSelection || commercialMutationDisabled} onClick={handleInclusionChange}>
+            {item.isIncluded ? "Excluir" : "Reactivar"}
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setChatOpen((value) => !value)}><MessageCircle aria-hidden="true" size={15} />{chatOpen ? "Ocultar chat" : "Consultar"}</Button>
+        </div>
       </div>
 
       {chatOpen ? <RequirementChatPanel requirementId={requirementId} itemId={item.itemId} title={`Asistente de ${item.reference || `Elemento ${item.sequence}`}`} compact /> : null}
@@ -143,11 +156,17 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-foreground-secondary">
         <span>{formatProposalConfidence(item.confidence.overall)}</span>
-        {item.isPriceable ? <span className="flex items-center gap-1"><CheckCircle2 aria-hidden="true" size={14} /> Configuracion lista para cotizar</span> : null}
+        {item.isIncluded && item.isPriceable ? <span className="flex items-center gap-1"><CheckCircle2 aria-hidden="true" size={14} /> Configuracion lista para cotizar</span> : null}
         <span>{formatHistoricalEvidenceSummary(item.historicalEvidence)}</span>
       </div>
 
-      {pricing && currency ? (
+      {!item.isIncluded ? (
+        <div className="rounded-sm border border-warning bg-warning/10 p-3">
+          <p className="text-sm font-semibold text-foreground">Excluido del alcance</p>
+          <p className="mt-1 text-sm text-foreground-secondary">Este elemento conserva su configuracion y evidencia, pero no participa en readiness global, pricing ni totales actuales.</p>
+          {item.exclusionReason ? <p className="mt-2 break-words text-xs text-foreground-secondary">Motivo: {item.exclusionReason}</p> : null}
+        </div>
+      ) : pricing && currency ? (
         <div className="rounded-sm border border-border-subtle bg-surface-subtle p-3">
           <p className="mb-2 text-xs text-foreground-secondary">Configuracion usada: {pricing.configurationSource === "SELECTED" ? "seleccionada" : "sugerida"}</p>
           {!hasPriceEstimate ? (
@@ -236,6 +255,7 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
         catalogError={selectionCatalogError}
         onRetryCatalog={onRetrySelectionCatalog}
         isSaving={isSavingSelection}
+        disabled={commercialMutationDisabled}
         errorMessage={selectionErrorMessage}
         submitLabel={pricing ? "Aplicar cambio" : "Guardar seleccion"}
         savingLabel={pricing ? "Recalculando..." : "Guardando..."}

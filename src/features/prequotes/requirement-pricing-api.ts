@@ -1,4 +1,4 @@
-﻿import {
+import {
   isNonEmptyString,
   isNonNegativeInteger,
   isNullableNumber,
@@ -127,8 +127,16 @@ export async function repriceRequirementPricingItem(
   return response;
 }
 
+function requirementPricingProblemCode(error: ApiError): string | null {
+  const value = error.problemDetails?.errorCode ?? error.problemDetails?.code;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
 export function getRequirementPricingErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return "No fue posible calcular la estimacion economica.";
+  const code = requirementPricingProblemCode(error);
+  if (code === "TECHNICAL_PROPOSAL_NO_INCLUDED_ITEMS") return "No hay elementos incluidos para calcular precios.";
+  if (code === "TECHNICAL_PROPOSAL_ITEM_EXCLUDED") return "El elemento esta excluido del alcance comercial actual.";
   const messages: Record<number, string> = {
     0: "No fue posible conectar con el servidor.",
     400: "La configuracion seleccionada no es valida para recalcular el precio.",

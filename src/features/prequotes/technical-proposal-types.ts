@@ -136,6 +136,10 @@ export interface TechnicalProposalItem {
   effectiveWidthMm: number | null;
   effectiveHeightMm: number | null;
   areaM2: number | null;
+  isIncluded: boolean;
+  excludedAtUtc: string | null;
+  excludedByUserId: string | null;
+  exclusionReason: string | null;
   extractionConfidence: number | null;
   extractionStatus: string;
   suggested: {

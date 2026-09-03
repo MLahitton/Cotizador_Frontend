@@ -17,6 +17,24 @@ import { getRequirementPricingErrorMessage } from "@/features/prequotes/requirem
 import { getTechnicalProposalErrorMessage } from "@/features/prequotes/technical-proposal-api";
 import { getTechnicalProposalSelectionConfirmationErrorMessage, getTechnicalProposalSelectionErrorMessage } from "@/features/prequotes/technical-proposal-selection-api";
 import { useRequirementWorkspace } from "@/features/prequotes/use-requirement-workspace";
+type InclusionMutationError = {
+  kind: "inclusion";
+  action: "exclude" | "reactivate";
+  cause: unknown;
+};
+
+function isInclusionMutationError(error: unknown): error is InclusionMutationError {
+  return typeof error === "object" && error !== null &&
+    "kind" in error && (error as { kind?: unknown }).kind === "inclusion" &&
+    "action" in error && ((error as { action?: unknown }).action === "exclude" || (error as { action?: unknown }).action === "reactivate");
+}
+
+function getWorkspaceSelectionErrorMessage(error: unknown): string {
+  if (!isInclusionMutationError(error)) return getTechnicalProposalSelectionErrorMessage(error);
+  return error.action === "exclude"
+    ? "No fue posible excluir el elemento."
+    : "No fue posible reactivar el elemento.";
+}
 
 export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuoteId: string; projectIsActive: boolean }) {
   const workspace = useRequirementWorkspace(preQuoteId);
@@ -114,12 +132,12 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
       {workspace.proposal ? (
         <div className="flex flex-col items-end gap-2">
           {proposalConfirmed ? (
-            <Button type="button" disabled={workspace.pricingLoading} onClick={workspace.calculatePricing}>
+            <Button type="button" disabled={workspace.isCommercialMutationBusy} onClick={workspace.calculatePricing}>
               <Calculator aria-hidden="true" size={17} />
               {workspace.pricingLoading ? "Calculando precios..." : workspace.pricing ? "Actualizar estimacion" : "Calcular precios"}
             </Button>
           ) : (
-            <Button type="button" disabled={workspace.confirmationLoading} onClick={workspace.confirmSelection}>
+            <Button type="button" disabled={workspace.isCommercialMutationBusy} onClick={workspace.confirmSelection}>
               <Calculator aria-hidden="true" size={17} />
               {workspace.confirmationLoading ? "Confirmando..." : "Confirmar configuraciones"}
             </Button>
@@ -169,10 +187,12 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
           selectionErrorMessages={Object.fromEntries(
             Object.entries(workspace.selectionErrors).map(([itemId, error]) => [
               itemId,
-              getTechnicalProposalSelectionErrorMessage(error),
+              getWorkspaceSelectionErrorMessage(error),
             ]),
           )}
           onSaveSelection={workspace.saveSelection}
+          onUpdateInclusion={workspace.updateItemInclusion}
+          commercialMutationDisabled={workspace.isCommercialMutationBusy}
         />
       ) : null}
     </section>

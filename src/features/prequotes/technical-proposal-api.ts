@@ -132,6 +132,9 @@ function isProposalItem(value: unknown): boolean {
     isNullableNumber(value.manualWidthMmOverride) && isNullableNumber(value.manualHeightMmOverride) &&
     isNullableNumber(value.effectiveQuantity) && isNullableNumber(value.effectiveWidthMm) &&
     isNullableNumber(value.effectiveHeightMm) && isNullableNumber(value.areaM2) &&
+    typeof value.isIncluded === "boolean" &&
+    (value.excludedAtUtc === null || isDateTime(value.excludedAtUtc)) &&
+    isNullableString(value.excludedByUserId) && isNullableString(value.exclusionReason) &&
     isNullableNumber(value.extractionConfidence) && isString(value.extractionStatus) &&
     (suggested.system === null || isSystemOption(suggested.system)) &&
     (suggested.glass === null || isGlassOption(suggested.glass)) &&

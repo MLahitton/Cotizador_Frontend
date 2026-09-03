@@ -10,7 +10,7 @@ import { cancelRequirementProcessing, createRequirement, getCurrentRequirement, 
 import { cancelRequirementPricing, getRequirementPricing, repriceRequirementPricingItem } from "@/features/prequotes/requirement-pricing-api";
 import type { RepriceRequirementPricingItemResponse, RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 import type { CreatedRequirement, CurrentRequirement, ProcessedRequirement, RequirementCommercialLine } from "@/features/prequotes/requirement-types";
-import { confirmTechnicalProposalSelection, updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
+import { confirmTechnicalProposalSelection, updateTechnicalProposalItemInclusion, updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 import { getTechnicalProposal } from "@/features/prequotes/technical-proposal-api";
 import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 import { getTechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-api";
@@ -554,8 +554,10 @@ export function useRequirementWorkspace(preQuoteId: string) {
     finally { busyRef.current = false; }
   }, [loadProposal, requirement]);
 
+  const isCommercialMutationBusy = pricingLoading || confirmationLoading || savingSelectionItemIds.length > 0;
+
   const calculatePricing = useCallback(async () => {
-    if (pricingBusyRef.current || !requirement || !proposal) return;
+    if (pricingBusyRef.current || isCommercialMutationBusy || !requirement || !proposal) return;
     pricingBusyRef.current = true;
     setPricingLoading(true);
     setPricingError(null);
@@ -590,7 +592,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
         setPricingLoading(false);
       }
     }
-  }, [preQuoteId, pricing, proposal, requirement]);
+  }, [isCommercialMutationBusy, preQuoteId, pricing, proposal, requirement]);
 
 
   const cancelPricing = useCallback(async () => {
@@ -611,8 +613,9 @@ export function useRequirementWorkspace(preQuoteId: string) {
       pricingCancellationRequestedRef.current = false;
     }
   }, [preQuoteId, pricing, pricingLoading, requirement]);
+
   const saveSelection = useCallback(async (itemId: string, request: TechnicalProposalSelectionRequest) => {
-    if (!requirement || !proposal || savingSelectionItemIds.includes(itemId)) return false;
+    if (!requirement || !proposal || isCommercialMutationBusy) return false;
     const expectedPreQuoteId = preQuoteId;
     setSavingSelectionItemIds((current) => [...current, itemId]);
     setSelectionErrors((current) => {
@@ -637,7 +640,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
         setPricing((current) => current ? applyRepricedPricing(current, response) : current);
         setPricingError(null);
         setPricingAfterSelectionError(false);
-      setPricingCancelMessage(null);
+        setPricingCancelMessage(null);
         setConfirmationError(null);
         return true;
       }
@@ -661,10 +664,45 @@ export function useRequirementWorkspace(preQuoteId: string) {
         setSavingSelectionItemIds((current) => current.filter((id) => id !== itemId));
       }
     }
-  }, [preQuoteId, pricing, proposal, requirement, savingSelectionItemIds]);
+  }, [isCommercialMutationBusy, preQuoteId, pricing, proposal, requirement]);
 
+
+  const updateItemInclusion = useCallback(async (itemId: string, isIncluded: boolean, reason?: string | null) => {
+    if (!requirement || !proposal || isCommercialMutationBusy) return false;
+    const expectedPreQuoteId = preQuoteId;
+    setSavingSelectionItemIds((current) => [...current, itemId]);
+    setSelectionErrors((current) => {
+      const next = { ...current };
+      delete next[itemId];
+      return next;
+    });
+    setPricingAfterSelectionError(false);
+    try {
+      await updateTechnicalProposalItemInclusion(requirement.requirementId, itemId, {
+        isIncluded,
+        reason: reason?.trim() ? reason.trim() : null,
+      });
+      const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
+      setProposal(refreshedProposal);
+      setPricing(null);
+      setPricingError(null);
+      setPricingAfterSelectionError(false);
+      setPricingCancelMessage(null);
+      setConfirmationError(null);
+      return true;
+    } catch (cause) {
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
+      setSelectionErrors((current) => ({ ...current, [itemId]: { kind: "inclusion", action: isIncluded ? "reactivate" : "exclude", cause } }));
+      return false;
+    } finally {
+      if (mountedRef.current && preQuoteIdRef.current === expectedPreQuoteId) {
+        setSavingSelectionItemIds((current) => current.filter((id) => id !== itemId));
+      }
+    }
+  }, [isCommercialMutationBusy, preQuoteId, proposal, requirement]);
   const confirmSelection = useCallback(async () => {
-    if (!requirement || !proposal || confirmationLoading) return;
+    if (!requirement || !proposal || isCommercialMutationBusy) return;
     const expectedPreQuoteId = preQuoteId;
     setConfirmationLoading(true);
     setConfirmationError(null);
@@ -684,13 +722,13 @@ export function useRequirementWorkspace(preQuoteId: string) {
         setConfirmationLoading(false);
       }
     }
-  }, [confirmationLoading, preQuoteId, proposal, requirement]);
+  }, [isCommercialMutationBusy, preQuoteId, proposal, requirement]);
   return {
     files, commercialLine, validationError, phase, requirement, processingResult, proposal, error,
-    pricing, pricingLoading, pricingError, pricingAfterSelectionError, pricingCancelMessage, confirmationLoading, confirmationError, savingSelectionItemIds, selectionErrors,
+    pricing, pricingLoading, pricingError, pricingAfterSelectionError, pricingCancelMessage, confirmationLoading, confirmationError, savingSelectionItemIds, selectionErrors, isCommercialMutationBusy,
     selectionCatalog, selectionCatalogLoading, selectionCatalogError,
     setCommercialLine,
     selectFiles, removeFile, upload, process, cancelProcessing, retryProposal, retryCurrent,
-    calculatePricing, cancelPricing, confirmSelection, saveSelection, retrySelectionCatalog,
+    calculatePricing, cancelPricing, confirmSelection, saveSelection, updateItemInclusion, retrySelectionCatalog,
   };
 }
