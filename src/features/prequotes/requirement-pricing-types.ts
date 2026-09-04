@@ -17,7 +17,8 @@ export interface RequirementPricingComparable {
 
 export interface RequirementPricingItem {
   proposalItemId: string;
-  extractedItemId: string;
+  extractedItemId: string | null;
+  source: "AI_EXTRACTED" | "MANUAL";
   elementId: string | null;
   sequence: number;
   reference: string | null;
@@ -91,6 +92,12 @@ export interface RepriceRequirementPricingItemResponse {
     originalLineTotal: number | null;
     currentLineTotal: number | null;
     deltaLineTotal: number | null;
+    originalUnit: RequirementPricingRange | null;
+    currentUnit: RequirementPricingRange | null;
+    deltaUnit: RequirementPricingRange | null;
+    originalLine: RequirementPricingRange | null;
+    currentLine: RequirementPricingRange | null;
+    deltaLine: RequirementPricingRange | null;
     state: string;
     priceSource: string | null;
     repriceAttemptState: string | null;

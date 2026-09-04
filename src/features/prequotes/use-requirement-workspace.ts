@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -10,8 +10,8 @@ import { cancelRequirementProcessing, createRequirement, getCurrentRequirement, 
 import { cancelRequirementPricing, getRequirementPricing, repriceRequirementPricingItem } from "@/features/prequotes/requirement-pricing-api";
 import type { RepriceRequirementPricingItemResponse, RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 import type { CreatedRequirement, CurrentRequirement, ProcessedRequirement, RequirementCommercialLine } from "@/features/prequotes/requirement-types";
-import { confirmTechnicalProposalSelection, updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
-import { getTechnicalProposal } from "@/features/prequotes/technical-proposal-api";
+import { confirmTechnicalProposalSelection, updateTechnicalProposalItemInclusion, updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
+import { createManualTechnicalProposalItem, getTechnicalProposal, type CreateManualTechnicalProposalItemRequest } from "@/features/prequotes/technical-proposal-api";
 import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 import { getTechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-api";
 import type { TechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-types";
@@ -134,51 +134,27 @@ function applyRepricedPricing(
 ): RequirementPricing {
   const nextItems = pricing.items.map((item) => {
     if (item.proposalItemId.toLowerCase() !== response.technicalProposalItemId.toLowerCase()) return item;
-    const unit = {
-      minimum: null,
-      expected: response.pricing.currentUnitPrice,
-      maximum: null,
-    };
-    const line = {
-      minimum: null,
-      expected: response.pricing.currentLineTotal,
-      maximum: null,
-    };
+    const unit = response.pricing.currentUnit ?? { minimum: null, expected: null, maximum: null };
+    const line = response.pricing.currentLine ?? { minimum: null, expected: null, maximum: null };
     return {
       ...item,
       status: response.pricing.state,
       configurationSource: "SELECTED" as const,
       unit,
       line,
-      originalUnit: {
-        minimum: null,
-        expected: response.pricing.originalUnitPrice,
-        maximum: null,
-      },
-      currentUnit: unit,
-      deltaUnit: {
-        minimum: null,
-        expected: response.pricing.deltaUnitPrice,
-        maximum: null,
-      },
-      originalLine: {
-        minimum: null,
-        expected: response.pricing.originalLineTotal,
-        maximum: null,
-      },
-      currentLine: line,
-      deltaLine: {
-        minimum: null,
-        expected: response.pricing.deltaLineTotal,
-        maximum: null,
-      },
+      originalUnit: response.pricing.originalUnit,
+      currentUnit: response.pricing.currentUnit,
+      deltaUnit: response.pricing.deltaUnit,
+      originalLine: response.pricing.originalLine,
+      currentLine: response.pricing.currentLine,
+      deltaLine: response.pricing.deltaLine,
       comparables: response.comparables,
       priceSource: response.pricing.priceSource,
       repriceAttemptState: response.pricing.repriceAttemptState,
       repriceAttemptReason: response.pricing.repriceAttemptReason,
       missingData: response.pricing.repriceAttemptState && response.pricing.repriceAttemptState !== "PRICEABLE"
         ? Array.from(new Set([...item.missingData, response.pricing.repriceAttemptReason, "LAST_VALID_PRICE_PRESERVED"].filter((value): value is string => Boolean(value))))
-        : response.pricing.currentLineTotal === null ? ["NO_COMPARABLES"] : item.missingData,
+        : line.expected === null ? ["NO_COMPARABLES"] : item.missingData,
       requiresReview: response.pricing.state !== "PRICEABLE" || response.pricing.repriceAttemptState === "NO_ESTIMATE" || item.requiresReview,
     };
   });
@@ -230,6 +206,8 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const [pricingCancelMessage, setPricingCancelMessage] = useState<string | null>(null);
   const [confirmationLoading, setConfirmationLoading] = useState(false);
   const [confirmationError, setConfirmationError] = useState<unknown | null>(null);
+  const [manualItemCreating, setManualItemCreating] = useState(false);
+  const [manualItemError, setManualItemError] = useState<unknown | null>(null);
   const [error, setError] = useState<unknown | null>(null);
   const [currentReloadKey, setCurrentReloadKey] = useState(0);
   const mountedRef = useRef(true);
@@ -337,6 +315,8 @@ export function useRequirementWorkspace(preQuoteId: string) {
       setPricingCancelMessage(null);
       setConfirmationLoading(false);
       setConfirmationError(null);
+      setManualItemCreating(false);
+      setManualItemError(null);
       setError(null);
       setPhase("hydrating");
 
@@ -578,8 +558,10 @@ export function useRequirementWorkspace(preQuoteId: string) {
     finally { busyRef.current = false; }
   }, [loadProposal, requirement]);
 
+  const isCommercialMutationBusy = pricingLoading || confirmationLoading || manualItemCreating || savingSelectionItemIds.length > 0;
+
   const calculatePricing = useCallback(async () => {
-    if (pricingBusyRef.current || !requirement || !proposal) return;
+    if (pricingBusyRef.current || isCommercialMutationBusy || !requirement || !proposal) return;
     pricingBusyRef.current = true;
     setPricingLoading(true);
     setPricingError(null);
@@ -614,7 +596,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
         setPricingLoading(false);
       }
     }
-  }, [preQuoteId, pricing, proposal, requirement]);
+  }, [isCommercialMutationBusy, preQuoteId, pricing, proposal, requirement]);
 
 
   const cancelPricing = useCallback(async () => {
@@ -635,8 +617,9 @@ export function useRequirementWorkspace(preQuoteId: string) {
       pricingCancellationRequestedRef.current = false;
     }
   }, [preQuoteId, pricing, pricingLoading, requirement]);
+
   const saveSelection = useCallback(async (itemId: string, request: TechnicalProposalSelectionRequest) => {
-    if (!requirement || !proposal || savingSelectionItemIds.includes(itemId)) return false;
+    if (!requirement || !proposal || isCommercialMutationBusy) return false;
     const expectedPreQuoteId = preQuoteId;
     setSavingSelectionItemIds((current) => [...current, itemId]);
     setSelectionErrors((current) => {
@@ -661,7 +644,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
         setPricing((current) => current ? applyRepricedPricing(current, response) : current);
         setPricingError(null);
         setPricingAfterSelectionError(false);
-      setPricingCancelMessage(null);
+        setPricingCancelMessage(null);
         setConfirmationError(null);
         return true;
       }
@@ -685,10 +668,73 @@ export function useRequirementWorkspace(preQuoteId: string) {
         setSavingSelectionItemIds((current) => current.filter((id) => id !== itemId));
       }
     }
-  }, [preQuoteId, pricing, proposal, requirement, savingSelectionItemIds]);
+  }, [isCommercialMutationBusy, preQuoteId, pricing, proposal, requirement]);
 
+
+  const createManualItem = useCallback(async (request: CreateManualTechnicalProposalItemRequest) => {
+    if (!requirement || !proposal || isCommercialMutationBusy) return false;
+    const expectedPreQuoteId = preQuoteId;
+    setManualItemCreating(true);
+    setManualItemError(null);
+    setPricingAfterSelectionError(false);
+    try {
+      await createManualTechnicalProposalItem(requirement.requirementId, request);
+      const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
+      setProposal(refreshedProposal);
+      setPricing(null);
+      setPricingError(null);
+      setPricingAfterSelectionError(false);
+      setPricingCancelMessage(null);
+      setConfirmationError(null);
+      return true;
+    } catch (cause) {
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
+      setManualItemError(cause);
+      return false;
+    } finally {
+      if (mountedRef.current && preQuoteIdRef.current === expectedPreQuoteId) {
+        setManualItemCreating(false);
+      }
+    }
+  }, [isCommercialMutationBusy, preQuoteId, proposal, requirement]);
+
+  const updateItemInclusion = useCallback(async (itemId: string, isIncluded: boolean, reason?: string | null) => {
+    if (!requirement || !proposal || isCommercialMutationBusy) return false;
+    const expectedPreQuoteId = preQuoteId;
+    setSavingSelectionItemIds((current) => [...current, itemId]);
+    setSelectionErrors((current) => {
+      const next = { ...current };
+      delete next[itemId];
+      return next;
+    });
+    setPricingAfterSelectionError(false);
+    try {
+      await updateTechnicalProposalItemInclusion(requirement.requirementId, itemId, {
+        isIncluded,
+        reason: reason?.trim() ? reason.trim() : null,
+      });
+      const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
+      setProposal(refreshedProposal);
+      setPricing(null);
+      setPricingError(null);
+      setPricingAfterSelectionError(false);
+      setPricingCancelMessage(null);
+      setConfirmationError(null);
+      return true;
+    } catch (cause) {
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
+      setSelectionErrors((current) => ({ ...current, [itemId]: { kind: "inclusion", action: isIncluded ? "reactivate" : "exclude", cause } }));
+      return false;
+    } finally {
+      if (mountedRef.current && preQuoteIdRef.current === expectedPreQuoteId) {
+        setSavingSelectionItemIds((current) => current.filter((id) => id !== itemId));
+      }
+    }
+  }, [isCommercialMutationBusy, preQuoteId, proposal, requirement]);
   const confirmSelection = useCallback(async () => {
-    if (!requirement || !proposal || confirmationLoading) return;
+    if (!requirement || !proposal || isCommercialMutationBusy) return;
     const expectedPreQuoteId = preQuoteId;
     setConfirmationLoading(true);
     setConfirmationError(null);
@@ -708,7 +754,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
         setConfirmationLoading(false);
       }
     }
-  }, [confirmationLoading, preQuoteId, proposal, requirement]);
+  }, [isCommercialMutationBusy, preQuoteId, proposal, requirement]);
 
   const refreshAfterChatAction = useCallback(async () => {
     if (!requirement) return;
@@ -731,13 +777,12 @@ export function useRequirementWorkspace(preQuoteId: string) {
       setPricingAfterSelectionError(true);
     }
   }, [preQuoteId, pricing, requirement]);
-
   return {
     files, commercialLine, validationError, phase, requirement, processingResult, proposal, error,
-    pricing, pricingLoading, pricingError, pricingAfterSelectionError, pricingCancelMessage, confirmationLoading, confirmationError, savingSelectionItemIds, selectionErrors,
+    pricing, pricingLoading, pricingError, pricingAfterSelectionError, pricingCancelMessage, confirmationLoading, confirmationError, manualItemCreating, manualItemError, savingSelectionItemIds, selectionErrors, isCommercialMutationBusy,
     selectionCatalog, selectionCatalogLoading, selectionCatalogError,
     setCommercialLine,
     selectFiles, removeFile, upload, process, cancelProcessing, retryProposal, retryCurrent,
-    calculatePricing, cancelPricing, confirmSelection, saveSelection, retrySelectionCatalog, refreshAfterChatAction,
+    calculatePricing, cancelPricing, confirmSelection, saveSelection, createManualItem, updateItemInclusion, retrySelectionCatalog, refreshAfterChatAction,
   };
 }

@@ -6,10 +6,10 @@ const areaFormatter = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 2,
 });
 
-interface ProposalPhysicalValues {
-  quantity: number | null;
-  widthMm: number | null;
-  heightMm: number | null;
+interface EffectiveProposalPhysicalValues {
+  effectiveQuantity: number | null;
+  effectiveWidthMm: number | null;
+  effectiveHeightMm: number | null;
 }
 
 function isPositiveFinite(value: number | null): value is number {
@@ -54,15 +54,15 @@ export function formatProposalAreaM2(value: number | null): string {
   return value === null ? "Por definir" : `${areaFormatter.format(value)} m²`;
 }
 
-export function calculateProposalPhysicalTotals(items: ProposalPhysicalValues[]): {
+export function calculateProposalPhysicalTotals(items: EffectiveProposalPhysicalValues[]): {
   structureCount: number;
   totalAreaM2: number;
 } {
   return items.reduce((totals, item) => {
-    if (!isPositiveFinite(item.quantity)) return totals;
-    totals.structureCount += item.quantity;
-    const unitAreaM2 = deriveGeometricAreaM2(item.widthMm, item.heightMm);
-    if (unitAreaM2 !== null) totals.totalAreaM2 += unitAreaM2 * item.quantity;
+    if (!isPositiveFinite(item.effectiveQuantity)) return totals;
+    totals.structureCount += item.effectiveQuantity;
+    const unitAreaM2 = deriveGeometricAreaM2(item.effectiveWidthMm, item.effectiveHeightMm);
+    if (unitAreaM2 !== null) totals.totalAreaM2 += unitAreaM2 * item.effectiveQuantity;
     return totals;
   }, { structureCount: 0, totalAreaM2: 0 });
 }

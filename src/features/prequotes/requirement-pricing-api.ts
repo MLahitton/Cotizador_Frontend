@@ -1,4 +1,4 @@
-﻿import {
+import {
   isNonEmptyString,
   isNonNegativeInteger,
   isNullableNumber,
@@ -35,11 +35,14 @@ function isComparable(value: unknown): value is RequirementPricingComparable {
     isNullableString(value.similarityLevel) && isNumber(value.finalWeight);
 }
 
+function isPricingItemSource(value: unknown): value is "AI_EXTRACTED" | "MANUAL" {
+  return value === "AI_EXTRACTED" || value === "MANUAL";
+}
 function isPricingItem(value: unknown): boolean {
   if (!isRecord(value) || !isRange(value.unit) || !isRange(value.line) ||
       !Array.isArray(value.comparables)) return false;
-  return isNonEmptyString(value.proposalItemId) && isNonEmptyString(value.extractedItemId) &&
-    isNullableString(value.elementId) && isNonNegativeInteger(value.sequence) &&
+  return isNonEmptyString(value.proposalItemId) && isNullableString(value.extractedItemId) &&
+    isPricingItemSource(value.source) && isNullableString(value.elementId) && isNonNegativeInteger(value.sequence) &&
     isNullableString(value.reference) && isString(value.description) && isNonEmptyString(value.status) &&
     (value.configurationSource === "SUGGESTED" || value.configurationSource === "SELECTED") &&
     isNullableNumber(value.quantity) && isNullableNumber(value.pricingAreaM2) &&
@@ -72,7 +75,11 @@ function isRepriceResponse(value: unknown): value is RepriceRequirementPricingIt
     isRecord(value.pricing) && isNullableNumber(value.pricing.originalUnitPrice) &&
     isNullableNumber(value.pricing.currentUnitPrice) && isNullableNumber(value.pricing.deltaUnitPrice) &&
     isNullableNumber(value.pricing.originalLineTotal) && isNullableNumber(value.pricing.currentLineTotal) &&
-    isNullableNumber(value.pricing.deltaLineTotal) && isNonEmptyString(value.pricing.state) &&
+    isNullableNumber(value.pricing.deltaLineTotal) &&
+    isNullableRange(value.pricing.originalUnit) && isNullableRange(value.pricing.currentUnit) &&
+    isNullableRange(value.pricing.deltaUnit) && isNullableRange(value.pricing.originalLine) &&
+    isNullableRange(value.pricing.currentLine) && isNullableRange(value.pricing.deltaLine) &&
+    isNonEmptyString(value.pricing.state) &&
     isRecord(value.summary) && isNullableNumber(value.summary.originalGrandTotal) &&
     isNullableNumber(value.summary.currentGrandTotal) && isNullableNumber(value.summary.deltaGrandTotal) &&
     Array.isArray(value.comparables) && value.comparables.every(isComparable);
@@ -123,8 +130,16 @@ export async function repriceRequirementPricingItem(
   return response;
 }
 
+function requirementPricingProblemCode(error: ApiError): string | null {
+  const value = error.problemDetails?.errorCode ?? error.problemDetails?.code;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
 export function getRequirementPricingErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return "No fue posible calcular la estimacion economica.";
+  const code = requirementPricingProblemCode(error);
+  if (code === "TECHNICAL_PROPOSAL_NO_INCLUDED_ITEMS") return "No hay elementos incluidos para calcular precios.";
+  if (code === "TECHNICAL_PROPOSAL_ITEM_EXCLUDED") return "El elemento esta excluido del alcance comercial actual.";
   const messages: Record<number, string> = {
     0: "No fue posible conectar con el servidor.",
     400: "La configuracion seleccionada no es valida para recalcular el precio.",

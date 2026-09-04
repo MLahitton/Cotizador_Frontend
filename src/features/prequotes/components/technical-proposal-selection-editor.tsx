@@ -64,13 +64,14 @@ function parsePositiveInteger(value: string): number | null {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-export function TechnicalProposalSelectionEditor({ item, catalog, catalogLoading, catalogError, onRetryCatalog, isSaving, errorMessage, submitLabel = "Guardar seleccion", savingLabel = "Guardando...", onSave }: {
+export function TechnicalProposalSelectionEditor({ item, catalog, catalogLoading, catalogError, onRetryCatalog, isSaving, disabled = false, errorMessage, submitLabel = "Guardar seleccion", savingLabel = "Guardando...", onSave }: {
   item: TechnicalProposalItem;
   catalog: TechnicalSelectionCatalog | null;
   catalogLoading: boolean;
   catalogError: string | null;
   onRetryCatalog: () => void;
   isSaving: boolean;
+  disabled?: boolean;
   errorMessage: string | null;
   submitLabel?: string;
   savingLabel?: string;
@@ -121,6 +122,8 @@ export function TechnicalProposalSelectionEditor({ item, catalog, catalogLoading
     for (const option of [item.selected?.glass ?? null, item.suggested.glass, ...item.alternatives.glass.map(({ option }) => option)]) if (option && !values.has(option.id)) values.set(option.id, { id: option.id, title: option.displayName, subtitle: option.code, searchText: [option.displayName, option.code, option.family, option.composition, option.treatment, option.productToken].filter(Boolean).join(" "), recommendation: recommendationFor(option.id, selectedId, suggestedId, alternatives) });
     return ordered([...values.values()]);
   }, [catalog, item]);
+  const controlsDisabled = isSaving || disabled;
+
   const finishes = useMemo(() => {
     const selectedId = item.selected?.finish?.id ?? null;
     const suggestedId = item.suggested.finish?.id ?? null;
@@ -193,7 +196,7 @@ export function TechnicalProposalSelectionEditor({ item, catalog, catalogLoading
   if (!isEditing) {
     return (
       <div className="flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3">
-        <Button type="button" size="sm" variant="secondary" disabled={isSaving} onClick={beginEditing}>Modificar configuracion</Button>
+        <Button type="button" size="sm" variant="secondary" disabled={controlsDisabled} onClick={beginEditing}>Modificar configuracion</Button>
         {errorMessage ? <p role="alert" className="w-full text-sm text-danger">{errorMessage}</p> : null}
       </div>
     );
@@ -202,22 +205,22 @@ export function TechnicalProposalSelectionEditor({ item, catalog, catalogLoading
   return (
     <div className="space-y-3 border-t border-border-subtle pt-3">
       <p className="text-sm font-semibold text-foreground">Configuracion seleccionada</p>
-      <div className="grid gap-3 md:grid-cols-3">
-        <NumericField label="Cantidad" value={quantity} disabled={isSaving} onChange={setDraftQuantity} />
-        <NumericField label="Ancho" suffix="mm" value={widthMm} disabled={isSaving} onChange={setDraftWidthMm} />
-        <NumericField label="Alto" suffix="mm" value={heightMm} disabled={isSaving} onChange={setDraftHeightMm} />
+      <div className="grid gap-3 lg:grid-cols-3">
+        <NumericField label="Cantidad" value={quantity} disabled={controlsDisabled} onChange={setDraftQuantity} />
+        <NumericField label="Ancho" suffix="mm" value={widthMm} disabled={controlsDisabled} onChange={setDraftWidthMm} />
+        <NumericField label="Alto" suffix="mm" value={heightMm} disabled={controlsDisabled} onChange={setDraftHeightMm} />
       </div>
       <div className="grid gap-3">
-        <SearchableCatalogCombobox label="Sistema" value={systemId} options={systems} disabled={isSaving || Boolean(catalogError)} loading={catalogLoading} searchPlaceholder="Buscar sistema por nombre, código o contexto" allowEmpty={!effective.system} onChange={setDraftSystemId} />
-        <SearchableCatalogCombobox label="Vidrio" value={glassId} options={glass} disabled={isSaving || Boolean(catalogError)} loading={catalogLoading} searchPlaceholder="Buscar vidrio" allowEmpty={!effective.glass} onChange={setDraftGlassId} />
-        <SearchableCatalogCombobox label="Acabado" value={finishId} options={finishes} disabled={isSaving || Boolean(catalogError)} loading={catalogLoading} searchPlaceholder="Buscar acabado" allowEmpty={!effective.finish} onChange={setDraftFinishId} />
+        <SearchableCatalogCombobox label="Sistema" value={systemId} options={systems} disabled={controlsDisabled || Boolean(catalogError)} loading={catalogLoading} searchPlaceholder="Buscar sistema por nombre, código o contexto" allowEmpty={!effective.system} onChange={setDraftSystemId} />
+        <SearchableCatalogCombobox label="Vidrio" value={glassId} options={glass} disabled={controlsDisabled || Boolean(catalogError)} loading={catalogLoading} searchPlaceholder="Buscar vidrio" allowEmpty={!effective.glass} onChange={setDraftGlassId} />
+        <SearchableCatalogCombobox label="Acabado" value={finishId} options={finishes} disabled={controlsDisabled || Boolean(catalogError)} loading={catalogLoading} searchPlaceholder="Buscar acabado" allowEmpty={!effective.finish} onChange={setDraftFinishId} />
       </div>
       {catalogError ? <div className="flex items-center justify-between gap-3 rounded-sm border border-danger/30 bg-danger-soft p-3"><p role="alert" className="text-sm text-danger">{catalogError}</p><Button type="button" size="sm" variant="outline" onClick={onRetryCatalog}>Reintentar</Button></div> : null}
       {submitLabel === "Aplicar cambio" ? <p className="text-xs text-foreground-secondary">Al aplicar cambios, el precio del item puede cambiar.</p> : null}
       {errorMessage ? <p role="alert" className="text-sm text-danger">{errorMessage}</p> : null}
       <div className="flex flex-wrap justify-end gap-2">
-        <Button type="button" size="sm" variant="ghost" disabled={isSaving} onClick={cancel}>Cancelar</Button>
-        <Button type="button" size="sm" disabled={isSaving} onClick={save}>{isSaving ? savingLabel : submitLabel}</Button>
+        <Button type="button" size="sm" variant="ghost" disabled={controlsDisabled} onClick={cancel}>Cancelar</Button>
+        <Button type="button" size="sm" disabled={controlsDisabled} onClick={save}>{isSaving ? savingLabel : submitLabel}</Button>
       </div>
     </div>
   );

@@ -9,6 +9,21 @@ export interface TechnicalProposalSelectionConfirmationResponse {
   confirmedByUserId: string | null;
 }
 
+export interface TechnicalProposalItemInclusionRequest {
+  isIncluded: boolean;
+  reason?: string | null;
+}
+
+export interface TechnicalProposalItemInclusionResponse {
+  technicalProposalId: string;
+  itemId: string;
+  isIncluded: boolean;
+  excludedAtUtc: string | null;
+  excludedByUserId: string | null;
+  exclusionReason: string | null;
+  commercialRevision: number;
+}
+
 export interface TechnicalProposalSelectionRequest {
   confirmSuggested?: true;
   systemId?: string | null;
@@ -19,11 +34,38 @@ export interface TechnicalProposalSelectionRequest {
   heightMm?: number | null;
 }
 
+function isInclusionResponse(value: unknown): value is TechnicalProposalItemInclusionResponse {
+  return isRecord(value) && isNonEmptyString(value.technicalProposalId) &&
+    isNonEmptyString(value.itemId) && typeof value.isIncluded === "boolean" &&
+    (value.excludedAtUtc === null || isDateTime(value.excludedAtUtc)) &&
+    isNullableString(value.excludedByUserId) && isNullableString(value.exclusionReason) &&
+    typeof value.commercialRevision === "number";
+}
+
 function isConfirmationResponse(value: unknown): value is TechnicalProposalSelectionConfirmationResponse {
   return isRecord(value) && isNonEmptyString(value.technicalProposalId) &&
     (value.state === "PENDING_CONFIRMATION" || value.state === "CONFIRMED") &&
     (value.confirmedAtUtc === null || isDateTime(value.confirmedAtUtc)) &&
     isNullableString(value.confirmedByUserId);
+}
+
+export async function updateTechnicalProposalItemInclusion(
+  requirementId: string,
+  itemId: string,
+  request: TechnicalProposalItemInclusionRequest,
+): Promise<TechnicalProposalItemInclusionResponse> {
+  const response = await apiRequest(
+    `/api/v2/requirements/${encodeURIComponent(requirementId)}/technical-proposal/items/${encodeURIComponent(itemId)}/inclusion`,
+    { method: "PATCH", authenticated: true, body: request },
+  );
+  if (!isInclusionResponse(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio un cambio de inclusion con un formato inesperado.",
+    });
+  }
+  return response;
 }
 
 export async function updateTechnicalProposalItemSelection(
@@ -52,8 +94,14 @@ export async function confirmTechnicalProposalSelection(technicalProposalId: str
   return response;
 }
 
+function technicalProposalSelectionProblemCode(error: ApiError): string | null {
+  const value = error.problemDetails?.errorCode ?? error.problemDetails?.code;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
 export function getTechnicalProposalSelectionConfirmationErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return "No fue posible confirmar las configuraciones.";
+  if (technicalProposalSelectionProblemCode(error) === "TECHNICAL_PROPOSAL_NO_INCLUDED_ITEMS") return "No hay elementos incluidos en la propuesta.";
   const messages: Record<number, string> = {
     0: "No fue posible conectar con el servidor.",
     400: "La propuesta tecnica no es valida.",
