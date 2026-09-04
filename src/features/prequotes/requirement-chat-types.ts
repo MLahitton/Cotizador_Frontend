@@ -19,6 +19,7 @@ export type RequirementChatInteraction = {
   pricingImpactExpected: string | null;
   pricingStatus: string | null;
   reasons: string[];
+  availableOptions: RequirementChatActionOption[];
 };
 
 export type RequirementChatActionOption = {
