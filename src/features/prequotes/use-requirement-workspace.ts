@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -11,7 +11,7 @@ import { cancelRequirementPricing, getRequirementPricing, repriceRequirementPric
 import type { RepriceRequirementPricingItemResponse, RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 import type { CreatedRequirement, CurrentRequirement, ProcessedRequirement, RequirementCommercialLine } from "@/features/prequotes/requirement-types";
 import { confirmTechnicalProposalSelection, updateTechnicalProposalItemInclusion, updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
-import { getTechnicalProposal } from "@/features/prequotes/technical-proposal-api";
+import { createManualTechnicalProposalItem, getTechnicalProposal, type CreateManualTechnicalProposalItemRequest } from "@/features/prequotes/technical-proposal-api";
 import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 import { getTechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-api";
 import type { TechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-types";
@@ -206,6 +206,8 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const [pricingCancelMessage, setPricingCancelMessage] = useState<string | null>(null);
   const [confirmationLoading, setConfirmationLoading] = useState(false);
   const [confirmationError, setConfirmationError] = useState<unknown | null>(null);
+  const [manualItemCreating, setManualItemCreating] = useState(false);
+  const [manualItemError, setManualItemError] = useState<unknown | null>(null);
   const [error, setError] = useState<unknown | null>(null);
   const [currentReloadKey, setCurrentReloadKey] = useState(0);
   const mountedRef = useRef(true);
@@ -313,6 +315,8 @@ export function useRequirementWorkspace(preQuoteId: string) {
       setPricingCancelMessage(null);
       setConfirmationLoading(false);
       setConfirmationError(null);
+      setManualItemCreating(false);
+      setManualItemError(null);
       setError(null);
       setPhase("hydrating");
 
@@ -554,7 +558,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
     finally { busyRef.current = false; }
   }, [loadProposal, requirement]);
 
-  const isCommercialMutationBusy = pricingLoading || confirmationLoading || savingSelectionItemIds.length > 0;
+  const isCommercialMutationBusy = pricingLoading || confirmationLoading || manualItemCreating || savingSelectionItemIds.length > 0;
 
   const calculatePricing = useCallback(async () => {
     if (pricingBusyRef.current || isCommercialMutationBusy || !requirement || !proposal) return;
@@ -667,6 +671,34 @@ export function useRequirementWorkspace(preQuoteId: string) {
   }, [isCommercialMutationBusy, preQuoteId, pricing, proposal, requirement]);
 
 
+  const createManualItem = useCallback(async (request: CreateManualTechnicalProposalItemRequest) => {
+    if (!requirement || !proposal || isCommercialMutationBusy) return false;
+    const expectedPreQuoteId = preQuoteId;
+    setManualItemCreating(true);
+    setManualItemError(null);
+    setPricingAfterSelectionError(false);
+    try {
+      await createManualTechnicalProposalItem(requirement.requirementId, request);
+      const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
+      setProposal(refreshedProposal);
+      setPricing(null);
+      setPricingError(null);
+      setPricingAfterSelectionError(false);
+      setPricingCancelMessage(null);
+      setConfirmationError(null);
+      return true;
+    } catch (cause) {
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return false;
+      setManualItemError(cause);
+      return false;
+    } finally {
+      if (mountedRef.current && preQuoteIdRef.current === expectedPreQuoteId) {
+        setManualItemCreating(false);
+      }
+    }
+  }, [isCommercialMutationBusy, preQuoteId, proposal, requirement]);
+
   const updateItemInclusion = useCallback(async (itemId: string, isIncluded: boolean, reason?: string | null) => {
     if (!requirement || !proposal || isCommercialMutationBusy) return false;
     const expectedPreQuoteId = preQuoteId;
@@ -725,10 +757,10 @@ export function useRequirementWorkspace(preQuoteId: string) {
   }, [isCommercialMutationBusy, preQuoteId, proposal, requirement]);
   return {
     files, commercialLine, validationError, phase, requirement, processingResult, proposal, error,
-    pricing, pricingLoading, pricingError, pricingAfterSelectionError, pricingCancelMessage, confirmationLoading, confirmationError, savingSelectionItemIds, selectionErrors, isCommercialMutationBusy,
+    pricing, pricingLoading, pricingError, pricingAfterSelectionError, pricingCancelMessage, confirmationLoading, confirmationError, manualItemCreating, manualItemError, savingSelectionItemIds, selectionErrors, isCommercialMutationBusy,
     selectionCatalog, selectionCatalogLoading, selectionCatalogError,
     setCommercialLine,
     selectFiles, removeFile, upload, process, cancelProcessing, retryProposal, retryCurrent,
-    calculatePricing, cancelPricing, confirmSelection, saveSelection, updateItemInclusion, retrySelectionCatalog,
+    calculatePricing, cancelPricing, confirmSelection, saveSelection, createManualItem, updateItemInclusion, retrySelectionCatalog,
   };
 }

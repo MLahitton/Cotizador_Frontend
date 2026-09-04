@@ -35,11 +35,14 @@ function isComparable(value: unknown): value is RequirementPricingComparable {
     isNullableString(value.similarityLevel) && isNumber(value.finalWeight);
 }
 
+function isPricingItemSource(value: unknown): value is "AI_EXTRACTED" | "MANUAL" {
+  return value === "AI_EXTRACTED" || value === "MANUAL";
+}
 function isPricingItem(value: unknown): boolean {
   if (!isRecord(value) || !isRange(value.unit) || !isRange(value.line) ||
       !Array.isArray(value.comparables)) return false;
-  return isNonEmptyString(value.proposalItemId) && isNonEmptyString(value.extractedItemId) &&
-    isNullableString(value.elementId) && isNonNegativeInteger(value.sequence) &&
+  return isNonEmptyString(value.proposalItemId) && isNullableString(value.extractedItemId) &&
+    isPricingItemSource(value.source) && isNullableString(value.elementId) && isNonNegativeInteger(value.sequence) &&
     isNullableString(value.reference) && isString(value.description) && isNonEmptyString(value.status) &&
     (value.configurationSource === "SUGGESTED" || value.configurationSource === "SELECTED") &&
     isNullableNumber(value.quantity) && isNullableNumber(value.pricingAreaM2) &&

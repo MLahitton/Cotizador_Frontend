@@ -1,4 +1,4 @@
-﻿import { CheckCircle2, CircleAlert, MessageCircle } from "lucide-react";
+import { CheckCircle2, CircleAlert, MessageCircle } from "lucide-react";
 
 import { useState } from "react";
 
@@ -99,7 +99,8 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
 }) {
   const [chatOpen, setChatOpen] = useState(false);
   const status = readinessStatus(item.readiness.state);
-  const provenance = sourceLabel(item);
+  const isManualItem = item.source === "MANUAL";
+  const provenance = isManualItem ? item.manualNote || "Elemento agregado manualmente" : sourceLabel(item);
   const pricingIssues = pricing ? [...pricing.mappingWarnings, ...pricing.missingData] : [];
   const hasPriceEstimate = pricing?.status === "PRICEABLE";
   const hasPricingSnapshot = Boolean(pricing?.originalLine || pricing?.currentLine || pricing?.deltaLine);
@@ -125,6 +126,7 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
           {!item.isIncluded ? <Badge tone="warning">Excluido</Badge> : null}
+          {isManualItem ? <Badge tone="brand">Manual</Badge> : null}
           <Badge tone={item.isIncluded ? status.tone : "neutral"}>{item.isIncluded ? status.label : "Fuera del alcance"}</Badge>
           <span className="text-xs text-foreground-secondary">
             {item.selectionState === "UNCONFIRMED" ? "Sugerencia sin confirmar" : item.selectionState === "CONFIRMED_AS_SUGGESTED" ? "Sugerencia confirmada" : "Configuracion modificada"}
@@ -140,11 +142,13 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
 
       {chatOpen ? <RequirementChatPanel requirementId={requirementId} itemId={item.itemId} title={`Asistente de ${item.reference || `Elemento ${item.sequence}`}`} compact /> : null}
 
-      <dl className="grid gap-4 border-t border-border-subtle pt-4">
-        <SuggestedValue label="Sistema sugerido S&G" value={item.suggested.system?.displayName ?? null} />
-        <SuggestedValue label="Vidrio sugerido S&G" value={item.suggested.glass?.displayName ?? null} note={resolutionNote(item.glassResolutionReasons, "HISTORICAL_DEFAULT_GLASS", "Referencia historica - requiere validacion")} />
-        <SuggestedValue label="Acabado sugerido S&G" value={item.suggested.finish?.displayName ?? null} note={resolutionNote(item.finishResolutionReasons, "HISTORICAL_DEFAULT_FINISH", "Predeterminado historico")} />
-      </dl>
+      {!isManualItem ? (
+        <dl className="grid gap-4 border-t border-border-subtle pt-4">
+          <SuggestedValue label="Sistema sugerido S&G" value={item.suggested.system?.displayName ?? null} />
+          <SuggestedValue label="Vidrio sugerido S&G" value={item.suggested.glass?.displayName ?? null} note={resolutionNote(item.glassResolutionReasons, "HISTORICAL_DEFAULT_GLASS", "Referencia historica - requiere validacion")} />
+          <SuggestedValue label="Acabado sugerido S&G" value={item.suggested.finish?.displayName ?? null} note={resolutionNote(item.finishResolutionReasons, "HISTORICAL_DEFAULT_FINISH", "Predeterminado historico")} />
+        </dl>
+      ) : null}
 
       {item.selected ? (
         <dl className="grid gap-4 rounded-sm border border-brand bg-brand-soft p-3">

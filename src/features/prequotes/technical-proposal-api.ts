@@ -19,6 +19,7 @@ import type {
   TechnicalProposalPendingSeverity,
   TechnicalProposalReadinessState,
   TechnicalProposalSystemOption,
+  TechnicalProposalItemSource,
 } from "@/features/prequotes/technical-proposal-types";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
@@ -51,6 +52,9 @@ function isAlternative<T>(value: unknown, optionGuard: (option: unknown) => opti
     isStringArray(value.reasons);
 }
 
+function isProposalItemSource(value: unknown): value is TechnicalProposalItemSource {
+  return value === "AI_EXTRACTED" || value === "MANUAL";
+}
 function isHistoricalEvidenceStatus(value: unknown): value is HistoricalEvidenceStatus {
   return value === "AVAILABLE" || value === "NO_COMPARABLES" || value === "SIMILARITY_UNAVAILABLE";
 }
@@ -124,8 +128,8 @@ function isProposalItem(value: unknown): boolean {
     isNullableString(evidence.sourceFileName) && isNullableString(evidence.contextLabel) &&
     isNullableNumber(evidence.confidence) && isString(evidence.status));
 
-  return isNonEmptyString(value.itemId) && isNonEmptyString(value.extractedItemId) &&
-    isNullableString(value.elementId) && isNonNegativeInteger(value.sequence) &&
+  return isNonEmptyString(value.itemId) && isNullableString(value.extractedItemId) &&
+    isProposalItemSource(value.source) && isNullableString(value.elementId) && isNonNegativeInteger(value.sequence) &&
     isNullableString(value.reference) && isString(value.description) && isString(value.elementType) &&
     isNullableNumber(value.quantity) && isNullableNumber(value.widthMm) &&
     isNullableNumber(value.heightMm) && isNullableNumber(value.manualQuantityOverride) &&
@@ -135,7 +139,8 @@ function isProposalItem(value: unknown): boolean {
     typeof value.isIncluded === "boolean" &&
     (value.excludedAtUtc === null || isDateTime(value.excludedAtUtc)) &&
     isNullableString(value.excludedByUserId) && isNullableString(value.exclusionReason) &&
-    isNullableNumber(value.extractionConfidence) && isString(value.extractionStatus) &&
+    isNullableNumber(value.extractionConfidence) && isNullableString(value.extractionStatus) &&
+    isNullableString(value.manualNote) &&
     (suggested.system === null || isSystemOption(suggested.system)) &&
     (suggested.glass === null || isGlassOption(suggested.glass)) &&
     (suggested.finish === null || isFinishOption(suggested.finish)) &&
@@ -166,7 +171,9 @@ function isTechnicalProposal(value: unknown): value is TechnicalProposal {
     isNonEmptyString(value.extractionResultId) && isString(value.status) && isDateTime(value.createdAtUtc) &&
     (value.commercialLine === null || ["CLASSIC", "ESSENTIAL", "BIOCONFORT", "SIGNATURE"].includes(String(value.commercialLine))) &&
     isCommercialConfirmation(value.commercialConfirmation) &&
-    isNonNegativeInteger(value.itemCount) && isNonNegativeInteger(value.itemsRequiringReview) &&
+    isNonNegativeInteger(value.itemCount) && isNonNegativeInteger(value.detectedItemCount) &&
+    isNonNegativeInteger(value.manualItemCount) && isNonNegativeInteger(value.totalProposalItemCount) &&
+    isNonNegativeInteger(value.itemsRequiringReview) &&
     isNonNegativeInteger(value.technicallyCompleteItems) && isNonNegativeInteger(value.priceableItems) &&
     isProposalReadiness(value.readiness) &&
     Array.isArray(value.items) && value.items.every(isProposalItem);
@@ -199,4 +206,63 @@ export function getTechnicalProposalErrorMessage(error: unknown): string {
     500: "No fue posible consultar la propuesta tecnica.",
   };
   return messages[error.status] ?? "No fue posible consultar la propuesta tecnica.";
+}
+
+export interface CreateManualTechnicalProposalItemRequest {
+  reference: string;
+  description?: string | null;
+  elementType: string;
+  quantity: number;
+  widthMillimeters: number;
+  heightMillimeters: number;
+  systemId: string;
+  glassTypeId: string;
+  finishTypeId: string;
+  note?: string | null;
+}
+
+interface CreateManualTechnicalProposalItemResponse {
+  technicalProposalId: string;
+  itemId: string;
+  source: TechnicalProposalItemSource;
+  sequence: number;
+  commercialRevision: number;
+}
+
+function isCreateManualResponse(value: unknown): value is CreateManualTechnicalProposalItemResponse {
+  return isRecord(value) && isNonEmptyString(value.technicalProposalId) &&
+    isNonEmptyString(value.itemId) && isProposalItemSource(value.source) &&
+    isNonNegativeInteger(value.sequence) && isNonNegativeInteger(value.commercialRevision);
+}
+
+export async function createManualTechnicalProposalItem(
+  requirementId: string,
+  request: CreateManualTechnicalProposalItemRequest,
+): Promise<CreateManualTechnicalProposalItemResponse> {
+  const response = await apiRequest(
+    `/api/v2/requirements/${encodeURIComponent(requirementId)}/technical-proposal/items`,
+    { method: "POST", authenticated: true, body: request },
+  );
+  if (!isCreateManualResponse(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio el item manual con un formato inesperado.",
+    });
+  }
+  return response;
+}
+
+export function getCreateManualTechnicalProposalItemErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) return "No fue posible agregar el elemento manual.";
+  const messages: Record<number, string> = {
+    0: "No fue posible conectar con el servidor.",
+    400: "Completa los datos requeridos con valores validos.",
+    401: "Tu sesion expiro. Inicia sesion nuevamente.",
+    403: "No tienes acceso a esta propuesta tecnica.",
+    404: "La propuesta tecnica ya no esta disponible.",
+    409: "La configuracion seleccionada no esta disponible para esta propuesta.",
+    500: "No fue posible agregar el elemento manual.",
+  };
+  return messages[error.status] ?? "No fue posible agregar el elemento manual.";
 }

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Calculator, FileCheck2, Play, StopCircle } from "lucide-react";
 
@@ -190,7 +190,10 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
               getWorkspaceSelectionErrorMessage(error),
             ]),
           )}
+          manualItemCreating={workspace.manualItemCreating}
+          manualItemError={workspace.manualItemError}
           onSaveSelection={workspace.saveSelection}
+          onCreateManualItem={workspace.createManualItem}
           onUpdateInclusion={workspace.updateItemInclusion}
           commercialMutationDisabled={workspace.isCommercialMutationBusy}
         />

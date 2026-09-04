@@ -50,6 +50,7 @@ export interface TechnicalProposalAlternative<T> {
 }
 
 export type HistoricalEvidenceStatus = "AVAILABLE" | "NO_COMPARABLES" | "SIMILARITY_UNAVAILABLE";
+export type TechnicalProposalItemSource = "AI_EXTRACTED" | "MANUAL";
 export type TechnicalProposalCommercialConfirmationState = "PENDING_CONFIRMATION" | "CONFIRMED";
 
 export interface TechnicalProposalCommercialConfirmation {
@@ -120,7 +121,8 @@ export interface TechnicalProposalEvidence {
 
 export interface TechnicalProposalItem {
   itemId: string;
-  extractedItemId: string;
+  extractedItemId: string | null;
+  source: TechnicalProposalItemSource;
   elementId: string | null;
   sequence: number;
   reference: string | null;
@@ -141,7 +143,8 @@ export interface TechnicalProposalItem {
   excludedByUserId: string | null;
   exclusionReason: string | null;
   extractionConfidence: number | null;
-  extractionStatus: string;
+  extractionStatus: string | null;
+  manualNote: string | null;
   suggested: {
     system: TechnicalProposalSystemOption | null;
     glass: TechnicalProposalGlassOption | null;
@@ -205,6 +208,9 @@ export interface TechnicalProposal {
   commercialConfirmation: TechnicalProposalCommercialConfirmation;
   createdAtUtc: string;
   itemCount: number;
+  detectedItemCount: number;
+  manualItemCount: number;
+  totalProposalItemCount: number;
   itemsRequiringReview: number;
   technicallyCompleteItems: number;
   priceableItems: number;

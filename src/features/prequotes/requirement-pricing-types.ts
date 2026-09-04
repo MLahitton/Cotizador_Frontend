@@ -17,7 +17,8 @@ export interface RequirementPricingComparable {
 
 export interface RequirementPricingItem {
   proposalItemId: string;
-  extractedItemId: string;
+  extractedItemId: string | null;
+  source: "AI_EXTRACTED" | "MANUAL";
   elementId: string | null;
   sequence: number;
   reference: string | null;
