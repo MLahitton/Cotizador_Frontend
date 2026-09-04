@@ -102,6 +102,9 @@ function technicalProposalSelectionProblemCode(error: ApiError): string | null {
 export function getTechnicalProposalSelectionConfirmationErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return "No fue posible confirmar las configuraciones.";
   if (technicalProposalSelectionProblemCode(error) === "TECHNICAL_PROPOSAL_NO_INCLUDED_ITEMS") return "No hay elementos incluidos en la propuesta.";
+  if (technicalProposalSelectionProblemCode(error) === "TECHNICAL_PROPOSAL_FUNCTIONAL_TYPE_MISMATCH") {
+    return "Has seleccionado un sistema que no pertenece a la funcion del requerimiento. Por favor escoge un sistema coherente.";
+  }
   const messages: Record<number, string> = {
     0: "No fue posible conectar con el servidor.",
     400: "La propuesta tecnica no es valida.",
@@ -116,6 +119,9 @@ export function getTechnicalProposalSelectionConfirmationErrorMessage(error: unk
 
 export function getTechnicalProposalSelectionErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return "No fue posible guardar la configuracion seleccionada.";
+  if (technicalProposalSelectionProblemCode(error) === "TECHNICAL_PROPOSAL_FUNCTIONAL_TYPE_MISMATCH") {
+    return "Has seleccionado un sistema que no pertenece a la funcion del requerimiento. Por favor escoge un sistema coherente.";
+  }
   const messages: Record<number, string> = {
     0: "No fue posible conectar con el servidor.",
     400: "La configuracion seleccionada no es valida.",

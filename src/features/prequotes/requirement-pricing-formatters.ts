@@ -1,4 +1,4 @@
-﻿export function formatRequirementMoney(value: number | null, currency: string): string {
+export function formatRequirementMoney(value: number | null, currency: string): string {
   if (value === null) return "No disponible";
   try {
     return new Intl.NumberFormat("es-CO", {
@@ -22,6 +22,7 @@ export function formatPricingWarning(code: string): string {
     SELECTED_GLASS_MISSING: "Falta definir el vidrio seleccionado.",
     SELECTED_FINISH_MISSING: "Falta definir el acabado seleccionado.",
     TECHNICAL_PROPOSAL_ITEM_NOT_PRICEABLE: "La configuracion tecnica aun no esta completa.",
+    TECHNICAL_PROPOSAL_FUNCTIONAL_TYPE_MISMATCH: "El sistema seleccionado no pertenece a la funcion del requerimiento.",
   };
   return messages[code] ?? "Este elemento tiene informacion pendiente para la estimacion.";
 }
