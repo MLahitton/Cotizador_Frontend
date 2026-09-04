@@ -75,7 +75,7 @@ export function RequirementChatPanel({ requirementId, itemId, title, compact = f
   itemId?: string | null;
   title: string;
   compact?: boolean;
-  onActionExecuted?: () => void | Promise<void>;
+  onActionExecuted?: (result: RequirementChatActionPlan) => void | Promise<void>;
 }) {
   const [chat, setChat] = useState<RequirementChat | null>(null);
   const [message, setMessage] = useState("");
@@ -139,7 +139,7 @@ export function RequirementChatPanel({ requirementId, itemId, title, compact = f
       const result = await confirmRequirementChatAction(requirementId, planId);
       setActionResult(result);
       try {
-        await onActionExecuted?.();
+        await onActionExecuted?.(result);
       } catch {
         setActionError("El cambio fue aplicado, pero no fue posible actualizar la vista. Vuelve a cargarla para consultar los datos vigentes.");
       }

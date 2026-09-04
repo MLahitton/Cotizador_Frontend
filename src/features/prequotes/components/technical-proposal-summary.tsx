@@ -14,6 +14,7 @@ import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequo
 import type { CreateManualTechnicalProposalItemRequest } from "@/features/prequotes/technical-proposal-api";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 import type { TechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-types";
+import type { RequirementChatActionPlan } from "@/features/prequotes/requirement-chat-types";
 import { getCreateManualTechnicalProposalItemErrorMessage } from "@/features/prequotes/technical-proposal-api";
 import { calculateProposalPhysicalTotals, formatProposalAreaM2 } from "@/features/prequotes/technical-proposal-formatters";
 
@@ -287,7 +288,7 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }
 
 
-export function TechnicalProposalSummary({ requirementId, proposal, pricing, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled }: {
+export function TechnicalProposalSummary({ requirementId, proposal, pricing, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled, recentChatAction }: {
   requirementId: string;
   proposal: TechnicalProposal;
   pricing: RequirementPricing | null;
@@ -300,10 +301,11 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
   manualItemCreating: boolean;
   manualItemError: unknown | null;
   onSaveSelection: (itemId: string, request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
-  onChatActionExecuted: () => void | Promise<void>;
+  onChatActionExecuted: (result: RequirementChatActionPlan) => void | Promise<void>;
   onCreateManualItem: (request: CreateManualTechnicalProposalItemRequest) => boolean | Promise<boolean>;
   onUpdateInclusion: (itemId: string, isIncluded: boolean, reason?: string | null) => boolean | Promise<boolean>;
   commercialMutationDisabled: boolean;
+  recentChatAction: { itemIds: string[]; pricingStatus: string | null } | null;
 }) {
   const [readinessFilter, setReadinessFilter] = useState<ReadinessFilter>("ALL");
   const pricingByProposalItemId = new Map(
@@ -366,6 +368,7 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
               onChatActionExecuted={onChatActionExecuted}
               onUpdateInclusion={(isIncluded, reason) => onUpdateInclusion(item.itemId, isIncluded, reason)}
               commercialMutationDisabled={commercialMutationDisabled}
+              recentChatActionPricingStatus={recentChatAction?.itemIds.includes(item.itemId) ? recentChatAction.pricingStatus : undefined}
             />
           ))}
         </div>

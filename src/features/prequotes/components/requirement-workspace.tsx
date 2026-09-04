@@ -197,6 +197,7 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
           onCreateManualItem={workspace.createManualItem}
           onUpdateInclusion={workspace.updateItemInclusion}
           commercialMutationDisabled={workspace.isCommercialMutationBusy}
+          recentChatAction={workspace.recentChatAction}
         />
       ) : null}
     </section>

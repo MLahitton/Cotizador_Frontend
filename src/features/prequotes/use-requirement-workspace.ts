@@ -15,6 +15,7 @@ import { createManualTechnicalProposalItem, getTechnicalProposal, type CreateMan
 import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 import { getTechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-api";
 import type { TechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-types";
+import type { RequirementChatActionPlan } from "@/features/prequotes/requirement-chat-types";
 import { ApiError } from "@/lib/http/api-error";
 
 const MAX_FILES = 10;
@@ -206,6 +207,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const [pricingCancelMessage, setPricingCancelMessage] = useState<string | null>(null);
   const [confirmationLoading, setConfirmationLoading] = useState(false);
   const [confirmationError, setConfirmationError] = useState<unknown | null>(null);
+  const [recentChatAction, setRecentChatAction] = useState<{ itemIds: string[]; pricingStatus: string | null } | null>(null);
   const [manualItemCreating, setManualItemCreating] = useState(false);
   const [manualItemError, setManualItemError] = useState<unknown | null>(null);
   const [error, setError] = useState<unknown | null>(null);
@@ -222,10 +224,14 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const processingPollRef = useRef<{ requirementId: string; startedAt: number } | null>(null);
   const processingCancellationRequestedRef = useRef(false);
   const pricingCancellationRequestedRef = useRef(false);
+  const recentChatActionTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+      if (recentChatActionTimerRef.current !== null) window.clearTimeout(recentChatActionTimerRef.current);
+    };
   }, []);
 
   const loadSelectionCatalog = useCallback(async (line: RequirementCommercialLine, force = false) => {
@@ -315,6 +321,11 @@ export function useRequirementWorkspace(preQuoteId: string) {
       setPricingCancelMessage(null);
       setConfirmationLoading(false);
       setConfirmationError(null);
+      if (recentChatActionTimerRef.current !== null) {
+        window.clearTimeout(recentChatActionTimerRef.current);
+        recentChatActionTimerRef.current = null;
+      }
+      setRecentChatAction(null);
       setManualItemCreating(false);
       setManualItemError(null);
       setError(null);
@@ -756,7 +767,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
     }
   }, [isCommercialMutationBusy, preQuoteId, proposal, requirement]);
 
-  const refreshAfterChatAction = useCallback(async () => {
+  const refreshAfterChatAction = useCallback(async (result: RequirementChatActionPlan) => {
     if (!requirement) return;
     const expectedPreQuoteId = preQuoteId;
     const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
@@ -764,22 +775,32 @@ export function useRequirementWorkspace(preQuoteId: string) {
     setProposal(refreshedProposal);
     setError(null);
     setPhase("complete");
-    if (!pricing) return;
-    try {
-      const refreshedPricing = await getRequirementPricing(requirement.requirementId);
-      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
-      setPricing(refreshedPricing);
-      setPricingError(null);
-      setPricingAfterSelectionError(false);
-    } catch (cause) {
-      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
-      setPricingError(cause);
-      setPricingAfterSelectionError(true);
+    if (pricing) {
+      try {
+        const refreshedPricing = await getRequirementPricing(requirement.requirementId);
+        if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+        setPricing(refreshedPricing);
+        setPricingError(null);
+        setPricingAfterSelectionError(false);
+      } catch (cause) {
+        if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+        setPricingError(cause);
+        setPricingAfterSelectionError(true);
+      }
     }
+    const itemIds = result.actions
+      .map((action) => action.targetTechnicalProposalItemId)
+      .filter((itemId): itemId is string => itemId !== null);
+    setRecentChatAction({ itemIds, pricingStatus: result.pricingStatus });
+    if (recentChatActionTimerRef.current !== null) window.clearTimeout(recentChatActionTimerRef.current);
+    recentChatActionTimerRef.current = window.setTimeout(() => {
+      setRecentChatAction(null);
+      recentChatActionTimerRef.current = null;
+    }, 4500);
   }, [preQuoteId, pricing, requirement]);
   return {
     files, commercialLine, validationError, phase, requirement, processingResult, proposal, error,
-    pricing, pricingLoading, pricingError, pricingAfterSelectionError, pricingCancelMessage, confirmationLoading, confirmationError, manualItemCreating, manualItemError, savingSelectionItemIds, selectionErrors, isCommercialMutationBusy,
+    pricing, pricingLoading, pricingError, pricingAfterSelectionError, pricingCancelMessage, confirmationLoading, confirmationError, manualItemCreating, manualItemError, savingSelectionItemIds, selectionErrors, isCommercialMutationBusy, recentChatAction,
     selectionCatalog, selectionCatalogLoading, selectionCatalogError,
     setCommercialLine,
     selectFiles, removeFile, upload, process, cancelProcessing, retryProposal, retryCurrent,

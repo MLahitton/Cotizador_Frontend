@@ -22,15 +22,32 @@ import type { RequirementPricingItem } from "@/features/prequotes/requirement-pr
 import type { TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 import type { TechnicalSelectionCatalog } from "@/features/prequotes/technical-selection-catalog-types";
+import type { RequirementChatActionPlan } from "@/features/prequotes/requirement-chat-types";
 
-function SuggestedValue({ label, value, note }: { label: string; value: string | null; note?: string | null }) {
+function EffectiveValue({ label, value, modified, suggested, note }: { label: string; value: string | null; modified: boolean; suggested?: string | null; note?: string | null }) {
+  const showSuggested = modified && suggested && suggested !== value;
   return (
     <div className="min-w-0">
-      <dt className="text-xs font-semibold uppercase tracking-wide text-foreground-secondary">{label}</dt>
+      <dt className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground-secondary">
+        {label}
+        {modified ? <Badge tone="brand" size="sm">Modificado</Badge> : null}
+      </dt>
       <dd className="mt-1 break-words text-sm font-semibold leading-6 text-foreground">{value || "Por definir"}</dd>
+      {showSuggested ? <dd className="mt-1 text-xs text-foreground-secondary">Sugerido originalmente: {suggested}</dd> : null}
       {note ? <dd className="mt-1 text-xs text-foreground-secondary">{note}</dd> : null}
     </div>
   );
+}
+
+function isDifferentOption(selectedId: string | undefined, suggestedId: string | undefined): boolean {
+  return Boolean(selectedId && selectedId.toLowerCase() !== suggestedId?.toLowerCase());
+}
+
+function recentActionLabel(pricingStatus: string | null): { label: string; tone: "success" | "warning" } {
+  if (pricingStatus === "PRICING_PENDING") return { label: "Cambio aplicado · Precio pendiente", tone: "warning" };
+  if (pricingStatus === "NOT_YET_PRICED") return { label: "Cambio aplicado · Aún sin pricing", tone: "warning" };
+  if (pricingStatus === "PRICING_UPDATED") return { label: "Cambio aplicado · Precio actualizado", tone: "success" };
+  return { label: "Cambio aplicado", tone: "success" };
 }
 
 function sourceLabel(item: TechnicalProposalItem): string | null {
@@ -83,7 +100,7 @@ function pendingBadge(definition: { blocksConfirmation: boolean; blocksPricing: 
   return "Advertencia";
 }
 
-export function TechnicalProposalItemCard({ item, requirementId, pricing, currency, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, isSavingSelection, selectionErrorMessage, onSaveSelection, onChatActionExecuted, onUpdateInclusion, commercialMutationDisabled }: {
+export function TechnicalProposalItemCard({ item, requirementId, pricing, currency, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, isSavingSelection, selectionErrorMessage, onSaveSelection, onChatActionExecuted, onUpdateInclusion, commercialMutationDisabled, recentChatActionPricingStatus }: {
   item: TechnicalProposalItem;
   requirementId: string;
   pricing: RequirementPricingItem | null;
@@ -95,9 +112,10 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
   isSavingSelection: boolean;
   selectionErrorMessage: string | null;
   onSaveSelection: (request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
-  onChatActionExecuted: () => void | Promise<void>;
+  onChatActionExecuted: (result: RequirementChatActionPlan) => void | Promise<void>;
   onUpdateInclusion: (isIncluded: boolean, reason?: string | null) => boolean | Promise<boolean>;
   commercialMutationDisabled: boolean;
+  recentChatActionPricingStatus?: string | null;
 }) {
   const [chatOpen, setChatOpen] = useState(false);
   const status = readinessStatus(item.readiness.state);
@@ -108,25 +126,38 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
   const hasPricingSnapshot = Boolean(pricing?.originalLine || pricing?.currentLine || pricing?.deltaLine);
   const displayAreaM2 = deriveDisplayAreaM2(item.areaM2, item.effectiveWidthMm, item.effectiveHeightMm);
   const displayTotalAreaM2 = deriveDisplayTotalAreaM2(item.areaM2, item.effectiveWidthMm, item.effectiveHeightMm, item.effectiveQuantity);
+  const effectiveSystem = item.selected?.system ?? item.suggested.system;
+  const effectiveGlass = item.selected?.glass ?? item.suggested.glass;
+  const effectiveFinish = item.selected?.finish ?? item.suggested.finish;
+  const systemModified = isManualItem ? Boolean(item.selected?.system) : isDifferentOption(item.selected?.system?.id, item.suggested.system?.id);
+  const glassModified = isManualItem ? Boolean(item.selected?.glass) : isDifferentOption(item.selected?.glass?.id, item.suggested.glass?.id);
+  const finishModified = isManualItem ? Boolean(item.selected?.finish) : isDifferentOption(item.selected?.finish?.id, item.suggested.finish?.id);
+  const quantityModified = item.manualQuantityOverride !== null;
+  const widthModified = item.manualWidthMmOverride !== null;
+  const heightModified = item.manualHeightMmOverride !== null;
+  const recentAction = recentChatActionPricingStatus !== undefined ? recentActionLabel(recentChatActionPricingStatus) : null;
   const handleInclusionChange = () => {
     if (commercialMutationDisabled) return;
     void onUpdateInclusion(!item.isIncluded, null);
   };
 
   return (
-    <Surface padding="md" className={`min-w-0 space-y-4 ${item.isIncluded ? "" : "border-warning bg-surface-subtle opacity-90"}`}>
+    <Surface padding="md" className={`min-w-0 space-y-4 ${item.isIncluded ? recentAction ? "border-success shadow-sm" : "" : "border-warning bg-surface-subtle opacity-90"}`}>
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <h4 className="break-words font-semibold text-foreground">{item.reference || `Elemento ${item.sequence}`}</h4>
           {provenance ? <p className="mt-1 break-words text-xs text-foreground-secondary">{provenance}</p> : null}
-          <p className="mt-1 break-words text-sm text-foreground-secondary">
-            {formatProposalQuantity(item.effectiveQuantity)} · Ancho: {formatProposalNumber(item.effectiveWidthMm, " mm")} · Alto: {formatProposalNumber(item.effectiveHeightMm, " mm")}
-          </p>
+          <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm text-foreground-secondary sm:grid-cols-3">
+            <div><dt className="flex flex-wrap items-center gap-1 text-xs">Cantidad {quantityModified ? <Badge tone="brand" size="sm">Modificado</Badge> : null}</dt><dd className="font-medium text-foreground">{formatProposalQuantity(item.effectiveQuantity)}</dd>{quantityModified && item.quantity !== item.effectiveQuantity ? <dd className="text-xs">Original: {formatProposalQuantity(item.quantity)}</dd> : null}</div>
+            <div><dt className="flex flex-wrap items-center gap-1 text-xs">Ancho {widthModified ? <Badge tone="brand" size="sm">Modificado</Badge> : null}</dt><dd className="font-medium text-foreground">{formatProposalNumber(item.effectiveWidthMm, " mm")}</dd>{widthModified && item.widthMm !== item.effectiveWidthMm ? <dd className="text-xs">Original: {formatProposalNumber(item.widthMm, " mm")}</dd> : null}</div>
+            <div><dt className="flex flex-wrap items-center gap-1 text-xs">Alto {heightModified ? <Badge tone="brand" size="sm">Modificado</Badge> : null}</dt><dd className="font-medium text-foreground">{formatProposalNumber(item.effectiveHeightMm, " mm")}</dd>{heightModified && item.heightMm !== item.effectiveHeightMm ? <dd className="text-xs">Original: {formatProposalNumber(item.heightMm, " mm")}</dd> : null}</div>
+          </dl>
           <p className="mt-1 break-words text-sm font-medium text-foreground-secondary">
             Área unitaria: {formatProposalAreaM2(displayAreaM2)} · Área total: {formatProposalAreaM2(displayTotalAreaM2)}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          {recentAction ? <Badge tone={recentAction.tone}>{recentAction.label}</Badge> : null}
           {!item.isIncluded ? <Badge tone="warning">Excluido</Badge> : null}
           {isManualItem ? <Badge tone="brand">Manual</Badge> : null}
           <Badge tone={item.isIncluded ? status.tone : "neutral"}>{item.isIncluded ? status.label : "Fuera del alcance"}</Badge>
@@ -144,24 +175,16 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
 
       {chatOpen ? <RequirementChatPanel requirementId={requirementId} itemId={item.itemId} title={`Asistente de ${item.reference || `Elemento ${item.sequence}`}`} compact onActionExecuted={onChatActionExecuted} /> : null}
 
-      <div className={`grid min-w-0 gap-4 border-t border-border-subtle pt-4 md:items-start ${isManualItem ? "" : "md:grid-cols-[minmax(0,36%)_minmax(0,1fr)]"}`}>
+      <div className="grid min-w-0 gap-4 border-t border-border-subtle pt-4 md:grid-cols-[minmax(0,36%)_minmax(0,1fr)] md:items-start">
         <div className="min-w-0">
           <TechnicalProposalVisualPreview visualModel={item.visualModel} />
         </div>
-        {!isManualItem ? <dl className="grid min-w-0 gap-4">
-          <SuggestedValue label="Sistema sugerido S&G" value={item.suggested.system?.displayName ?? null} />
-          <SuggestedValue label="Vidrio sugerido S&G" value={item.suggested.glass?.displayName ?? null} note={resolutionNote(item.glassResolutionReasons, "HISTORICAL_DEFAULT_GLASS", "Referencia historica - requiere validacion")} />
-          <SuggestedValue label="Acabado sugerido S&G" value={item.suggested.finish?.displayName ?? null} note={resolutionNote(item.finishResolutionReasons, "HISTORICAL_DEFAULT_FINISH", "Predeterminado historico")} />
-        </dl> : null}
-      </div>
-
-      {item.selected ? (
-        <dl className="grid gap-4 rounded-sm border border-brand bg-brand-soft p-3">
-          <SuggestedValue label="Sistema seleccionado" value={item.selected.system?.displayName ?? null} />
-          <SuggestedValue label="Vidrio seleccionado" value={item.selected.glass?.displayName ?? null} />
-          <SuggestedValue label="Acabado seleccionado" value={item.selected.finish?.displayName ?? null} />
+        <dl className="grid min-w-0 gap-4">
+          <EffectiveValue label="Sistema vigente" value={effectiveSystem?.displayName ?? null} modified={systemModified} suggested={item.suggested.system?.displayName} />
+          <EffectiveValue label="Vidrio vigente" value={effectiveGlass?.displayName ?? null} modified={glassModified} suggested={item.suggested.glass?.displayName} note={!glassModified ? resolutionNote(item.glassResolutionReasons, "HISTORICAL_DEFAULT_GLASS", "Referencia histórica · requiere validación") : null} />
+          <EffectiveValue label="Acabado vigente" value={effectiveFinish?.displayName ?? null} modified={finishModified} suggested={item.suggested.finish?.displayName} note={!finishModified ? resolutionNote(item.finishResolutionReasons, "HISTORICAL_DEFAULT_FINISH", "Predeterminado histórico") : null} />
         </dl>
-      ) : null}
+      </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-foreground-secondary">
         <span>{formatProposalConfidence(item.confidence.overall)}</span>
