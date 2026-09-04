@@ -39,6 +39,20 @@ function EffectiveValue({ label, value, modified, suggested, note }: { label: st
   );
 }
 
+function PhysicalValue({ label, value, modified, original }: { label: string; value: string; modified: boolean; original?: string | null }) {
+  return (
+    <div className="min-w-0 rounded-sm border border-border-subtle bg-surface-subtle p-3">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-foreground-secondary">{label}</dt>
+      <dd className="mt-1 min-w-0 break-words text-base font-semibold leading-6 text-foreground">{value}</dd>
+      {original ? <dd className="mt-1 break-words text-xs text-foreground-secondary">Original: {original}</dd> : null}
+      {modified ? (
+        <dd className="mt-2">
+          <Badge tone="brand" size="sm">Modificado</Badge>
+        </dd>
+      ) : null}
+    </div>
+  );
+}
 function isDifferentOption(selectedId: string | undefined, suggestedId: string | undefined): boolean {
   return Boolean(selectedId && selectedId.toLowerCase() !== suggestedId?.toLowerCase());
 }
@@ -135,6 +149,9 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
   const quantityModified = item.manualQuantityOverride !== null;
   const widthModified = item.manualWidthMmOverride !== null;
   const heightModified = item.manualHeightMmOverride !== null;
+  const originalQuantity = quantityModified && item.quantity !== item.effectiveQuantity ? formatProposalQuantity(item.quantity) : null;
+  const originalWidth = widthModified && item.widthMm !== item.effectiveWidthMm ? formatProposalNumber(item.widthMm, " mm") : null;
+  const originalHeight = heightModified && item.heightMm !== item.effectiveHeightMm ? formatProposalNumber(item.heightMm, " mm") : null;
   const recentAction = recentChatActionPricingStatus !== undefined ? recentActionLabel(recentChatActionPricingStatus) : null;
   const handleInclusionChange = () => {
     if (commercialMutationDisabled) return;
@@ -143,39 +160,37 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
 
   return (
     <Surface padding="md" className={`min-w-0 space-y-4 ${item.isIncluded ? recentAction ? "border-success shadow-sm" : "" : "border-warning bg-surface-subtle opacity-90"}`}>
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <h4 className="break-words font-semibold text-foreground">{item.reference || `Elemento ${item.sequence}`}</h4>
-          {provenance ? <p className="mt-1 break-words text-xs text-foreground-secondary">{provenance}</p> : null}
-          <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm text-foreground-secondary sm:grid-cols-3">
-            <div><dt className="flex flex-wrap items-center gap-1 text-xs">Cantidad {quantityModified ? <Badge tone="brand" size="sm">Modificado</Badge> : null}</dt><dd className="font-medium text-foreground">{formatProposalQuantity(item.effectiveQuantity)}</dd>{quantityModified && item.quantity !== item.effectiveQuantity ? <dd className="text-xs">Original: {formatProposalQuantity(item.quantity)}</dd> : null}</div>
-            <div><dt className="flex flex-wrap items-center gap-1 text-xs">Ancho {widthModified ? <Badge tone="brand" size="sm">Modificado</Badge> : null}</dt><dd className="font-medium text-foreground">{formatProposalNumber(item.effectiveWidthMm, " mm")}</dd>{widthModified && item.widthMm !== item.effectiveWidthMm ? <dd className="text-xs">Original: {formatProposalNumber(item.widthMm, " mm")}</dd> : null}</div>
-            <div><dt className="flex flex-wrap items-center gap-1 text-xs">Alto {heightModified ? <Badge tone="brand" size="sm">Modificado</Badge> : null}</dt><dd className="font-medium text-foreground">{formatProposalNumber(item.effectiveHeightMm, " mm")}</dd>{heightModified && item.heightMm !== item.effectiveHeightMm ? <dd className="text-xs">Original: {formatProposalNumber(item.heightMm, " mm")}</dd> : null}</div>
-          </dl>
-          <p className="mt-1 break-words text-sm font-medium text-foreground-secondary">
-            Área unitaria: {formatProposalAreaM2(displayAreaM2)} · Área total: {formatProposalAreaM2(displayTotalAreaM2)}
-          </p>
+      <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+        <div className="min-w-0">
+          <h4 className="break-words text-base font-semibold leading-6 text-foreground">{item.reference || `Elemento ${item.sequence}`}</h4>
+          {provenance ? <p className="mt-1 break-words text-xs leading-5 text-foreground-secondary">{provenance}</p> : null}
         </div>
-        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+        <div className="flex min-w-0 flex-wrap items-start gap-2 sm:justify-end">
           {recentAction ? <Badge tone={recentAction.tone}>{recentAction.label}</Badge> : null}
           {!item.isIncluded ? <Badge tone="warning">Excluido</Badge> : null}
           {isManualItem ? <Badge tone="brand">Manual</Badge> : null}
           <Badge tone={item.isIncluded ? status.tone : "neutral"}>{item.isIncluded ? status.label : "Fuera del alcance"}</Badge>
-          <span className="text-xs text-foreground-secondary">
-            {item.selectionState === "UNCONFIRMED" ? "Sugerencia sin confirmar" : item.selectionState === "CONFIRMED_AS_SUGGESTED" ? "Sugerencia confirmada" : "Configuracion modificada"}
-          </span>
-        </div>
-        <div className="flex shrink-0 flex-wrap justify-start gap-2 sm:justify-end">
-          <Button type="button" variant={item.isIncluded ? "outline" : "secondary"} size="sm" disabled={isSavingSelection || commercialMutationDisabled} onClick={handleInclusionChange}>
-            {item.isIncluded ? "Excluir" : "Reactivar"}
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setChatOpen((value) => !value)}><MessageCircle aria-hidden="true" size={15} />{chatOpen ? "Ocultar chat" : "Consultar"}</Button>
         </div>
       </div>
 
-      {chatOpen ? <RequirementChatPanel requirementId={requirementId} itemId={item.itemId} title={`Asistente de ${item.reference || `Elemento ${item.sequence}`}`} compact onActionExecuted={onChatActionExecuted} /> : null}
-
-      <div className="grid min-w-0 gap-4 border-t border-border-subtle pt-4 md:grid-cols-[minmax(0,36%)_minmax(0,1fr)] md:items-start">
+      <div className="rounded-sm border border-border-subtle bg-surface p-3">
+        <dl className="grid min-w-0 grid-cols-1 gap-3 min-[520px]:grid-cols-3">
+          <PhysicalValue label="Cantidad" value={formatProposalQuantity(item.effectiveQuantity)} modified={quantityModified} original={originalQuantity} />
+          <PhysicalValue label="Ancho" value={formatProposalNumber(item.effectiveWidthMm, " mm")} modified={widthModified} original={originalWidth} />
+          <PhysicalValue label="Alto" value={formatProposalNumber(item.effectiveHeightMm, " mm")} modified={heightModified} original={originalHeight} />
+        </dl>
+        <dl className="mt-3 grid min-w-0 gap-2 border-t border-border-subtle pt-3 text-sm font-medium text-foreground-secondary sm:grid-cols-2">
+          <div className="min-w-0">
+            <dt className="sr-only">Área unitaria</dt>
+            <dd className="break-words">Área unitaria: {formatProposalAreaM2(displayAreaM2)}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="sr-only">Área total</dt>
+            <dd className="break-words">Área total: {formatProposalAreaM2(displayTotalAreaM2)}</dd>
+          </div>
+        </dl>
+      </div>
+      <div className="grid min-w-0 gap-4 border-t border-border-subtle pt-4 lg:grid-cols-[minmax(150px,32%)_minmax(0,1fr)] lg:items-start">
         <div className="min-w-0">
           <TechnicalProposalVisualPreview visualModel={item.visualModel} />
         </div>
@@ -191,6 +206,21 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
         {item.isIncluded && item.isPriceable ? <span className="flex items-center gap-1"><CheckCircle2 aria-hidden="true" size={14} /> Configuracion lista para cotizar</span> : null}
         <span>{formatHistoricalEvidenceSummary(item.historicalEvidence)}</span>
       </div>
+
+
+      <div className="flex min-w-0 flex-col gap-2 border-t border-border-subtle pt-4 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
+        <span className="text-xs text-foreground-secondary">
+          {item.selectionState === "UNCONFIRMED" ? "Sugerencia sin confirmar" : item.selectionState === "CONFIRMED_AS_SUGGESTED" ? "Sugerencia confirmada" : "Configuracion modificada"}
+        </span>
+        <div className="flex shrink-0 flex-wrap justify-start gap-2 min-[420px]:justify-end">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setChatOpen((value) => !value)}><MessageCircle aria-hidden="true" size={15} />{chatOpen ? "Ocultar chat" : "Consultar"}</Button>
+          <Button type="button" variant={item.isIncluded ? "outline" : "secondary"} size="sm" disabled={isSavingSelection || commercialMutationDisabled} onClick={handleInclusionChange}>
+            {item.isIncluded ? "Excluir" : "Reactivar"}
+          </Button>
+        </div>
+      </div>
+
+      {chatOpen ? <RequirementChatPanel requirementId={requirementId} itemId={item.itemId} title={`Asistente de ${item.reference || `Elemento ${item.sequence}`}`} compact onActionExecuted={onChatActionExecuted} /> : null}
 
       {!item.isIncluded ? (
         <div className="rounded-sm border border-warning bg-warning/10 p-3">
