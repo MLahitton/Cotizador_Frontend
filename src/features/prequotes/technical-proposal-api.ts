@@ -19,6 +19,11 @@ import type {
   TechnicalProposalPendingSeverity,
   TechnicalProposalReadinessState,
   TechnicalProposalSystemOption,
+  VisualDivision,
+  VisualPanel,
+  VisualPanelKind,
+  VisualPanelRole,
+  VisualSystemModel,
 } from "@/features/prequotes/technical-proposal-types";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
@@ -93,6 +98,49 @@ function isProposalReadiness(value: unknown): boolean {
     isCategoryCounts(value.categories);
 }
 
+const VISUAL_PANEL_KINDS = ["SIMPLE", "COMPOSITE"] as const;
+const VISUAL_PANEL_ROLES = ["FIXED", "PROJECTING", "SLIDING", "HINGED", "FOLDING", "LOUVER", "UNKNOWN", "COMPOSITE"] as const;
+
+function isVisualPanelKind(value: unknown): value is VisualPanelKind {
+  return VISUAL_PANEL_KINDS.includes(value as VisualPanelKind);
+}
+
+function isVisualPanelRole(value: unknown): value is VisualPanelRole {
+  return VISUAL_PANEL_ROLES.includes(value as VisualPanelRole);
+}
+
+function isVisualPanel(value: unknown): value is VisualPanel {
+  return isRecord(value) && isNonNegativeInteger(value.index) &&
+    isVisualPanelKind(value.kind) && isVisualPanelRole(value.role) &&
+    isNullableString(value.operation) && isNullableNumber(value.widthMm) &&
+    isNullableNumber(value.heightMm) && isNullableNumber(value.widthRatio) &&
+    isNullableNumber(value.heightRatio) &&
+    (value.isMovable === null || typeof value.isMovable === "boolean") &&
+    isNullableString(value.openingDirection) && isNullableNumber(value.confidence) &&
+    Array.isArray(value.subPanels) && value.subPanels.every(isVisualPanel);
+}
+
+function isVisualDivision(value: unknown): value is VisualDivision {
+  return isRecord(value) && isNonEmptyString(value.orientation) &&
+    isNullableNumber(value.positionRatio) && isNullableNumber(value.positionMm) &&
+    isNullableString(value.source);
+}
+
+function isVisualSystemModel(value: unknown): value is VisualSystemModel {
+  if (!isRecord(value)) return false;
+  const system = value.system;
+  return isNonEmptyString(value.version) && isNonEmptyString(value.source) &&
+    (system === null || (isRecord(system) && isNonEmptyString(system.id) &&
+      isNonEmptyString(system.code) && isNonEmptyString(system.displayName))) &&
+    isNullableString(value.functionalType) && isNullableString(value.operation) &&
+    isNullableString(value.geometryType) && isNullableNumber(value.widthMm) &&
+    isNullableNumber(value.heightMm) && isNullableNumber(value.quantity) &&
+    Array.isArray(value.panels) && value.panels.every(isVisualPanel) &&
+    Array.isArray(value.divisions) && value.divisions.every(isVisualDivision) &&
+    isStringArray(value.specialFeatures) && typeof value.requiresReview === "boolean" &&
+    isStringArray(value.reviewReasons);
+}
+
 
 function isCommercialConfirmation(value: unknown): boolean {
   return isRecord(value) &&
@@ -104,7 +152,8 @@ function isCommercialConfirmation(value: unknown): boolean {
 function isProposalItem(value: unknown): boolean {
   if (!isRecord(value) || !isRecord(value.suggested) ||
       !isRecord(value.alternatives) || !isRecord(value.confidence) ||
-      !isRecord(value.historicalEvidence) || !isRecord(value.trace) || !isItemReadiness(value.readiness)) return false;
+      !isRecord(value.historicalEvidence) || !isRecord(value.trace) || !isItemReadiness(value.readiness) ||
+      (value.visualModel !== null && !isVisualSystemModel(value.visualModel))) return false;
 
   const suggested = value.suggested;
   const selected = value.selected;

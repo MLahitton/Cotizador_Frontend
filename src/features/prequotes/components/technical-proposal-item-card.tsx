@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { RequirementChatPanel } from "@/features/prequotes/components/requirement-chat-panel";
 import { TechnicalProposalSelectionEditor } from "@/features/prequotes/components/technical-proposal-selection-editor";
+import { TechnicalProposalVisualPreview } from "@/features/prequotes/components/technical-proposal-visual-preview";
 import {
   deriveDisplayAreaM2,
   deriveDisplayTotalAreaM2,
@@ -82,7 +83,7 @@ function pendingBadge(definition: { blocksConfirmation: boolean; blocksPricing: 
   return "Advertencia";
 }
 
-export function TechnicalProposalItemCard({ item, requirementId, pricing, currency, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, isSavingSelection, selectionErrorMessage, onSaveSelection }: {
+export function TechnicalProposalItemCard({ item, requirementId, pricing, currency, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, isSavingSelection, selectionErrorMessage, onSaveSelection, onChatActionExecuted }: {
   item: TechnicalProposalItem;
   requirementId: string;
   pricing: RequirementPricingItem | null;
@@ -94,6 +95,7 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
   isSavingSelection: boolean;
   selectionErrorMessage: string | null;
   onSaveSelection: (request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
+  onChatActionExecuted: () => void | Promise<void>;
 }) {
   const [chatOpen, setChatOpen] = useState(false);
   const status = readinessStatus(item.readiness.state);
@@ -125,13 +127,18 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
         <Button type="button" variant="ghost" size="sm" onClick={() => setChatOpen((value) => !value)}><MessageCircle aria-hidden="true" size={15} />{chatOpen ? "Ocultar chat" : "Consultar"}</Button>
       </div>
 
-      {chatOpen ? <RequirementChatPanel requirementId={requirementId} itemId={item.itemId} title={`Asistente de ${item.reference || `Elemento ${item.sequence}`}`} compact /> : null}
+      {chatOpen ? <RequirementChatPanel requirementId={requirementId} itemId={item.itemId} title={`Asistente de ${item.reference || `Elemento ${item.sequence}`}`} compact onActionExecuted={onChatActionExecuted} /> : null}
 
-      <dl className="grid gap-4 border-t border-border-subtle pt-4">
-        <SuggestedValue label="Sistema sugerido S&G" value={item.suggested.system?.displayName ?? null} />
-        <SuggestedValue label="Vidrio sugerido S&G" value={item.suggested.glass?.displayName ?? null} note={resolutionNote(item.glassResolutionReasons, "HISTORICAL_DEFAULT_GLASS", "Referencia historica - requiere validacion")} />
-        <SuggestedValue label="Acabado sugerido S&G" value={item.suggested.finish?.displayName ?? null} note={resolutionNote(item.finishResolutionReasons, "HISTORICAL_DEFAULT_FINISH", "Predeterminado historico")} />
-      </dl>
+      <div className="grid min-w-0 gap-4 border-t border-border-subtle pt-4 md:grid-cols-[minmax(0,36%)_minmax(0,1fr)] md:items-start">
+        <div className="min-w-0">
+          <TechnicalProposalVisualPreview visualModel={item.visualModel} />
+        </div>
+        <dl className="grid min-w-0 gap-4">
+          <SuggestedValue label="Sistema sugerido S&G" value={item.suggested.system?.displayName ?? null} />
+          <SuggestedValue label="Vidrio sugerido S&G" value={item.suggested.glass?.displayName ?? null} note={resolutionNote(item.glassResolutionReasons, "HISTORICAL_DEFAULT_GLASS", "Referencia historica - requiere validacion")} />
+          <SuggestedValue label="Acabado sugerido S&G" value={item.suggested.finish?.displayName ?? null} note={resolutionNote(item.finishResolutionReasons, "HISTORICAL_DEFAULT_FINISH", "Predeterminado historico")} />
+        </dl>
+      </div>
 
       {item.selected ? (
         <dl className="grid gap-4 rounded-sm border border-brand bg-brand-soft p-3">

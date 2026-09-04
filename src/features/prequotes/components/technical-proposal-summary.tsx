@@ -91,7 +91,7 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }
 
 
-export function TechnicalProposalSummary({ requirementId, proposal, pricing, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, onSaveSelection }: {
+export function TechnicalProposalSummary({ requirementId, proposal, pricing, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, onSaveSelection, onChatActionExecuted }: {
   requirementId: string;
   proposal: TechnicalProposal;
   pricing: RequirementPricing | null;
@@ -102,6 +102,7 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
   savingSelectionItemIds: string[];
   selectionErrorMessages: Record<string, string>;
   onSaveSelection: (itemId: string, request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
+  onChatActionExecuted: () => void | Promise<void>;
 }) {
   const [readinessFilter, setReadinessFilter] = useState<ReadinessFilter>("ALL");
   const pricingByProposalItemId = new Map(
@@ -143,6 +144,7 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
               isSavingSelection={savingSelectionItemIds.includes(item.itemId)}
               selectionErrorMessage={selectionErrorMessages[item.itemId] ?? null}
               onSaveSelection={(request) => onSaveSelection(item.itemId, request)}
+              onChatActionExecuted={onChatActionExecuted}
             />
           ))}
         </div>

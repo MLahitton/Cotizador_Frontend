@@ -709,12 +709,35 @@ export function useRequirementWorkspace(preQuoteId: string) {
       }
     }
   }, [confirmationLoading, preQuoteId, proposal, requirement]);
+
+  const refreshAfterChatAction = useCallback(async () => {
+    if (!requirement) return;
+    const expectedPreQuoteId = preQuoteId;
+    const refreshedProposal = await getTechnicalProposal(requirement.requirementId);
+    if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+    setProposal(refreshedProposal);
+    setError(null);
+    setPhase("complete");
+    if (!pricing) return;
+    try {
+      const refreshedPricing = await getRequirementPricing(requirement.requirementId);
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+      setPricing(refreshedPricing);
+      setPricingError(null);
+      setPricingAfterSelectionError(false);
+    } catch (cause) {
+      if (!mountedRef.current || preQuoteIdRef.current !== expectedPreQuoteId) return;
+      setPricingError(cause);
+      setPricingAfterSelectionError(true);
+    }
+  }, [preQuoteId, pricing, requirement]);
+
   return {
     files, commercialLine, validationError, phase, requirement, processingResult, proposal, error,
     pricing, pricingLoading, pricingError, pricingAfterSelectionError, pricingCancelMessage, confirmationLoading, confirmationError, savingSelectionItemIds, selectionErrors,
     selectionCatalog, selectionCatalogLoading, selectionCatalogError,
     setCommercialLine,
     selectFiles, removeFile, upload, process, cancelProcessing, retryProposal, retryCurrent,
-    calculatePricing, cancelPricing, confirmSelection, saveSelection, retrySelectionCatalog,
+    calculatePricing, cancelPricing, confirmSelection, saveSelection, retrySelectionCatalog, refreshAfterChatAction,
   };
 }

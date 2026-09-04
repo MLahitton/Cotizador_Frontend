@@ -118,6 +118,54 @@ export interface TechnicalProposalEvidence {
   status: string;
 }
 
+export type VisualPanelKind = "SIMPLE" | "COMPOSITE";
+export type VisualPanelRole = "FIXED" | "PROJECTING" | "SLIDING" | "HINGED" | "FOLDING" | "LOUVER" | "UNKNOWN" | "COMPOSITE";
+
+export interface VisualSystem {
+  id: string;
+  code: string;
+  displayName: string;
+}
+
+export interface VisualPanel {
+  index: number;
+  kind: VisualPanelKind;
+  role: VisualPanelRole;
+  operation: string | null;
+  widthMm: number | null;
+  heightMm: number | null;
+  widthRatio: number | null;
+  heightRatio: number | null;
+  isMovable: boolean | null;
+  openingDirection: string | null;
+  confidence: number | null;
+  subPanels: VisualPanel[];
+}
+
+export interface VisualDivision {
+  orientation: string;
+  positionRatio: number | null;
+  positionMm: number | null;
+  source: string | null;
+}
+
+export interface VisualSystemModel {
+  version: string;
+  source: string;
+  system: VisualSystem | null;
+  functionalType: string | null;
+  operation: string | null;
+  geometryType: string | null;
+  widthMm: number | null;
+  heightMm: number | null;
+  quantity: number | null;
+  panels: VisualPanel[];
+  divisions: VisualDivision[];
+  specialFeatures: string[];
+  requiresReview: boolean;
+  reviewReasons: string[];
+}
+
 export interface TechnicalProposalItem {
   itemId: string;
   extractedItemId: string;
@@ -165,13 +213,14 @@ export interface TechnicalProposalItem {
   isTechnicallyComplete: boolean;
   isPriceable: boolean;
     readiness: TechnicalProposalItemReadiness;
-historicalEvidence: {
+  historicalEvidence: {
     status: HistoricalEvidenceStatus;
     supportCount: number;
     bestSimilarity: number | null;
     averageSimilarity: number | null;
     examples: TechnicalProposalHistoricalExample[];
   };
+  visualModel: VisualSystemModel | null;
   trace: {
     requestedSystemRaw: string | null;
     requestedProfileRaw: string | null;

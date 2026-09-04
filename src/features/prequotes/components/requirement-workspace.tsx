@@ -133,7 +133,7 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
       ) : null}
 
       {workspace.requirement ? <RequirementDocumentsLifecycle key={workspace.requirement.requirementId} requirementId={workspace.requirement!.requirementId} onCurrentChanged={workspace.retryCurrent} /> : null}
-      {workspace.requirement ? <RequirementChatPanel requirementId={workspace.requirement!.requirementId} title="Asistente de la precotizacion" /> : null}
+      {workspace.requirement ? <RequirementChatPanel requirementId={workspace.requirement!.requirementId} title="Asistente de la precotizacion" onActionExecuted={workspace.refreshAfterChatAction} /> : null}
       {workspace.confirmationError ? (
         <PreQuotesError
           title="No fue posible confirmar las configuraciones"
@@ -173,6 +173,7 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
             ]),
           )}
           onSaveSelection={workspace.saveSelection}
+          onChatActionExecuted={workspace.refreshAfterChatAction}
         />
       ) : null}
     </section>
