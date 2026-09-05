@@ -20,6 +20,11 @@ function isActionOption(value: unknown): boolean {
     isNonEmptyString(value.displayName) && isNonEmptyString(value.optionType);
 }
 
+function isResolvedCatalogEntity(value: unknown): boolean {
+  return isRecord(value) && isNonEmptyString(value.id) && isNonEmptyString(value.code) &&
+    isNonEmptyString(value.displayName) && isNonEmptyString(value.entityType);
+}
+
 function isMessage(value: unknown): value is RequirementChatMessage {
   return isRecord(value) && isNonEmptyString(value.messageId) &&
     (value.role === "USER" || value.role === "ASSISTANT") &&
@@ -27,25 +32,52 @@ function isMessage(value: unknown): value is RequirementChatMessage {
     isDateTime(value.createdAtUtc);
 }
 
+function isInteractionAction(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  const target = value.target;
+  return isNonEmptyString(value.actionId) && isNonEmptyString(value.actionType) &&
+    (target === null || (isRecord(target) && isGuidOrNull(target.technicalProposalItemId) && isNullableString(target.reference))) &&
+    isNullableString(value.currentValue) && isNullableString(value.requestedValue) &&
+    (value.resolvedCatalogEntity === null || isResolvedCatalogEntity(value.resolvedCatalogEntity)) &&
+    isNonEmptyString(value.validationState) && isStringArray(value.validationReasons) &&
+    typeof value.requiresConfirmation === "boolean" && Array.isArray(value.availableOptions) &&
+    value.availableOptions.every(isActionOption);
+}
+
+function normalizeInteraction(value: RequirementChatInteraction): RequirementChatInteraction {
+  return {
+    ...value,
+    actionCount: isNonNegativeInteger(value.actionCount) ? value.actionCount : value.actions?.length ?? 0,
+    actions: Array.isArray(value.actions) ? value.actions : [],
+  };
+}
+
 function isInteraction(value: unknown): value is RequirementChatInteraction {
   if (!isRecord(value) || !["INFORMATIONAL", "ACTION_PLAN", "CLARIFICATION"].includes(String(value.messageType))) return false;
   const target = value.target;
+  const actions = value.actions;
   return isGuidOrNull(value.planId) && typeof value.requiresConfirmation === "boolean" &&
     isNullableString(value.actionType) &&
     (target === null || (isRecord(target) && isGuidOrNull(target.technicalProposalItemId) && isNullableString(target.reference))) &&
     isNullableString(value.currentValue) && isNullableString(value.requestedValue) &&
     isNullableString(value.pricingImpactExpected) && isNullableString(value.pricingStatus) &&
     isStringArray(value.reasons) && Array.isArray(value.availableOptions) &&
-    value.availableOptions.every(isActionOption);
+    value.availableOptions.every(isActionOption) &&
+    (value.actionCount === undefined || isNonNegativeInteger(value.actionCount)) &&
+    (actions === undefined || (Array.isArray(actions) && actions.every(isInteractionAction)));
 }
 
 function isRequirementChat(value: unknown): value is RequirementChat {
-  return isRecord(value) && isNonEmptyString(value.threadId) &&
-    isNonEmptyString(value.requirementId) && isGuidOrNull(value.technicalProposalItemId) &&
-    (value.scope === "REQUIREMENT" || value.scope === "ITEM") &&
-    isDateTime(value.createdAtUtc) && isDateTime(value.updatedAtUtc) &&
-    Array.isArray(value.messages) && value.messages.every(isMessage) &&
-    (value.lastInteraction === null || isInteraction(value.lastInteraction));
+  if (!isRecord(value) || !isNonEmptyString(value.threadId) ||
+    !isNonEmptyString(value.requirementId) || !isGuidOrNull(value.technicalProposalItemId) ||
+    (value.scope !== "REQUIREMENT" && value.scope !== "ITEM") ||
+    !isDateTime(value.createdAtUtc) || !isDateTime(value.updatedAtUtc) ||
+    !Array.isArray(value.messages) || !value.messages.every(isMessage) ||
+    (value.lastInteraction !== null && !isInteraction(value.lastInteraction))) return false;
+  if (value.lastInteraction !== null) {
+    value.lastInteraction = normalizeInteraction(value.lastInteraction);
+  }
+  return true;
 }
 
 function isAction(value: unknown): value is RequirementChatAction {
@@ -54,7 +86,7 @@ function isAction(value: unknown): value is RequirementChatAction {
   return isNonEmptyString(value.actionId) && isNonEmptyString(value.actionType) &&
     isGuidOrNull(value.targetTechnicalProposalItemId) && isNullableString(value.targetReference) &&
     isNullableString(value.requestedValue) && isNullableString(value.currentValue) &&
-    (resolved === null || (isRecord(resolved) && isNonEmptyString(resolved.id) && isNonEmptyString(resolved.code) && isNonEmptyString(resolved.displayName) && isNonEmptyString(resolved.entityType))) &&
+    (resolved === null || isResolvedCatalogEntity(resolved)) &&
     isNonEmptyString(value.validationState) && isStringArray(value.validationReasons) &&
     typeof value.requiresConfirmation === "boolean" && Array.isArray(value.availableOptions) &&
     value.availableOptions.every(isActionOption);
@@ -70,7 +102,7 @@ function isActionPlan(value: unknown): value is RequirementChatActionPlan {
 }
 
 function invalidResponse(): ApiError {
-  return new ApiError({ status: 0, title: "Respuesta inválida", detail: "El servidor no devolvió un chat válido." });
+  return new ApiError({ status: 0, title: "Respuesta invalida", detail: "El servidor no devolvio un chat valido." });
 }
 
 function path(requirementId: string, itemId?: string | null): string {
