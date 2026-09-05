@@ -7,7 +7,7 @@ import {
   MAX_DOCUMENT_SIZE_BYTES,
 } from "@/features/prequotes/prequote-document-formatters";
 import { cancelRequirementProcessing, createRequirement, getCurrentRequirement, processRequirement } from "@/features/prequotes/requirement-api";
-import { cancelRequirementPricing, getRequirementPricing, repriceRequirementPricingItem } from "@/features/prequotes/requirement-pricing-api";
+import { cancelRequirementPricing, getCurrentRequirementPricing, getRequirementPricing, repriceRequirementPricingItem } from "@/features/prequotes/requirement-pricing-api";
 import type { RepriceRequirementPricingItemResponse, RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 import type { CreatedRequirement, CurrentRequirement, ProcessedRequirement, RequirementCommercialLine } from "@/features/prequotes/requirement-types";
 import { confirmTechnicalProposalSelection, updateTechnicalProposalItemInclusion, updateTechnicalProposalItemSelection, type TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
@@ -219,6 +219,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const workspaceTokenRef = useRef(0);
   const proposalRequestRef = useRef(0);
   const pricingRequestRef = useRef(0);
+  const pricingHydrationRequestRef = useRef(0);
   const selectionCatalogRequestRef = useRef(0);
   const selectionCatalogCacheRef = useRef(new Map<RequirementCommercialLine, TechnicalSelectionCatalog>());
   const processingPollRef = useRef<{ requirementId: string; startedAt: number } | null>(null);
@@ -280,6 +281,38 @@ export function useRequirementWorkspace(preQuoteId: string) {
       setProposal(response);
       setPhase("complete");
       setError(null);
+      const pricingHydrationRequestId = ++pricingHydrationRequestRef.current;
+      try {
+        const currentPricing = await getCurrentRequirementPricing(requirementId);
+        if (
+          !mountedRef.current ||
+          preQuoteIdRef.current !== expectedPreQuoteId ||
+          workspaceTokenRef.current !== expectedToken ||
+          proposalRequestRef.current !== requestId ||
+          pricingHydrationRequestRef.current !== pricingHydrationRequestId
+        ) return;
+        if (
+          currentPricing &&
+          currentPricing.requirementId.toLowerCase() === requirementId.toLowerCase() &&
+          currentPricing.technicalProposalId.toLowerCase() === response.technicalProposalId.toLowerCase()
+        ) {
+          setPricing(currentPricing);
+          setPricingError(null);
+          setPricingCancelMessage(null);
+        } else {
+          setPricing(null);
+        }
+      } catch {
+        if (
+          mountedRef.current &&
+          preQuoteIdRef.current === expectedPreQuoteId &&
+          workspaceTokenRef.current === expectedToken &&
+          proposalRequestRef.current === requestId &&
+          pricingHydrationRequestRef.current === pricingHydrationRequestId
+        ) {
+          setPricing(null);
+        }
+      }
     } catch (cause) {
       if (
         !mountedRef.current ||
@@ -574,6 +607,7 @@ export function useRequirementWorkspace(preQuoteId: string) {
   const calculatePricing = useCallback(async () => {
     if (pricingBusyRef.current || isCommercialMutationBusy || !requirement || !proposal) return;
     pricingBusyRef.current = true;
+    pricingHydrationRequestRef.current += 1;
     setPricingLoading(true);
     setPricingError(null);
     const requestId = pricingRequestRef.current + 1;

@@ -85,6 +85,25 @@ function isRepriceResponse(value: unknown): value is RepriceRequirementPricingIt
     Array.isArray(value.comparables) && value.comparables.every(isComparable);
 }
 
+export async function getCurrentRequirementPricing(requirementId: string): Promise<RequirementPricing | null> {
+  const response = await apiRequest(
+    `/api/v2/requirements/${encodeURIComponent(requirementId)}/pricing/current`,
+    { authenticated: true },
+  );
+  if (response === undefined) return null;
+  if (
+    !isRequirementPricing(response) ||
+    response.requirementId.toLowerCase() !== requirementId.toLowerCase()
+  ) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio una estimacion economica guardada con un formato inesperado.",
+    });
+  }
+  return response;
+}
+
 export async function getRequirementPricing(requirementId: string): Promise<RequirementPricing> {
   const response = await apiRequest(
     `/api/v2/requirements/${encodeURIComponent(requirementId)}/pricing`,
