@@ -64,7 +64,7 @@ function parsePositiveInteger(value: string): number | null {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-export function TechnicalProposalSelectionEditor({ item, catalog, catalogLoading, catalogError, onRetryCatalog, isSaving, disabled = false, errorMessage, submitLabel = "Guardar seleccion", savingLabel = "Guardando...", onSave }: {
+export function TechnicalProposalSelectionEditor({ item, catalog, catalogLoading, catalogError, onRetryCatalog, isSaving, disabled = false, errorMessage, submitLabel = "Guardar seleccion", savingLabel = "Guardando...", onClearSelectionError, onSave }: {
   item: TechnicalProposalItem;
   catalog: TechnicalSelectionCatalog | null;
   catalogLoading: boolean;
@@ -75,6 +75,7 @@ export function TechnicalProposalSelectionEditor({ item, catalog, catalogLoading
   errorMessage: string | null;
   submitLabel?: string;
   savingLabel?: string;
+  onClearSelectionError?: () => void;
   onSave: (request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -134,12 +135,12 @@ export function TechnicalProposalSelectionEditor({ item, catalog, catalogLoading
     return ordered([...values.values()]);
   }, [catalog, item]);
 
-  const setDraftSystemId = (value: string) => { draftRef.current.systemId = value; setSystemId(value); };
-  const setDraftGlassId = (value: string) => { draftRef.current.glassId = value; setGlassId(value); };
-  const setDraftFinishId = (value: string) => { draftRef.current.finishId = value; setFinishId(value); };
-  const setDraftQuantity = (value: string) => { draftRef.current.quantity = value; setQuantity(value); };
-  const setDraftWidthMm = (value: string) => { draftRef.current.widthMm = value; setWidthMm(value); };
-  const setDraftHeightMm = (value: string) => { draftRef.current.heightMm = value; setHeightMm(value); };
+  const setDraftSystemId = (value: string) => { onClearSelectionError?.(); draftRef.current.systemId = value; setSystemId(value); };
+  const setDraftGlassId = (value: string) => { onClearSelectionError?.(); draftRef.current.glassId = value; setGlassId(value); };
+  const setDraftFinishId = (value: string) => { onClearSelectionError?.(); draftRef.current.finishId = value; setFinishId(value); };
+  const setDraftQuantity = (value: string) => { onClearSelectionError?.(); draftRef.current.quantity = value; setQuantity(value); };
+  const setDraftWidthMm = (value: string) => { onClearSelectionError?.(); draftRef.current.widthMm = value; setWidthMm(value); };
+  const setDraftHeightMm = (value: string) => { onClearSelectionError?.(); draftRef.current.heightMm = value; setHeightMm(value); };
 
   const reset = () => {
     const next = {
@@ -188,7 +189,7 @@ export function TechnicalProposalSelectionEditor({ item, catalog, catalogLoading
       request.quantity !== item.effectiveQuantity ||
       request.widthMm !== item.effectiveWidthMm ||
       request.heightMm !== item.effectiveHeightMm;
-    if (!changed) { setIsEditing(false); return; }
+    if (!changed) { onClearSelectionError?.(); setIsEditing(false); return; }
     const saved = await onSave(request);
     if (saved) setIsEditing(false);
   };

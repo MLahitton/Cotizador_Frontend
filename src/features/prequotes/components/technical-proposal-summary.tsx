@@ -288,7 +288,7 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }
 
 
-export function TechnicalProposalSummary({ requirementId, proposal, pricing, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled, recentChatAction }: {
+export function TechnicalProposalSummary({ requirementId, proposal, pricing, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onClearSelectionError, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled, recentChatAction }: {
   requirementId: string;
   proposal: TechnicalProposal;
   pricing: RequirementPricing | null;
@@ -301,6 +301,7 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
   manualItemCreating: boolean;
   manualItemError: unknown | null;
   onSaveSelection: (itemId: string, request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
+  onClearSelectionError: (itemId: string) => void;
   onChatActionExecuted: (result: RequirementChatActionPlan) => void | Promise<void>;
   onCreateManualItem: (request: CreateManualTechnicalProposalItemRequest) => boolean | Promise<boolean>;
   onUpdateInclusion: (itemId: string, isIncluded: boolean, reason?: string | null) => boolean | Promise<boolean>;
@@ -365,6 +366,7 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
               isSavingSelection={savingSelectionItemIds.includes(item.itemId)}
               selectionErrorMessage={selectionErrorMessages[item.itemId] ?? null}
               onSaveSelection={(request) => onSaveSelection(item.itemId, request)}
+              onClearSelectionError={() => onClearSelectionError(item.itemId)}
               onChatActionExecuted={onChatActionExecuted}
               onUpdateInclusion={(isIncluded, reason) => onUpdateInclusion(item.itemId, isIncluded, reason)}
               commercialMutationDisabled={commercialMutationDisabled}

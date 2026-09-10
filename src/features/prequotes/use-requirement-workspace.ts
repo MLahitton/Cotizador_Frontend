@@ -715,6 +715,14 @@ export function useRequirementWorkspace(preQuoteId: string) {
     }
   }, [isCommercialMutationBusy, preQuoteId, pricing, proposal, requirement]);
 
+  const clearSelectionError = useCallback((itemId: string) => {
+    setSelectionErrors((current) => {
+      if (!(itemId in current)) return current;
+      const next = { ...current };
+      delete next[itemId];
+      return next;
+    });
+  }, []);
 
   const createManualItem = useCallback(async (request: CreateManualTechnicalProposalItemRequest) => {
     if (!requirement || !proposal || isCommercialMutationBusy) return false;
@@ -838,6 +846,6 @@ export function useRequirementWorkspace(preQuoteId: string) {
     selectionCatalog, selectionCatalogLoading, selectionCatalogError,
     setCommercialLine,
     selectFiles, removeFile, upload, process, cancelProcessing, retryProposal, retryCurrent,
-    calculatePricing, cancelPricing, confirmSelection, saveSelection, createManualItem, updateItemInclusion, retrySelectionCatalog, refreshAfterChatAction,
+    calculatePricing, cancelPricing, confirmSelection, saveSelection, clearSelectionError, createManualItem, updateItemInclusion, retrySelectionCatalog, refreshAfterChatAction,
   };
 }
