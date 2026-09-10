@@ -114,7 +114,7 @@ function pendingBadge(definition: { blocksConfirmation: boolean; blocksPricing: 
   return "Advertencia";
 }
 
-export function TechnicalProposalItemCard({ item, requirementId, pricing, currency, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, isSavingSelection, selectionErrorMessage, onSaveSelection, onChatActionExecuted, onUpdateInclusion, commercialMutationDisabled, recentChatActionPricingStatus }: {
+export function TechnicalProposalItemCard({ item, requirementId, pricing, currency, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, isSavingSelection, selectionErrorMessage, onSaveSelection, onClearSelectionError, onChatActionExecuted, onUpdateInclusion, commercialMutationDisabled, recentChatActionPricingStatus }: {
   item: TechnicalProposalItem;
   requirementId: string;
   pricing: RequirementPricingItem | null;
@@ -126,6 +126,7 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
   isSavingSelection: boolean;
   selectionErrorMessage: string | null;
   onSaveSelection: (request: TechnicalProposalSelectionRequest) => boolean | Promise<boolean>;
+  onClearSelectionError: () => void;
   onChatActionExecuted: (result: RequirementChatActionPlan) => void | Promise<void>;
   onUpdateInclusion: (isIncluded: boolean, reason?: string | null) => boolean | Promise<boolean>;
   commercialMutationDisabled: boolean;
@@ -321,6 +322,7 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
         errorMessage={selectionErrorMessage}
         submitLabel={pricing ? "Aplicar cambio" : "Guardar seleccion"}
         savingLabel={pricing ? "Recalculando..." : "Guardando..."}
+        onClearSelectionError={onClearSelectionError}
         onSave={onSaveSelection}
       />
 

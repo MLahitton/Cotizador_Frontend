@@ -193,6 +193,7 @@ export function RequirementWorkspace({ preQuoteId, projectIsActive }: { preQuote
           manualItemCreating={workspace.manualItemCreating}
           manualItemError={workspace.manualItemError}
           onSaveSelection={workspace.saveSelection}
+          onClearSelectionError={workspace.clearSelectionError}
           onChatActionExecuted={workspace.refreshAfterChatAction}
           onCreateManualItem={workspace.createManualItem}
           onUpdateInclusion={workspace.updateItemInclusion}
