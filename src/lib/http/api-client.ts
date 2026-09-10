@@ -12,6 +12,11 @@ interface ApiRequestOptions {
   authenticated?: boolean;
 }
 
+export interface ApiDownload {
+  blob: Blob;
+  contentDisposition: string | null;
+}
+
 const NETWORK_ERROR_MESSAGE =
   "No fue posible conectar con el servidor. Verifica que el backend esté disponible.";
 const CONFIGURATION_ERROR_MESSAGE =
@@ -183,4 +188,58 @@ export async function apiRequest(
   }
 
   return payload;
+}
+
+export async function apiDownload(
+  path: string,
+  body: unknown,
+): Promise<ApiDownload> {
+  const headers = new Headers({
+    Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "Content-Type": "application/json",
+  });
+  const accessToken = getAccessToken();
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+  } catch (error: unknown) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError({
+      status: 0,
+      title: "Error de conexión",
+      detail: NETWORK_ERROR_MESSAGE,
+    });
+  }
+
+  if (!response.ok) {
+    const payload = await readResponseBody(response);
+    const problemDetails = toProblemDetails(payload);
+    if (response.status === 401) {
+      removeAccessToken();
+      notifyUnauthorized();
+    }
+    throw new ApiError({
+      status: response.status,
+      title: problemDetails?.title ?? `Error HTTP ${response.status}`,
+      detail: problemDetails?.detail ?? "El servidor no pudo completar la solicitud.",
+      traceId: problemDetails?.traceId,
+      problemDetails,
+    });
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().startsWith("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) {
+    throw new ApiError({ status: 0, title: "Respuesta inválida", detail: "El servidor no devolvió un archivo Excel válido." });
+  }
+
+  return {
+    blob: await response.blob(),
+    contentDisposition: response.headers.get("content-disposition"),
+  };
 }

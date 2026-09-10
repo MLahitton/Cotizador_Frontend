@@ -3,6 +3,7 @@ import {
   FolderKanban,
   Layers3,
   LayoutDashboard,
+  FileSpreadsheet,
   Settings,
   Users,
   type LucideIcon,
@@ -37,6 +38,13 @@ export const appNavigationItems: AppNavigationItem[] = [
     label: "Proyectos",
     href: "/projects",
     icon: FolderKanban,
+    disabled: false,
+  },
+  {
+    id: "fp-pro-proposal",
+    label: "Propuesta FP Pro",
+    href: "/proposals/fp-pro",
+    icon: FileSpreadsheet,
     disabled: false,
   },
   {
