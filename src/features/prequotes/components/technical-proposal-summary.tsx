@@ -288,10 +288,11 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }
 
 
-export function TechnicalProposalSummary({ requirementId, proposal, pricing, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onClearSelectionError, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled, recentChatAction }: {
+export function TechnicalProposalSummary({ requirementId, proposal, pricing, readOnly = false, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onClearSelectionError, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled, recentChatAction }: {
   requirementId: string;
   proposal: TechnicalProposal;
   pricing: RequirementPricing | null;
+  readOnly?: boolean;
   selectionCatalog: TechnicalSelectionCatalog | null;
   selectionCatalogLoading: boolean;
   selectionCatalogError: string | null;
@@ -339,16 +340,18 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
         </Surface>
       ) : null}
       <ReadinessSummary proposal={proposal} activeFilter={readinessFilter} onFilterChange={setReadinessFilter} />
-      <ManualTechnicalProposalItemForm
-        catalog={selectionCatalog}
-        catalogLoading={selectionCatalogLoading}
-        catalogError={selectionCatalogError}
-        disabled={commercialMutationDisabled}
-        isSaving={manualItemCreating}
-        error={manualItemError}
-        onRetryCatalog={onRetrySelectionCatalog}
-        onCreate={onCreateManualItem}
-      />
+      {!readOnly ? (
+       <ManualTechnicalProposalItemForm
+           catalog={selectionCatalog}
+           catalogLoading={selectionCatalogLoading}
+            catalogError={selectionCatalogError}
+           disabled={commercialMutationDisabled}
+           isSaving={manualItemCreating}
+            error={manualItemError}
+           onRetryCatalog={onRetrySelectionCatalog}
+            onCreate={onCreateManualItem}
+       />
+      ) : null}
       <div>
         <h3 className="text-lg font-semibold text-foreground">Elementos</h3>
         <div className="mt-3 grid min-w-0 gap-4 xl:grid-cols-2">
@@ -359,6 +362,7 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, sel
               requirementId={requirementId}
               pricing={pricingByProposalItemId.get(item.itemId) ?? null}
               currency={pricing?.currency ?? null}
+              readOnly={readOnly}
               selectionCatalog={selectionCatalog}
               selectionCatalogLoading={selectionCatalogLoading}
               selectionCatalogError={selectionCatalogError}

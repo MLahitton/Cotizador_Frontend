@@ -4,17 +4,17 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { AdminDashboardPageContent } from "@/features/admin/components/admin-dashboard-page-content";
 import { useAuth } from "@/features/auth/auth-context";
 import { ProtectedRoute } from "@/features/auth/protected-route";
-import { DashboardOverview } from "@/features/dashboard/components/dashboard-overview";
 
-function DashboardContent() {
+function AdminContent() {
   const router = useRouter();
   const { signOut, user } = useAuth();
 
   useEffect(() => {
-    if (user?.role === "ADMIN") {
-      router.replace("/admin");
+    if (user && user.role !== "ADMIN") {
+      router.replace("/dashboard");
     }
   }, [router, user]);
 
@@ -22,7 +22,7 @@ function DashboardContent() {
     return null;
   }
 
-  if (user.role === "ADMIN") {
+  if (user.role !== "ADMIN") {
     return null;
   }
 
@@ -47,15 +47,15 @@ function DashboardContent() {
       initials={initials}
       onSignOut={handleSignOut}
     >
-      <DashboardOverview firstName={user.firstName} />
+      <AdminDashboardPageContent />
     </AppShell>
   );
 }
 
-export default function DashboardPage() {
+export default function AdminPage() {
   return (
     <ProtectedRoute>
-      <DashboardContent />
+      <AdminContent />
     </ProtectedRoute>
   );
 }

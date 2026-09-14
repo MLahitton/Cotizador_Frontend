@@ -1,3 +1,5 @@
+export type UserRole = "USER" | "ADMIN";
+
 export interface AuthenticatedUser {
   id: string;
   email: string;
@@ -5,6 +7,7 @@ export interface AuthenticatedUser {
   lastName: string | null;
   profilePictureUrl: string | null;
   isActive: boolean;
+  role: UserRole;
 }
 
 export interface GoogleSignInRequest {

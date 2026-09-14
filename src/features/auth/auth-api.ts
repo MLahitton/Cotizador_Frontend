@@ -13,7 +13,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function parseUser(value: unknown): AuthenticatedUser {
   if (
     !isRecord(value) ||
-    typeof value.id !== "string" ||
+    typeof value.id !== "string" || 
     typeof value.email !== "string" ||
     typeof value.firstName !== "string" ||
     !(typeof value.lastName === "string" || value.lastName === null) ||
@@ -21,8 +21,9 @@ function parseUser(value: unknown): AuthenticatedUser {
       typeof value.profilePictureUrl === "string" ||
       value.profilePictureUrl === null
     ) ||
-    typeof value.isActive !== "boolean"
-  ) {
+    typeof value.isActive !== "boolean" ||
+    !(value.role === "USER" || value.role === "ADMIN")
+    ) {
     throw invalidResponseError();
   }
 
@@ -33,6 +34,7 @@ function parseUser(value: unknown): AuthenticatedUser {
     lastName: value.lastName,
     profilePictureUrl: value.profilePictureUrl,
     isActive: value.isActive,
+    role: value.role,
   };
 }
 

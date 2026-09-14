@@ -1,9 +1,9 @@
 import {
   BookOpenCheck,
+  FileSpreadsheet,
   FolderKanban,
   Layers3,
   LayoutDashboard,
-  FileSpreadsheet,
   Settings,
   Users,
   type LucideIcon,
@@ -16,15 +16,26 @@ export interface AppNavigationItem {
   icon: LucideIcon;
   disabled: boolean;
   description?: string;
+  adminOnly?: boolean;
+  userOnly?: boolean;
 }
 
 export const appNavigationItems: AppNavigationItem[] = [
   {
-    id: "dashboard",
+    id: "user-dashboard",
     label: "Panel",
     href: "/dashboard",
     icon: LayoutDashboard,
     disabled: false,
+    userOnly: true,
+  },
+  {
+    id: "admin-dashboard",
+    label: "Panel",
+    href: "/admin",
+    icon: LayoutDashboard,
+    disabled: false,
+    adminOnly: true,
   },
   {
     id: "clients",

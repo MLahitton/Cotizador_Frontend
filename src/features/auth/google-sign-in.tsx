@@ -8,28 +8,47 @@ import { useAuth } from "@/features/auth/auth-context";
 
 export function GoogleSignIn() {
   const router = useRouter();
-  const { clearError, isSigningIn, signInWithGoogle } = useAuth();
+
+  const {
+    clearError,
+    isSigningIn,
+    signInWithGoogle,
+  } = useAuth();
+
   const [googleError, setGoogleError] = useState<string | null>(null);
 
-  const handleSuccess = async (credentialResponse: CredentialResponse) => {
+  const handleSuccess = async (
+    credentialResponse: CredentialResponse,
+  ) => {
     if (isSigningIn) {
       return;
     }
 
     const credential = credentialResponse.credential;
+
     if (!credential) {
       clearError();
+
       setGoogleError(
         "No fue posible obtener la credencial de Google. Intenta nuevamente.",
       );
+
       return;
     }
 
     setGoogleError(null);
-    const signedIn = await signInWithGoogle(credential);
-    if (signedIn) {
-      router.replace("/dashboard");
+
+    const authenticatedUser = await signInWithGoogle(credential);
+
+    if (!authenticatedUser) {
+      return;
     }
+
+    router.replace(
+      authenticatedUser.role === "ADMIN"
+        ? "/admin"
+        : "/dashboard",
+    );
   };
 
   return (
@@ -39,12 +58,14 @@ export function GoogleSignIn() {
           onSuccess={handleSuccess}
           onError={() => {
             clearError();
+
             setGoogleError(
               "No fue posible iniciar sesión con Google. Intenta nuevamente.",
             );
           }}
           text="signin_with"
         />
+
         {isSigningIn ? (
           <div
             className="absolute inset-0 flex items-center justify-center rounded bg-white/90 text-sm text-slate-700"
@@ -55,8 +76,13 @@ export function GoogleSignIn() {
           </div>
         ) : null}
       </div>
+
       {googleError ? (
-        <p className="mt-4 text-sm text-red-700" role="alert" aria-live="assertive">
+        <p
+          className="mt-4 text-sm text-red-700"
+          role="alert"
+          aria-live="assertive"
+        >
           {googleError}
         </p>
       ) : null}

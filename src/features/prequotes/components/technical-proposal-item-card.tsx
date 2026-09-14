@@ -114,11 +114,12 @@ function pendingBadge(definition: { blocksConfirmation: boolean; blocksPricing: 
   return "Advertencia";
 }
 
-export function TechnicalProposalItemCard({ item, requirementId, pricing, currency, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, isSavingSelection, selectionErrorMessage, onSaveSelection, onClearSelectionError, onChatActionExecuted, onUpdateInclusion, commercialMutationDisabled, recentChatActionPricingStatus }: {
+export function TechnicalProposalItemCard({ item, requirementId, pricing, currency, readOnly = false, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, isSavingSelection, selectionErrorMessage, onSaveSelection, onClearSelectionError, onChatActionExecuted, onUpdateInclusion, commercialMutationDisabled, recentChatActionPricingStatus }: {
   item: TechnicalProposalItem;
   requirementId: string;
   pricing: RequirementPricingItem | null;
   currency: string | null;
+  readOnly?: boolean;
   selectionCatalog: TechnicalSelectionCatalog | null;
   selectionCatalogLoading: boolean;
   selectionCatalogError: string | null;
@@ -155,8 +156,7 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
   const originalHeight = heightModified && item.heightMm !== item.effectiveHeightMm ? formatProposalNumber(item.heightMm, " mm") : null;
   const recentAction = recentChatActionPricingStatus !== undefined ? recentActionLabel(recentChatActionPricingStatus) : null;
   const handleInclusionChange = () => {
-    if (commercialMutationDisabled) return;
-    void onUpdateInclusion(!item.isIncluded, null);
+  if (readOnly || commercialMutationDisabled) return;
   };
 
   return (
@@ -210,18 +210,53 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
 
 
       <div className="flex min-w-0 flex-col gap-2 border-t border-border-subtle pt-4 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
-        <span className="text-xs text-foreground-secondary">
-          {item.selectionState === "UNCONFIRMED" ? "Sugerencia sin confirmar" : item.selectionState === "CONFIRMED_AS_SUGGESTED" ? "Sugerencia confirmada" : "Configuracion modificada"}
-        </span>
-        <div className="flex shrink-0 flex-wrap justify-start gap-2 min-[420px]:justify-end">
-          <Button type="button" variant="ghost" size="sm" onClick={() => setChatOpen((value) => !value)}><MessageCircle aria-hidden="true" size={15} />{chatOpen ? "Ocultar chat" : "Consultar"}</Button>
-          <Button type="button" variant={item.isIncluded ? "outline" : "secondary"} size="sm" disabled={isSavingSelection || commercialMutationDisabled} onClick={handleInclusionChange}>
-            {item.isIncluded ? "Excluir" : "Reactivar"}
-          </Button>
-        </div>
-      </div>
+          <span className="text-xs text-foreground-secondary">
+            {item.selectionState === "UNCONFIRMED"
+              ? "Sugerencia sin confirmar"
+              : item.selectionState === "CONFIRMED_AS_SUGGESTED"
+                ? "Sugerencia confirmada"
+                : "Configuracion modificada"}
+          </span>
 
-      {chatOpen ? <RequirementChatPanel requirementId={requirementId} itemId={item.itemId} title={`Asistente de ${item.reference || `Elemento ${item.sequence}`}`} compact onActionExecuted={onChatActionExecuted} /> : null}
+          {!readOnly ? (
+            <div className="flex shrink-0 flex-wrap justify-start gap-2 min-[420px]:justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setChatOpen((value) => !value)}
+              >
+                <MessageCircle aria-hidden="true" size={15} />
+                {chatOpen ? "Ocultar chat" : "Consultar"}
+              </Button>
+
+              <Button
+                type="button"
+                variant={item.isIncluded ? "outline" : "secondary"}
+                size="sm"
+                disabled={
+                  isSavingSelection ||
+                  commercialMutationDisabled
+                }
+                onClick={handleInclusionChange}
+              >
+                {item.isIncluded ? "Excluir" : "Reactivar"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
+          {!readOnly && chatOpen ? (
+          <RequirementChatPanel
+            requirementId={requirementId}
+            itemId={item.itemId}
+            title={`Asistente de ${
+              item.reference || `Elemento ${item.sequence}`
+            }`}
+            compact
+            onActionExecuted={onChatActionExecuted}
+          />
+          ) : null}
 
       {!item.isIncluded ? (
         <div className="rounded-sm border border-warning bg-warning/10 p-3">
@@ -311,6 +346,7 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
           </ul>
         </section>
       ) : null}
+      {!readOnly ? (
       <TechnicalProposalSelectionEditor
         item={item}
         catalog={selectionCatalog}
@@ -320,11 +356,22 @@ export function TechnicalProposalItemCard({ item, requirementId, pricing, curren
         isSaving={isSavingSelection}
         disabled={commercialMutationDisabled}
         errorMessage={selectionErrorMessage}
-        submitLabel={pricing ? "Aplicar cambio" : "Guardar seleccion"}
-        savingLabel={pricing ? "Recalculando..." : "Guardando..."}
-        onClearSelectionError={onClearSelectionError}
+        submitLabel={
+          pricing
+            ? "Aplicar cambio"
+            : "Guardar seleccion"
+        }
+        savingLabel={
+          pricing
+            ? "Recalculando..."
+            : "Guardando..."
+        }
+        onClearSelectionError={
+          onClearSelectionError
+        }
         onSave={onSaveSelection}
       />
+      ) : null}
 
     </Surface>
   );

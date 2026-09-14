@@ -1,5 +1,9 @@
 ﻿"use client";
 
+import { useSearchParams } from "next/navigation";
+
+import { Surface } from "@/components/ui/surface";
+import { useAuth } from "@/features/auth/auth-context";
 import {
   getPreQuoteDetailsErrorMessage,
   getProjectContextErrorMessage,
@@ -23,6 +27,13 @@ export function PreQuoteDetailPageContent({
   projectId: string;
   preQuoteId: string;
 }) {
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+
+  const isAdminView =
+    user?.role === "ADMIN" &&
+    searchParams.get("adminView") === "1";
+
   const {
     project,
     preQuote,
@@ -37,7 +48,9 @@ export function PreQuoteDetailPageContent({
   } = usePreQuoteDetails(projectId, preQuoteId);
 
   if (!isProjectIdValid) {
-    return <InvalidIdentifierFeedback message="Identificador de proyecto inválido." />;
+    return (
+      <InvalidIdentifierFeedback message="Identificador de proyecto inválido." />
+    );
   }
 
   if (!isPreQuoteIdValid) {
@@ -72,7 +85,24 @@ export function PreQuoteDetailPageContent({
 
   return (
     <div className="min-w-0 space-y-6">
-      <PreQuoteDetailHeader project={project} preQuote={preQuote} />
+      <PreQuoteDetailHeader
+        project={project}
+        preQuote={preQuote}
+        adminView={isAdminView}
+      />
+
+      {isAdminView ? (
+        <Surface variant="subtle">
+          <p className="text-sm font-semibold text-foreground">
+            Vista administrativa de solo lectura
+          </p>
+
+          <p className="mt-1 text-sm text-foreground-secondary">
+            Puedes consultar la información de esta precotización, pero las
+            acciones que modifican el trabajo del usuario están deshabilitadas.
+          </p>
+        </Surface>
+      ) : null}
 
       {isPreQuoteLoading ? (
         <PreQuotesLoading message="Cargando precotización..." />
@@ -92,10 +122,13 @@ export function PreQuoteDetailPageContent({
             project={project}
             preQuote={preQuote}
             onNameUpdated={retryPreQuote}
+            readOnly={isAdminView}
           />
+
           <RequirementWorkspace
             preQuoteId={preQuote.id}
             projectIsActive={project.isActive}
+            readOnly={isAdminView}
           />
         </>
       ) : null}
