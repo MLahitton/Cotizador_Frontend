@@ -1,4 +1,11 @@
-﻿import type { ProjectDetails } from "@/features/projects/projects-types";
+import type { ProjectDetails } from "@/features/projects/projects-types";
+
+export interface PreQuoteCreatedBy {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string | null;
+}
 
 export interface PreQuoteListItem {
   id: string;
@@ -8,6 +15,7 @@ export interface PreQuoteListItem {
   documentCount: number;
   createdAtUtc: string;
   updatedAtUtc: string;
+  createdBy: PreQuoteCreatedBy;
   hasRequirement: boolean;
   latestRequirementId: string | null;
   latestRequirementStatus: string | null;

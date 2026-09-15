@@ -48,6 +48,15 @@ function formatProposalSummary(preQuote: PreQuoteListItem): string {
     : `${itemCount} items tecnicos`;
 }
 
+function formatCreatedByName(createdBy: PreQuoteListItem["createdBy"]): string {
+  const fullName = [createdBy.firstName, createdBy.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return fullName || createdBy.email;
+}
+
 function formatAttemptOutcome(outcome: string): string {
   switch (outcome) {
     case "Completed":
@@ -70,6 +79,7 @@ export function ProjectPreQuotesTable({
   onRequestCreate,
   canCreate,
   isCreating,
+  isAdminReadOnly,
 }: {
   projectId: string;
   items: PreQuoteListItem[];
@@ -77,6 +87,7 @@ export function ProjectPreQuotesTable({
   onRequestCreate: () => void;
   canCreate: boolean;
   isCreating: boolean;
+  isAdminReadOnly: boolean;
 }) {
   return (
     <section aria-labelledby="project-prequotes-table-title">
@@ -90,7 +101,7 @@ export function ProjectPreQuotesTable({
           </h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[72rem] border-collapse text-left">
+          <table className="w-full min-w-[80rem] border-collapse text-left">
             <caption className="sr-only">
               Listado de precotizaciones asociadas al proyecto seleccionado
             </caption>
@@ -100,6 +111,7 @@ export function ProjectPreQuotesTable({
                   "Precotizacion",
                   "Requirement",
                   "Propuesta tecnica",
+                  "Creador",
                   "Creacion",
                   "Actualizacion",
                   "Detalle",
@@ -117,7 +129,7 @@ export function ProjectPreQuotesTable({
             <tbody className="divide-y divide-border-subtle">
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-6 py-12 text-center">
                     <SearchX
                       aria-hidden="true"
                       className="mx-auto text-muted"
@@ -151,7 +163,9 @@ export function ProjectPreQuotesTable({
                         </Button>
                       ) : (
                         <p className="text-sm text-foreground-secondary">
-                          Activa el proyecto para crear precotizaciones.
+                          {isAdminReadOnly
+                            ? "Consulta otros proyectos o actualiza el listado."
+                            : "Activa el proyecto para crear precotizaciones."}
                         </p>
                       )}
                       <Button
@@ -166,7 +180,10 @@ export function ProjectPreQuotesTable({
                   </td>
                 </tr>
               ) : (
-                items.map((preQuote) => (
+                items.map((preQuote) => {
+                  const detailHref = `/projects/${encodeURIComponent(projectId)}/prequotes/${encodeURIComponent(preQuote.id)}${isAdminReadOnly ? "?adminView=1" : ""}`;
+
+                  return (
                   <tr key={preQuote.id} className="bg-surface">
                     <td className="px-5 py-4 align-top">
                       <div className="flex min-w-0 items-start gap-3">
@@ -210,6 +227,14 @@ export function ProjectPreQuotesTable({
                       </span>
                     </td>
                     <td className="px-5 py-4 align-top text-sm text-foreground-secondary">
+                      <span className="font-medium text-foreground">
+                        {formatCreatedByName(preQuote.createdBy)}
+                      </span>
+                      <span className="mt-1 block break-all text-xs text-muted">
+                        {preQuote.createdBy.email}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 align-top text-sm text-foreground-secondary">
                       {formatPreQuoteDateTime(preQuote.createdAtUtc)}
                     </td>
                     <td className="px-5 py-4 align-top text-sm text-foreground-secondary">
@@ -217,7 +242,7 @@ export function ProjectPreQuotesTable({
                     </td>
                     <td className="px-5 py-4 align-top">
                       <Link
-                        href={`/projects/${encodeURIComponent(projectId)}/prequotes/${encodeURIComponent(preQuote.id)}`}
+                        href={detailHref}
                         className={cn(
                           buttonVariants({ variant: "outline", size: "sm" }),
                           "w-full",
@@ -229,7 +254,8 @@ export function ProjectPreQuotesTable({
                       </Link>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

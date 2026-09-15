@@ -13,12 +13,14 @@ export function ProjectPreQuotesHeader({
   isCreateDisabled,
   isCreating,
   createDisabledReason,
+  showCreateAction = true,
 }: {
   project: ProjectDetails;
   onRequestCreate: () => void;
   isCreateDisabled: boolean;
   isCreating: boolean;
   createDisabledReason: string | null;
+  showCreateAction?: boolean;
 }) {
   return (
     <header className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -46,6 +48,7 @@ export function ProjectPreQuotesHeader({
           </Badge>
         </div>
       </div>
+      {showCreateAction ? (
       <div className="flex w-full shrink-0 flex-col gap-2 lg:w-auto lg:items-end">
         <Button
           type="button"
@@ -63,6 +66,7 @@ export function ProjectPreQuotesHeader({
           </p>
         ) : null}
       </div>
+      ) : null}
     </header>
   );
 }

@@ -1,9 +1,10 @@
-﻿import { isValidProjectId } from "@/features/projects/project-identifiers";
+import { isValidProjectId } from "@/features/projects/project-identifiers";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
 import type {
   CreatedPreQuote,
   GetProjectPreQuotesParameters,
+  PreQuoteCreatedBy,
   PreQuoteDetails,
   PreQuoteListItem,
   ProjectPreQuotesPage,
@@ -79,6 +80,20 @@ function isStringOrNull(value: unknown): value is string | null {
   return value === null || typeof value === "string";
 }
 
+function isPreQuoteCreatedBy(value: unknown): value is PreQuoteCreatedBy {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    GUID_PATTERN.test(value.id) &&
+    typeof value.email === "string" &&
+    typeof value.firstName === "string" &&
+    isStringOrNull(value.lastName)
+  );
+}
+
 function isNonNegativeIntegerOrNull(value: unknown): value is number | null {
   return value === null || isNonNegativeInteger(value);
 }
@@ -106,6 +121,7 @@ function isPreQuoteListItem(
     isNonNegativeInteger(value.documentCount) &&
     isValidDateTime(value.createdAtUtc) &&
     isValidDateTime(value.updatedAtUtc) &&
+    isPreQuoteCreatedBy(value.createdBy) &&
     typeof value.hasRequirement === "boolean" &&
     isGuidOrNull(value.latestRequirementId) &&
     isStringOrNull(value.latestRequirementStatus) &&

@@ -73,7 +73,7 @@ export interface AdminPreQuoteListItem {
 
   hasTechnicalProposal: boolean;
   technicalProposalId: string | null;
-  technicalProposalItemCount: number;
+  technicalProposalItemCount: number | null;
 
   latestAttemptState: string | null;
   latestAttemptOutcome: string | null;

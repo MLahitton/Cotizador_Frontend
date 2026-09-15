@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useAuth } from "@/features/auth/auth-context";
 import { CreatePreQuoteConfirmation } from "@/features/prequotes/components/create-prequote-confirmation";
 import {
   getProjectContextErrorMessage,
@@ -27,6 +28,7 @@ export function ProjectPreQuotesPageContent({
   page: number;
 }) {
   const router = useRouter();
+  const { user } = useAuth();
   const [createConfirmationProjectId, setCreateConfirmationProjectId] =
     useState<string | null>(null);
   const {
@@ -49,7 +51,8 @@ export function ProjectPreQuotesPageContent({
     reset: resetCreate,
   } = useCreatePreQuote(projectId);
 
-  const canCreatePreQuote = Boolean(project?.isActive);
+  const isAdminReadOnly = user?.role === "ADMIN";
+  const canCreatePreQuote = Boolean(project?.isActive) && !isAdminReadOnly;
   const isCreateConfirmationOpen =
     createConfirmationProjectId === projectId;
   const createDisabledReason =
@@ -123,9 +126,10 @@ export function ProjectPreQuotesPageContent({
         isCreateDisabled={!canCreatePreQuote || isCreateSubmitting}
         isCreating={isCreateSubmitting}
         createDisabledReason={createDisabledReason}
+        showCreateAction={!isAdminReadOnly}
       />
 
-      {isCreateConfirmationOpen ? (
+      {!isAdminReadOnly && isCreateConfirmationOpen ? (
         <CreatePreQuoteConfirmation
           projectCode={project.code}
           projectName={project.name}
@@ -167,6 +171,7 @@ export function ProjectPreQuotesPageContent({
             onRequestCreate={handleRequestCreate}
             canCreate={canCreatePreQuote}
             isCreating={isCreateSubmitting}
+            isAdminReadOnly={isAdminReadOnly}
           />
           <ProjectPreQuotesPagination
             projectId={project.id}

@@ -75,6 +75,13 @@ function requireNumber(value: unknown): number {
   return value;
 }
 
+function requireNullableNumber(value: unknown): number | null {
+  if (value === null) {
+    return null;
+  }
+
+  return requireNumber(value);
+}
 function parseRole(value: unknown): AdminUserRole {
   if (value !== "USER" && value !== "ADMIN") {
     throw invalidResponseError();
@@ -244,7 +251,7 @@ function parseAdminPreQuote(
     technicalProposalId: requireNullableString(
       value.technicalProposalId,
     ),
-    technicalProposalItemCount: requireNumber(
+    technicalProposalItemCount: requireNullableNumber(
       value.technicalProposalItemCount,
     ),
 
