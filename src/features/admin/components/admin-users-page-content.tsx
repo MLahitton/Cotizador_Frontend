@@ -19,6 +19,7 @@ import {
   adminUserFullName,
   formatAdminDate,
 } from "./admin-common";
+import { useSearchParams } from "next/navigation";
 
 const USERS_PAGE_SIZE = 10;
 
@@ -39,11 +40,23 @@ const initialUserFilters: UserFilters = {
 
 export function AdminUsersPageContent() {
   const [users, setUsers] = useState<AdminUsersPage | null>(null);
-  const [userFilters, setUserFilters] = useState<UserFilters>(initialUserFilters);
+  const searchParams = useSearchParams();
+  const queryStatus = searchParams.get("status");
+
+  const initialStatus: UserStatusFilter =
+    queryStatus === "active" || queryStatus === "inactive"
+      ? queryStatus
+      : "all";
+  const [userFilters, setUserFilters] =
+  useState<UserFilters>({
+    ...initialUserFilters,
+    status: initialStatus,
+  });
   const [debouncedUserSearch, setDebouncedUserSearch] = useState("");
   const [usersPage, setUsersPage] = useState(1);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [usersError, setUsersError] = useState<string | null>(null);
+
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {

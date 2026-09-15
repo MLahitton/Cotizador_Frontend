@@ -7,6 +7,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -19,61 +20,84 @@ function MetricCard({
   title,
   value,
   detail,
+  href,
 }: {
   icon: LucideIcon;
   title: string;
   value: number;
   detail: string;
+  href: string;
 }) {
   return (
-    <Surface className="min-w-0">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground-secondary">
-            {title}
-          </p>
+    <Link
+      href={href}
+      className="group block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+    >
+      <Surface className="min-w-0 h-full transition-colors group-hover:bg-surface-muted">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground-secondary">
+              {title}
+            </p>
 
-          <p className="mt-2 text-3xl font-semibold text-foreground">
-            {value}
-          </p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">
+              {value}
+            </p>
 
-          <p className="mt-2 text-xs text-foreground-secondary">
-            {detail}
-          </p>
+            <p className="mt-2 text-xs text-foreground-secondary">
+              {detail}
+            </p>
+          </div>
+
+          <div className="rounded-md bg-brand-soft p-3 text-brand">
+            <Icon
+              aria-hidden="true"
+              size={22}
+              strokeWidth={1.75}
+            />
+          </div>
         </div>
-
-        <div className="rounded-md bg-brand-soft p-3 text-brand">
-          <Icon aria-hidden="true" size={22} strokeWidth={1.75} />
-        </div>
-      </div>
-    </Surface>
+      </Surface>
+    </Link>
   );
 }
 
 function SmallMetric({
   label,
   value,
+  href,
 }: {
   label: string;
   value: number;
+  href: string;
 }) {
   return (
-    <div className="rounded-sm border border-border bg-surface-subtle p-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-foreground-secondary">
-        {label}
-      </p>
+    <Link
+      href={href}
+      className="block rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+    >
+      <div className="h-full rounded-sm border border-border bg-surface-subtle p-3 transition-colors hover:bg-surface-muted">
+        <p className="text-xs font-semibold uppercase tracking-wide text-foreground-secondary">
+          {label}
+        </p>
 
-      <p className="mt-1 text-xl font-semibold text-foreground">
-        {value}
-      </p>
-    </div>
+        <p className="mt-1 text-xl font-semibold text-foreground">
+          {value}
+        </p>
+      </div>
+    </Link>
   );
 }
 
 export function AdminDashboardPageContent() {
-  const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
-  const [loadingDashboard, setLoadingDashboard] = useState(true);
-  const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [dashboard, setDashboard] =
+    useState<AdminDashboard | null>(null);
+
+  const [loadingDashboard, setLoadingDashboard] =
+    useState(true);
+
+  const [dashboardError, setDashboardError] =
+    useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
     setLoadingDashboard(true);
@@ -83,7 +107,9 @@ export function AdminDashboardPageContent() {
       const response = await getAdminDashboard();
       setDashboard(response);
     } catch {
-      setDashboardError("No fue posible cargar los indicadores administrativos.");
+      setDashboardError(
+        "No fue posible cargar los indicadores administrativos.",
+      );
     } finally {
       setLoadingDashboard(false);
     }
@@ -112,8 +138,9 @@ export function AdminDashboardPageContent() {
           </h1>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-foreground-secondary">
-            Consulta indicadores generales y actividad reciente de Steel & Glass.
-            Usa las secciones Usuarios y Precotizaciones para revisar los listados completos.
+            Consulta indicadores generales y actividad reciente
+            de Steel & Glass. Usa las secciones Usuarios y
+            Precotizaciones para revisar los listados completos.
           </p>
         </div>
 
@@ -126,15 +153,24 @@ export function AdminDashboardPageContent() {
           <RefreshCw
             aria-hidden="true"
             size={16}
-            className={loadingDashboard ? "animate-spin" : undefined}
+            className={
+              loadingDashboard
+                ? "animate-spin"
+                : undefined
+            }
           />
           Actualizar
         </Button>
       </header>
 
       {dashboardError ? (
-        <Surface variant="subtle" className="border-danger/30 bg-danger-soft">
-          <p className="text-sm text-danger">{dashboardError}</p>
+        <Surface
+          variant="subtle"
+          className="border-danger/30 bg-danger-soft"
+        >
+          <p className="text-sm text-danger">
+            {dashboardError}
+          </p>
         </Surface>
       ) : null}
 
@@ -154,6 +190,7 @@ export function AdminDashboardPageContent() {
               title="Usuarios"
               value={dashboard.totalUsers}
               detail={`${dashboard.activeUsers} cuentas habilitadas`}
+              href="/admin/users"
             />
 
             <MetricCard
@@ -161,6 +198,7 @@ export function AdminDashboardPageContent() {
               title="Actividad"
               value={dashboard.usersActiveLast30Days}
               detail={`${dashboard.usersActiveToday} activos hoy`}
+              href="/admin/users?status=active"
             />
 
             <MetricCard
@@ -168,6 +206,7 @@ export function AdminDashboardPageContent() {
               title="Precotizaciones"
               value={dashboard.totalPreQuotes}
               detail={`${dashboard.preQuotesThisMonth} creadas este mes`}
+              href="/admin/prequotes?period=month"
             />
 
             <MetricCard
@@ -175,6 +214,7 @@ export function AdminDashboardPageContent() {
               title="Actividad comercial"
               value={dashboard.preQuotesThisWeek}
               detail={`${dashboard.preQuotesToday} precotizaciones hoy`}
+              href="/admin/prequotes?period=today"
             />
           </div>
 
@@ -184,9 +224,23 @@ export function AdminDashboardPageContent() {
             </h2>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <SmallMetric label="Activos hoy" value={dashboard.usersActiveToday} />
-              <SmallMetric label="Ultimos 7 dias" value={dashboard.usersActiveLast7Days} />
-              <SmallMetric label="Ultimos 30 dias" value={dashboard.usersActiveLast30Days} />
+              <SmallMetric
+                label="Activos hoy"
+                value={dashboard.usersActiveToday}
+                href="/admin/users?status=active"
+              />
+
+              <SmallMetric
+                label="Ultimos 7 dias"
+                value={dashboard.usersActiveLast7Days}
+                href="/admin/users"
+              />
+
+              <SmallMetric
+                label="Ultimos 30 dias"
+                value={dashboard.usersActiveLast30Days}
+                href="/admin/users"
+              />
             </div>
           </Surface>
         </>

@@ -40,6 +40,49 @@ function getQueryUserId(searchParams: URLSearchParams): string {
   return searchParams.get("userId")?.trim() ?? "";
 }
 
+function toDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getPeriodDates(
+  searchParams: URLSearchParams,
+): Pick<PreQuoteFilters, "fromDate" | "toDate"> {
+  const period = searchParams.get("period");
+
+  const now = new Date();
+
+  if (period === "today") {
+    const today = toDateInputValue(now);
+
+    return {
+      fromDate: today,
+      toDate: today,
+    };
+  }
+
+  if (period === "month") {
+    const firstDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1,
+    );
+
+    return {
+      fromDate: toDateInputValue(firstDay),
+      toDate: toDateInputValue(now),
+    };
+  }
+
+  return {
+    fromDate: "",
+    toDate: "",
+  };
+}
+
 function formatAttemptState(value: string): string {
   const normalized = value.trim().toUpperCase();
 
@@ -71,14 +114,16 @@ export function AdminPreQuotesPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryUserId = getQueryUserId(searchParams);
+  const queryPeriodDates = getPeriodDates(searchParams);
 
   const [preQuotes, setPreQuotes] = useState<AdminPreQuotesPage | null>(null);
   const [userFilterOptions, setUserFilterOptions] = useState<AdminUserListItem[]>([]);
-  const [preQuoteFilters, setPreQuoteFilters] = useState<PreQuoteFilters>({
+  const [preQuoteFilters, setPreQuoteFilters] =
+  useState<PreQuoteFilters>({
     search: "",
     userId: queryUserId,
-    fromDate: "",
-    toDate: "",
+    fromDate: queryPeriodDates.fromDate,
+    toDate: queryPeriodDates.toDate,
   });
   const [debouncedPreQuoteSearch, setDebouncedPreQuoteSearch] = useState("");
   const [preQuotesPage, setPreQuotesPage] = useState(1);
