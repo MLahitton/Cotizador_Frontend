@@ -57,7 +57,6 @@ function getPeriodDates(
   searchParams: URLSearchParams,
 ): Pick<PreQuoteFilters, "fromDate" | "toDate"> {
   const period = searchParams.get("period");
-
   const now = new Date();
 
   if (period === "today") {
@@ -66,6 +65,26 @@ function getPeriodDates(
     return {
       fromDate: today,
       toDate: today,
+    };
+  }
+
+  if (period === "7d") {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 6);
+
+    return {
+      fromDate: toDateInputValue(start),
+      toDate: toDateInputValue(now),
+    };
+  }
+
+  if (period === "30d") {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 29);
+
+    return {
+      fromDate: toDateInputValue(start),
+      toDate: toDateInputValue(now),
     };
   }
 
@@ -121,6 +140,7 @@ export function AdminPreQuotesPageContent() {
   const returnTo = searchParams.get("returnTo");
   const queryUserId = getQueryUserId(searchParams);
   const queryPeriodDates = getPeriodDates(searchParams);
+  const queryPeriod = searchParams.get("period");
 
   const [preQuotes, setPreQuotes] = useState<AdminPreQuotesPage | null>(null);
   const [userFilterOptions, setUserFilterOptions] = useState<AdminUserListItem[]>([]);
@@ -284,6 +304,40 @@ export function AdminPreQuotesPageContent() {
     router.replace(query ? `${pathname}?${query}` : pathname);
   }
 
+  function updatePeriodFilter(
+  period: "today" | "7d" | "30d" | "month" | null,
+) {
+  const nextParams = new URLSearchParams(
+    searchParams.toString(),
+  );
+
+  if (period) {
+    nextParams.set("period", period);
+  } else {
+    nextParams.delete("period");
+  }
+
+  const periodParams = new URLSearchParams(
+    nextParams.toString(),
+  );
+
+  const dates = getPeriodDates(periodParams);
+
+  setPreQuotesPage(1);
+
+  setPreQuoteFilters((current) => ({
+    ...current,
+    fromDate: dates.fromDate,
+    toDate: dates.toDate,
+  }));
+
+  const query = nextParams.toString();
+
+  router.replace(
+    query ? `${pathname}?${query}` : pathname,
+  );
+}
+
   function clearPreQuoteFilters() {
     setPreQuoteFilters({
       search: "",
@@ -362,6 +416,73 @@ export function AdminPreQuotesPageContent() {
             </div>
           </div>
 
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={
+                queryPeriod === "today"
+                  ? "primary"
+                  : "outline"
+              }
+              onClick={() => updatePeriodFilter("today")}
+            >
+              Hoy
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant={
+                queryPeriod === "7d"
+                  ? "primary"
+                  : "outline"
+              }
+              onClick={() => updatePeriodFilter("7d")}
+            >
+              Últimos 7 días
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant={
+                queryPeriod === "30d"
+                  ? "primary"
+                  : "outline"
+              }
+              onClick={() => updatePeriodFilter("30d")}
+            >
+              Últimos 30 días
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant={
+                queryPeriod === "month"
+                  ? "primary"
+                  : "outline"
+              }
+              onClick={() => updatePeriodFilter("month")}
+            >
+              Este mes
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant={
+                !queryPeriod
+                  ? "primary"
+                  : "outline"
+              }
+              onClick={() => updatePeriodFilter(null)}
+            >
+              Todas
+            </Button>
+          </div>
+
           <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(220px,1fr)_minmax(260px,1fr)_160px_160px_auto]">
             <label className="min-w-0 space-y-1">
               <span className="text-xs font-semibold text-foreground-secondary">
@@ -404,10 +525,23 @@ export function AdminPreQuotesPageContent() {
                 value={preQuoteFilters.fromDate}
                 onChange={(event) => {
                   setPreQuotesPage(1);
+
                   setPreQuoteFilters((current) => ({
                     ...current,
                     fromDate: event.target.value,
                   }));
+
+                  const nextParams = new URLSearchParams(
+                    searchParams.toString(),
+                  );
+
+                  nextParams.delete("period");
+
+                  const query = nextParams.toString();
+
+                  router.replace(
+                    query ? `${pathname}?${query}` : pathname,
+                  );
                 }}
               />
             </label>
@@ -422,10 +556,23 @@ export function AdminPreQuotesPageContent() {
                 value={preQuoteFilters.toDate}
                 onChange={(event) => {
                   setPreQuotesPage(1);
+
                   setPreQuoteFilters((current) => ({
                     ...current,
                     toDate: event.target.value,
                   }));
+
+                  const nextParams = new URLSearchParams(
+                    searchParams.toString(),
+                  );
+
+                  nextParams.delete("period");
+
+                  const query = nextParams.toString();
+
+                  router.replace(
+                    query ? `${pathname}?${query}` : pathname,
+                  );
                 }}
               />
             </label>
