@@ -6,7 +6,6 @@ import {
   FolderKanban,
   Layers3,
   LayoutDashboard,
-  Settings,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -99,11 +98,5 @@ export const appNavigationItems: AppNavigationItem[] = [
     icon: BookOpenCheck,
     disabled: false,
   },
-  {
-    id: "settings",
-    label: "Configuración",
-    href: null,
-    icon: Settings,
-    disabled: true,
-  },
+  
 ];
