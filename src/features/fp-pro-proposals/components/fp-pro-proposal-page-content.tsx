@@ -354,7 +354,7 @@ export function FpProProposalPageContent() {
     <div className="grid gap-4 md:grid-cols-2">
       <LabeledInput label="Cliente" required value={clientName} onChange={(value) => { setClientName(value); setError(null); setSuccess(null); }} hint="Manual" />
       <CatalogSearchSelect label="Ciudad / ubicación" value={location} options={catalogs?.locations ?? []} disabled={catalogsLoading || !catalogs} onChange={(value) => { setLocation(value); setError(null); setSuccess(null); }} hint={catalogsLoading ? "Cargando catálogo..." : "Catálogo de plantilla"} />
-      <LabeledInput label="Línea de producción" required value={productionLine} onChange={(value) => { setProductionLine(value); setError(null); setSuccess(null); }} hint="Manual" />
+      <LabeledInput label="Version" required value={productionLine} onChange={(value) => { setProductionLine(value); setError(null); setSuccess(null); }} hint="Manual" />
       <LabeledInput label="Elaborado por" required value={preparedBy} onChange={(value) => { setPreparedBy(value); setError(null); setSuccess(null); }} hint="Manual" />
       <LabeledInput label="Nombre de la propuesta" required value={proposalName} onChange={(value) => { setProposalName(value); setError(null); setSuccess(null); }} hint="Controla el nombre del archivo .xlsx" />
       <CatalogSearchSelect label="Acabado general" value={globalFinish} options={catalogs?.finishes ?? []} disabled={catalogsLoading || !catalogs} onChange={applyGlobalFinish} hint="Se aplica como base para todos los items." />
