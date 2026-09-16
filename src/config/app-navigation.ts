@@ -1,4 +1,5 @@
 import {
+  Activity,
   BookOpenCheck,
   FileSpreadsheet,
   FileText,
@@ -53,6 +54,14 @@ export const appNavigationItems: AppNavigationItem[] = [
     icon: FileText,
     disabled: false,
     adminOnly: true,
+  },
+  {
+  id: "admin-activity",
+  label: "Actividad",
+  href: "/admin/activity",
+  icon: Activity,
+  disabled: false,
+  adminOnly: true,
   },
   {
     id: "clients",

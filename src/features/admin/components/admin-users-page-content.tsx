@@ -288,7 +288,7 @@ export function AdminUsersPageContent() {
 
                       <td className="px-5 py-4">
                         <Link
-                          href={`/admin/prequotes?userId=${encodeURIComponent(user.id,)}&returnTo=${encodeURIComponent("/admin/users")}`}
+                          href={`/admin/prequotes?userId=${encodeURIComponent(user.id)}&returnTo=${encodeURIComponent("/admin/users")}`}
                           className="inline-flex items-center justify-center rounded-sm border border-border bg-surface px-3 py-2 text-sm font-semibold text-foreground transition hover:bg-surface-muted"
                         >
                           Ver precotizaciones

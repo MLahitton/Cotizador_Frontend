@@ -198,7 +198,7 @@ export function AdminDashboardPageContent() {
               title="Actividad"
               value={dashboard.usersActiveLast30Days}
               detail={`${dashboard.usersActiveToday} activos hoy`}
-              href="/admin/users?status=active"
+              href="/admin/activity?period=30d"
             />
 
             <MetricCard
@@ -227,19 +227,19 @@ export function AdminDashboardPageContent() {
               <SmallMetric
                 label="Activos hoy"
                 value={dashboard.usersActiveToday}
-                href="/admin/users?status=active"
+                href="/admin/activity?period=today"
               />
 
               <SmallMetric
                 label="Ultimos 7 dias"
                 value={dashboard.usersActiveLast7Days}
-                href="/admin/users"
+                href="/admin/activity?period=7d"
               />
 
               <SmallMetric
                 label="Ultimos 30 dias"
                 value={dashboard.usersActiveLast30Days}
-                href="/admin/users"
+                href="/admin/activity?period=30d"
               />
             </div>
           </Surface>
