@@ -206,10 +206,14 @@ export function PreQuoteDetailHeader({
   project,
   preQuote,
   adminView = false,
+  adminBackHref = "/admin",
+  adminBackLabel = "Volver al panel administrativo",
 }: {
   project: ProjectContext;
   preQuote?: PreQuoteDetails | null;
   adminView?: boolean;
+  adminBackHref?: string;
+  adminBackLabel?: string;
 }) {
   return (
     <header className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -217,7 +221,7 @@ export function PreQuoteDetailHeader({
         <div className="mb-4 flex flex-col gap-2 sm:flex-row">
           {adminView ? (
             <Link
-              href="/admin"
+              href={adminBackHref}
               className={cn(
                 buttonVariants({
                   variant: "ghost",
@@ -231,7 +235,7 @@ export function PreQuoteDetailHeader({
                 size={17}
                 strokeWidth={1.75}
               />
-              Volver al panel administrativo
+              {adminBackLabel}
             </Link>
           ) : (
             <>

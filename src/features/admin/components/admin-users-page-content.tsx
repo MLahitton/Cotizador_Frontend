@@ -56,7 +56,7 @@ export function AdminUsersPageContent() {
   const [usersPage, setUsersPage] = useState(1);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [usersError, setUsersError] = useState<string | null>(null);
-
+  
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -288,7 +288,7 @@ export function AdminUsersPageContent() {
 
                       <td className="px-5 py-4">
                         <Link
-                          href={`/admin/prequotes?userId=${encodeURIComponent(user.id)}`}
+                          href={`/admin/prequotes?userId=${encodeURIComponent(user.id,)}&returnTo=${encodeURIComponent("/admin/users")}`}
                           className="inline-flex items-center justify-center rounded-sm border border-border bg-surface px-3 py-2 text-sm font-semibold text-foreground transition hover:bg-surface-muted"
                         >
                           Ver precotizaciones

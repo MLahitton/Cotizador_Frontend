@@ -28,11 +28,25 @@ export function PreQuoteDetailPageContent({
   preQuoteId: string;
 }) {
   const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
   const { user } = useAuth();
 
   const isAdminView =
     user?.role === "ADMIN" &&
     searchParams.get("adminView") === "1";
+
+  const adminBackHref =
+  returnTo || "/admin";
+
+  const adminBackLabel =
+  returnTo?.includes("/projects/") &&
+  returnTo.endsWith("/prequotes")
+    ? "Volver a precotizaciones"
+    : returnTo?.includes("/projects/")
+      ? "Volver al proyecto"
+      : returnTo?.includes("/admin/prequotes")
+        ? "Volver a precotizaciones"
+        : "Volver al panel administrativo";
 
   const {
     project,
@@ -89,6 +103,8 @@ export function PreQuoteDetailPageContent({
         project={project}
         preQuote={preQuote}
         adminView={isAdminView}
+        adminBackHref={adminBackHref}
+        adminBackLabel={adminBackLabel}
       />
 
       {isAdminView ? (

@@ -36,6 +36,7 @@ export function ProjectDetailView({
   project,
   clientSummary,
   successMessage,
+   readOnly = false,
   isActivationDisabled = false,
   isEditDisabled = false,
   isPreQuotesDisabled = false,
@@ -48,6 +49,7 @@ export function ProjectDetailView({
   project: ProjectDetails;
   clientSummary: ReactNode;
   successMessage: string | null;
+  readOnly?: boolean;
   isActivationDisabled?: boolean;
   isEditDisabled?: boolean;
   isPreQuotesDisabled?: boolean;
@@ -113,34 +115,39 @@ export function ProjectDetailView({
               Precotizaciones
             </Link>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isEditDisabled || isEditing}
-            className="w-full sm:w-auto"
-            onClick={onRequestEdit}
-          >
-            <Pencil aria-hidden="true" size={17} strokeWidth={1.75} />
-            Editar proyecto
-          </Button>
-          <Button
-            type="button"
-            variant={project.isActive ? "danger" : "primary"}
-            disabled={isActivationDisabled}
-            className="w-full sm:w-auto"
-            onClick={onRequestActivation}
-          >
-            <ActivationIcon
-              aria-hidden="true"
-              size={17}
-              strokeWidth={1.75}
-            />
-            {activationLabel}
-          </Button>
+          {!readOnly ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isEditDisabled || isEditing}
+              className="w-full sm:w-auto"
+              onClick={onRequestEdit}
+            >
+              <Pencil aria-hidden="true" size={17} strokeWidth={1.75} />
+              Editar proyecto
+            </Button>
+
+            <Button
+              type="button"
+              variant={project.isActive ? "danger" : "primary"}
+              disabled={isActivationDisabled}
+              className="w-full sm:w-auto"
+              onClick={onRequestActivation}
+            >
+              <ActivationIcon
+                aria-hidden="true"
+                size={17}
+                strokeWidth={1.75}
+              />
+              {activationLabel}
+            </Button>
+          </>
+        ) : null}
         </div>
       </header>
 
-      {activationConfirmation}
+      {!readOnly ? activationConfirmation : null}
 
       {successMessage ? (
         <div
@@ -152,7 +159,7 @@ export function ProjectDetailView({
         </div>
       ) : null}
 
-      {isEditing && editForm ? (
+      {!readOnly && isEditing && editForm ? (
         editForm
       ) : (
         <Surface padding="none" className="min-w-0 overflow-hidden">
