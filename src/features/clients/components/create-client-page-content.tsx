@@ -26,10 +26,6 @@ export function CreateClientPageContent() {
       router.replace("/clients");
     }
   }, [isAdmin, router]);
-
-  if (isAdmin) {
-    return null;
-  }
   const {
     values,
     errors,
@@ -41,6 +37,9 @@ export function CreateClientPageContent() {
     reset,
   } = useCreateClient();
 
+  if (isAdmin) {
+    return null;
+  }
   return (
     <div className="space-y-6">
       <header className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
