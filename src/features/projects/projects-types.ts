@@ -1,6 +1,16 @@
-export type ProjectStatusFilter = "active" | "inactive" | "all";
+export type ProjectStatusFilter =
+  | "active"
+  | "inactive"
+  | "all";
 
-export type ProjectClientTypeFilter = "Person" | "Company" | null;
+export type ProjectAttentionFilter =
+  | "pending"
+  | null;
+
+export type ProjectClientTypeFilter =
+  | "Person"
+  | "Company"
+  | null;
 
 export type ProjectDocumentTypeFilter =
   | "Nit"
@@ -46,6 +56,7 @@ export interface GetProjectsParameters {
   clientId: string | null;
   clientType: ProjectClientTypeFilter;
   documentType: ProjectDocumentTypeFilter;
+  attention: ProjectAttentionFilter;
   page: number;
   pageSize: number;
 }
@@ -101,5 +112,8 @@ export interface ProjectFormValues {
 }
 
 export type ProjectFormErrors = Partial<
-  Record<keyof ProjectFormValues | "client" | "form", string>
+  Record<
+    keyof ProjectFormValues | "client" | "form",
+    string
+  >
 >;

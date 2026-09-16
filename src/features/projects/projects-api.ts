@@ -199,12 +199,16 @@ export async function getProjects(
     query.set("search", normalizedSearch);
   }
 
-  if (parameters.clientId) {
+  if (parameters.clientId) {  
     query.set("clientId", parameters.clientId);
   }
 
   if (parameters.clientType) {
     query.set("clientType", parameters.clientType);
+  }
+
+  if (parameters.attention) {
+  query.set("attention", parameters.attention);
   }
 
   if (parameters.documentType) {
