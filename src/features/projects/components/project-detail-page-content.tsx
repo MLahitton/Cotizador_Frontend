@@ -14,12 +14,15 @@ import { ProjectDetailView } from "@/features/projects/components/project-detail
 import { useProjectDetails } from "@/features/projects/use-project-details";
 import { useSetProjectActivation } from "@/features/projects/use-set-project-activation";
 import { useUpdateProject } from "@/features/projects/use-update-project";
+import { useAuth } from "@/features/auth/auth-context";
 
 export function ProjectDetailPageContent({
   projectId,
 }: {
   projectId: string;
 }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const {
     project,
     projectError,
@@ -214,6 +217,7 @@ export function ProjectDetailPageContent({
     <ProjectDetailView
       project={project}
       successMessage={updateProject.successMessage ?? successMessage}
+      readOnly={isAdmin}
       isActivationDisabled={
         activationTarget !== null ||
         isActivationSubmitting ||
@@ -227,9 +231,10 @@ export function ProjectDetailPageContent({
         isEditing ||
         updateProject.isSubmitting
       }
-      isEditing={isEditing}
+      isEditing={!isAdmin && isEditing}
       editForm={
-        <ProjectEditForm
+        !isAdmin ? (
+          <ProjectEditForm
           values={updateProject.values}
           errors={updateProject.errors}
           isSubmitting={updateProject.isSubmitting}
@@ -240,10 +245,11 @@ export function ProjectDetailPageContent({
           onCodeBlur={updateProject.normalizeCodeField}
           onSubmit={submitUpdate}
           onCancel={cancelEditing}
-        />
+          />
+        ) : null
       }
       activationConfirmation={
-        activationTarget !== null ? (
+        !isAdmin && activationTarget !== null ? (
           <ProjectActivationConfirmation
             projectName={project.name}
             targetIsActive={activationTarget}

@@ -181,7 +181,17 @@ export function ProjectPreQuotesTable({
                 </tr>
               ) : (
                 items.map((preQuote) => {
-                  const detailHref = `/projects/${encodeURIComponent(projectId)}/prequotes/${encodeURIComponent(preQuote.id)}${isAdminReadOnly ? "?adminView=1" : ""}`;
+                  const detailHref = `/projects/${encodeURIComponent(
+                    projectId,
+                  )}/prequotes/${encodeURIComponent(
+                    preQuote.id,
+                  )}${
+                    isAdminReadOnly
+                      ? `?adminView=1&returnTo=${encodeURIComponent(
+                          `/projects/${projectId}/prequotes`,
+                        )}`
+                      : ""
+                  }`;
 
                   return (
                   <tr key={preQuote.id} className="bg-surface">

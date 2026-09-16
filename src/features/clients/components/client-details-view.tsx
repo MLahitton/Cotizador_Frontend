@@ -96,6 +96,7 @@ function DetailSection({
 export function ClientDetailsView({
   client,
   successMessage,
+  readOnly = false,
   isEditDisabled = false,
   isActivationDisabled = false,
   activationConfirmation,
@@ -105,6 +106,7 @@ export function ClientDetailsView({
 }: {
   client: ClientDetails;
   successMessage: string | null;
+  readOnly?: boolean;
   isEditDisabled?: boolean;
   isActivationDisabled?: boolean;
   activationConfirmation?: ReactNode;
@@ -145,6 +147,7 @@ export function ClientDetailsView({
             </p>
           ) : null}
         </div>
+       {!readOnly ? (
         <div className="flex w-full shrink-0 flex-col gap-3 sm:w-auto sm:flex-row lg:justify-end">
           <Button
             type="button"
@@ -156,6 +159,7 @@ export function ClientDetailsView({
             <Pencil aria-hidden="true" size={17} strokeWidth={1.75} />
             Editar
           </Button>
+
           <Button
             type="button"
             variant={client.isActive ? "danger" : "primary"}
@@ -166,9 +170,10 @@ export function ClientDetailsView({
             {activationLabel}
           </Button>
         </div>
+) : null}
       </header>
 
-      {activationConfirmation}
+      {!readOnly ? activationConfirmation : null}
 
       {successMessage ? (
         <div

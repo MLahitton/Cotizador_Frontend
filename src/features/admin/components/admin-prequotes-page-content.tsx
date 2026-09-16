@@ -1,6 +1,11 @@
 "use client";
 
-import { FileText, RefreshCw, X } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  RefreshCw,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -113,6 +118,7 @@ export function AdminPreQuotesPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
   const queryUserId = getQueryUserId(searchParams);
   const queryPeriodDates = getPeriodDates(searchParams);
 
@@ -300,6 +306,16 @@ export function AdminPreQuotesPageContent() {
     <div className="min-w-0 space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
+          {returnTo ? (
+            <Link
+              href={returnTo}
+              className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-foreground-secondary hover:text-foreground"
+            >
+              <ArrowLeft aria-hidden="true" size={16} />
+              Volver a usuarios
+            </Link>
+          ) : null}
+
           <p className="text-sm font-semibold uppercase tracking-wide text-brand">
             Administracion
           </p>
@@ -525,7 +541,13 @@ export function AdminPreQuotesPageContent() {
 
                       <td className="px-5 py-4">
                         <Link
-                          href={`/projects/${encodeURIComponent(preQuote.projectId)}/prequotes/${encodeURIComponent(preQuote.id)}?adminView=1`}
+                          href={`/projects/${encodeURIComponent(
+                            preQuote.projectId,
+                          )}/prequotes/${encodeURIComponent(
+                            preQuote.id,
+                          )}?adminView=1&returnTo=${encodeURIComponent(
+                            "/admin/prequotes",
+                          )}`}
                           className="inline-flex items-center justify-center rounded-sm border border-border bg-surface px-3 py-2 text-sm font-semibold text-foreground transition hover:bg-surface-muted"
                         >
                           Ver

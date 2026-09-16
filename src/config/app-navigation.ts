@@ -74,6 +74,7 @@ export const appNavigationItems: AppNavigationItem[] = [
     href: "/proposals/fp-pro",
     icon: FileSpreadsheet,
     disabled: false,
+    userOnly: true,
   },
   {
     id: "glass-catalog",

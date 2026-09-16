@@ -12,8 +12,11 @@ import { ProjectsTable } from "@/features/projects/components/projects-table";
 import { ProjectsToolbar } from "@/features/projects/components/projects-toolbar";
 import { useProjects } from "@/features/projects/use-projects";
 import { cn } from "@/lib/utils/cn";
+import { useAuth } from "@/features/auth/auth-context";
 
 export function ProjectsPageContent() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const {
     data,
     error,
@@ -57,6 +60,7 @@ export function ProjectsPageContent() {
             asociados.
           </p>
         </div>
+        {!isAdmin ? (
         <Link
           href="/projects/new"
           className={cn(
@@ -67,6 +71,7 @@ export function ProjectsPageContent() {
           <Plus aria-hidden="true" size={17} strokeWidth={1.75} />
           Nuevo proyecto
         </Link>
+        ) : null}
       </header>
 
       <Surface padding="none">

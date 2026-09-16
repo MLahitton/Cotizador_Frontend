@@ -12,8 +12,24 @@ import {
 } from "@/features/clients/components/create-client-feedback";
 import { useCreateClient } from "@/features/clients/use-create-client";
 import { cn } from "@/lib/utils/cn";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useAuth } from "@/features/auth/auth-context";
 
 export function CreateClientPageContent() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
+  useEffect(() => {
+    if (isAdmin) {
+      router.replace("/clients");
+    }
+  }, [isAdmin, router]);
+
+  if (isAdmin) {
+    return null;
+  }
   const {
     values,
     errors,

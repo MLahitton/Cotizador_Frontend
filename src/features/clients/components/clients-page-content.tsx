@@ -12,8 +12,11 @@ import { ClientsTable } from "@/features/clients/components/clients-table";
 import { ClientsToolbar } from "@/features/clients/components/clients-toolbar";
 import { useClients } from "@/features/clients/use-clients";
 import { cn } from "@/lib/utils/cn";
+import { useAuth } from "@/features/auth/auth-context";
 
 export function ClientsPageContent() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const {
     data,
     error,
@@ -45,20 +48,23 @@ export function ClientsPageContent() {
             Clientes
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground-secondary">
-            Consulta y administra la información de los clientes registrados en
-            la plataforma.
+            {isAdmin
+            ? "Consulta la información de los clientes registrados en la plataforma."
+            : "Consulta y administra la información de los clientes registrados en la plataforma."}
           </p>
         </div>
-        <Link
-          href="/clients/new"
-          className={cn(
-            buttonVariants({ variant: "primary" }),
-            "w-full shrink-0 sm:w-auto",
-          )}
-        >
-          <Plus aria-hidden="true" size={17} strokeWidth={1.75} />
-          Nuevo cliente
-        </Link>
+        {!isAdmin ? (
+          <Link
+            href="/clients/new"
+            className={cn(
+              buttonVariants({ variant: "primary" }),
+              "w-full shrink-0 sm:w-auto",
+            )}
+          >
+            <Plus aria-hidden="true" size={17} strokeWidth={1.75} />
+            Nuevo cliente
+          </Link>
+        ) : null}
       </header>
 
       <Surface padding="none">
