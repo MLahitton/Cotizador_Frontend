@@ -213,7 +213,7 @@ export function RequirementWorkspace({
               )}
 
               <p className="mt-1 text-sm text-foreground-secondary">
-                Linea comercial:{" "}
+                Versión comercial:{" "}
                 {workspace.requirement.commercialLine
                   ? workspace.requirement.commercialLine.charAt(
                       0,
@@ -221,7 +221,7 @@ export function RequirementWorkspace({
                     workspace.requirement.commercialLine
                       .slice(1)
                       .toLowerCase()
-                  : "Linea no disponible"}
+                  : "Versión no disponible"}
               </p>
 
               {fileNames ? (

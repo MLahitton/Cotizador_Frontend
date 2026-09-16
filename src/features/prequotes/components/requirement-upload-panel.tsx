@@ -29,20 +29,20 @@ export function RequirementUploadPanel({
         </p>
       </div>
       <div className="space-y-2">
-        <label htmlFor="requirement-commercial-line" className="text-sm font-medium text-foreground">Linea comercial</label>
+        <label htmlFor="requirement-commercial-line" className="text-sm font-medium text-foreground">Versión comercial</label>
         <Select
           id="requirement-commercial-line"
           value={commercialLine ?? ""}
           disabled={isUploading}
           onChange={(event) => onCommercialLineChange(event.target.value as RequirementCommercialLine)}
         >
-          <option value="" disabled>Selecciona una linea comercial</option>
+          <option value="" disabled>Selecciona una versión comercial</option>
           <option value="CLASSIC">Classic</option>
           <option value="ESSENTIAL">Essential</option>
           <option value="BIOCONFORT">Bioconfort</option>
           <option value="SIGNATURE">Signature</option>
         </Select>
-        <p className="text-xs text-foreground-secondary">La linea quedara asociada al requerimiento y no se podra cambiar despues de crearlo.</p>
+        <p className="text-xs text-foreground-secondary">La versión comercial quedara asociada al requerimiento y no se podra cambiar despues de crearlo.</p>
       </div>
       <input
         type="file"
