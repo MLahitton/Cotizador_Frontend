@@ -40,8 +40,10 @@ function isPreview(value: unknown): value is FpProPreview {
   if (!isRecord(value) || !isRecord(value.report) || !Array.isArray(value.items) || !isStringArray(value.pendingFields)) return false;
   const report = value.report;
   if (!nullable(report.orderId, "string") || !nullable(report.description, "string") ||
-      !nullable(report.revision, "number") || typeof report.itemsDetected !== "number" ||
-      !nullable(report.aluminumWastePercent, "number")) return false;
+    !nullable(report.revision, "number") || typeof report.itemsDetected !== "number" ||
+    !nullable(report.aluminumWastePercent, "number") ||
+    !nullable(report.profileBarCount, "number") ||
+    !nullable(report.doorCount, "number")) return false;
 
   return value.items.every((item) => {
     if (!isRecord(item) || typeof item.itemNumber !== "string" || !isStringArray(item.fpProProfiles) ||

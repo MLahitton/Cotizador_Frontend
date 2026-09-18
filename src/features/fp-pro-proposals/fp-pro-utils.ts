@@ -165,7 +165,13 @@ export function getGenerateValidationState({ preview, items, catalogs, catalogsL
 
 export function buildGenerateRequest(preview: FpProPreview, items: FpProItemDraft[], location: string, proposalName: string, clientName: string, projectName: string, productionLine: string, preparedBy: string, budgetId: string, aluminumWastePercent: number | null, benefitPercent: number | null, commissionPercent: number | null): GenerateFpProRequest {
   return {
-    report: { order: preview.report.orderId, description: preview.report.description, location },
+    report: {
+      order: preview.report.orderId,
+      description: preview.report.description,
+      location,
+      profileBarCount: preview.report.profileBarCount,
+      doorCount: preview.report.doorCount,
+    },
     proposalName: proposalName.trim(),
     clientName: clientName.trim(),
     projectName: projectName.trim(),

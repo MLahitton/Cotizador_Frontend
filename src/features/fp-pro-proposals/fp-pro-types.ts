@@ -4,6 +4,8 @@ export interface FpProReport {
   revision: number | null;
   itemsDetected: number;
   aluminumWastePercent: number | null;
+  profileBarCount: number | null;
+  doorCount: number | null;
 }
 
 export interface FpProGlassPane {
@@ -80,7 +82,13 @@ export interface FpProItemDraft extends FpProPreviewItem {
 }
 
 export interface GenerateFpProRequest {
-  report: { order: string | null; description: string | null; location: string };
+  report: {
+    order: string | null;
+    description: string | null;
+    location: string;
+    profileBarCount: number | null;
+    doorCount: number | null;
+  };
   proposalName: string;
   clientName: string;
   projectName: string;
