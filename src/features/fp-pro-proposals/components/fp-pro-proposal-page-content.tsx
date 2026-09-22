@@ -200,19 +200,32 @@ function ItemCard({ item, index, catalogs, catalogsLoading, issues, onChange }: 
             </div>
 
             {item.technicalProfiles.length > 0 ? (
-              <details className="rounded-sm border border-border-subtle bg-surface-subtle p-3">
-                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-foreground-secondary">Perfiles técnicos ({item.technicalProfiles.length})</summary>
-                <div className="mt-3 overflow-x-auto">
-                  <table className="w-full min-w-[38rem] text-left text-xs">
-                    <thead className="text-foreground-secondary"><tr><th className="py-1 pr-3">Código</th><th className="py-1 pr-3">Descripción</th><th className="py-1 pr-3">Longitud total</th><th className="py-1 pr-3">Longitud unitaria</th><th className="py-1 pr-3">Cantidad</th></tr></thead>
-                    <tbody>{item.technicalProfiles.map((profile, profileIndex) => <tr key={`${profile.code}-${profileIndex}`} className="border-t border-border-subtle"><td className="py-1 pr-3 font-medium text-foreground">{profile.code || "—"}</td><td className="py-1 pr-3 text-foreground-secondary">{profile.description || "—"}</td><td className="py-1 pr-3">{formatMeters(profile.totalLengthMeters)}</td><td className="py-1 pr-3">{formatMeters(profile.unitLengthMeters)}</td><td className="py-1 pr-3">{formatProfileQuantity(profile.quantity)}</td></tr>)}</tbody>
-                  </table>
-                </div>
-              </details>
-            ) : null}
+                <details className="rounded-sm border border-border-subtle bg-surface-subtle p-3">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-foreground-secondary">Perfiles técnicos ({item.technicalProfiles.length})</summary>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full min-w-[38rem] text-left text-xs">
+                      <thead className="text-foreground-secondary"><tr><th className="py-1 pr-3">Código</th><th className="py-1 pr-3">Descripción</th><th className="py-1 pr-3">Longitud total</th><th className="py-1 pr-3">Longitud unitaria</th><th className="py-1 pr-3">Cantidad</th></tr></thead>
+                      <tbody>{item.technicalProfiles.map((profile, profileIndex) => <tr key={`${profile.code}-${profileIndex}`} className="border-t border-border-subtle"><td className="py-1 pr-3 font-medium text-foreground">{profile.code || "—"}</td><td className="py-1 pr-3 text-foreground-secondary">{profile.description || "—"}</td><td className="py-1 pr-3">{formatMeters(profile.totalLengthMeters)}</td><td className="py-1 pr-3">{formatMeters(profile.unitLengthMeters)}</td><td className="py-1 pr-3">{formatProfileQuantity(profile.quantity)}</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                </details>
+              ) : null}
 
-            {item.glass.length > 0 ? (
-              <div><p className="text-xs font-semibold uppercase tracking-wide text-foreground-secondary">Paneles de cristal detectados</p><div className="mt-2 flex flex-wrap gap-2">{item.glass.map((glass, glassIndex) => <Badge key={`${glass.code}-${glassIndex}`} size="sm">{glass.code} · {glass.quantity ?? 0} und.</Badge>)}</div></div>
+              {item.glass.length > 0 ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-foreground-secondary">
+                  Paneles de cristal detectados
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {item.glass.map((glass, glassIndex) => (
+                    <Badge key={`${glass.code}-${glass.treatment ?? "base"}-${glassIndex}`} size="sm">
+                      {glass.code}
+                      {glass.treatment ? ` · ${glass.treatment}` : ""}
+                      {` · ${glass.quantity ?? 0} und.`}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             ) : null}
 
             {issues.length > 0 || item.warnings.length > 0 ? (

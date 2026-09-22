@@ -10,6 +10,7 @@ export interface FpProReport {
 
 export interface FpProGlassPane {
   code: string;
+  treatment?: string | null;
   thicknessMm: number | null;
   widthMm: number | null;
   heightMm: number | null;

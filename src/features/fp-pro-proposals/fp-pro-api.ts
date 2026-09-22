@@ -24,6 +24,7 @@ function isCatalogOptionArray(value: unknown): value is FpProCatalogOption[] {
 
 function isGlassPane(value: unknown): boolean {
   return isRecord(value) && typeof value.code === "string" &&
+    (value.treatment === undefined || nullable(value.treatment, "string")) &&
     [value.thicknessMm, value.widthMm, value.heightMm, value.quantity].every((entry) => nullable(entry, "number"));
 }
 
