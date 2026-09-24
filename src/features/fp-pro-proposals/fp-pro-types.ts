@@ -3,6 +3,7 @@ export interface FpProReport {
   description: string | null;
   revision: number | null;
   itemsDetected: number;
+  structureCount: number | null;
   aluminumWastePercent: number | null;
   profileBarCount: number | null;
   doorCount: number | null;

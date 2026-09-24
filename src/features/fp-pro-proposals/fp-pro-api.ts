@@ -42,6 +42,7 @@ function isPreview(value: unknown): value is FpProPreview {
   const report = value.report;
   if (!nullable(report.orderId, "string") || !nullable(report.description, "string") ||
     !nullable(report.revision, "number") || typeof report.itemsDetected !== "number" ||
+    !nullable(report.structureCount, "number") ||
     !nullable(report.aluminumWastePercent, "number") ||
     !nullable(report.profileBarCount, "number") ||
     !nullable(report.doorCount, "number")) return false;

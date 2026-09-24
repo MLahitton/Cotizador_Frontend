@@ -452,6 +452,7 @@ export function FpProProposalPageContent() {
               <LabeledInput label="Desperdicio de aluminio [%]" type="number" max={1000} required readOnly={preview.report.aluminumWastePercent !== null} value={aluminumWastePercent ?? ""} onChange={(value) => { setAluminumWastePercent(toNumber(value)); setError(null); setSuccess(null); }} hint={preview.report.aluminumWastePercent === null ? "Manual · no detectado" : "Automático · detectado desde FP Pro"} />
               <Field label="Revisión FP Pro" value={preview.report.revision} />
               <Field label="Cantidad de items" value={preview.report.itemsDetected} />
+              <Field label="Cantidad de estructuras" value={preview.report.structureCount} />
               <Field label="CNT perfiles" value={preview.report.profileBarCount} />
               <Field label="CNT puertas" value={preview.report.doorCount} />
             </div>
