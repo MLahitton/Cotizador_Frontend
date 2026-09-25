@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Calculator,
   FileCheck2,
   Play,
   StopCircle,
@@ -11,19 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { PreQuotesError, PreQuotesLoading } from "@/features/prequotes/components/prequotes-status";
+import { PreQuoteExperienceFlow } from "@/features/prequotes/components/prequote-experience-flow";
 import { RequirementAnalysisProgress } from "@/features/prequotes/components/requirement-analysis-progress";
 import { RequirementDocumentsLifecycle } from "@/features/prequotes/components/requirement-documents-lifecycle";
-import { RequirementPricingSummary } from "@/features/prequotes/components/requirement-pricing-summary";
 import { RequirementChatPanel } from "@/features/prequotes/components/requirement-chat-panel";
 import { RequirementUploadPanel } from "@/features/prequotes/components/requirement-upload-panel";
-import { TechnicalProposalSummary } from "@/features/prequotes/components/technical-proposal-summary";
 import { getRequirementErrorMessage } from "@/features/prequotes/requirement-api";
-import { getRequirementPricingErrorMessage } from "@/features/prequotes/requirement-pricing-api";
 import { getTechnicalProposalErrorMessage } from "@/features/prequotes/technical-proposal-api";
-import {
-  getTechnicalProposalSelectionConfirmationErrorMessage,
-  getTechnicalProposalSelectionErrorMessage,
-} from "@/features/prequotes/technical-proposal-selection-api";
+import { getTechnicalProposalSelectionErrorMessage } from "@/features/prequotes/technical-proposal-selection-api";
 import { useRequirementWorkspace } from "@/features/prequotes/use-requirement-workspace";
 
 type InclusionMutationError = {
@@ -60,10 +54,14 @@ function getWorkspaceSelectionErrorMessage(
 
 export function RequirementWorkspace({
   preQuoteId,
+  preQuoteName,
+  preQuoteSerial,
   projectIsActive,
   readOnly = false,
 }: {
   preQuoteId: string;
+  preQuoteName: string | null;
+  preQuoteSerial: string | null;
   projectIsActive: boolean;
   readOnly?: boolean;
 }) {
@@ -90,12 +88,7 @@ export function RequirementWorkspace({
   const fileNames = workspace.files
     .map((file) => file.name)
     .join(" · ");
-
-  const proposalConfirmed =
-    workspace.proposal?.commercialConfirmation.state ===
-    "CONFIRMED";
-
-  return (
+return (
     <section
       aria-labelledby="requirement-workspace-title"
       className="space-y-4"
@@ -370,60 +363,7 @@ export function RequirementWorkspace({
           onRetry={workspace.retryProposal}
         />
       ) : null}
-
-      {!readOnly && workspace.proposal ? (
-        <div className="flex flex-col items-end gap-2">
-          {proposalConfirmed ? (
-            <Button
-              type="button"
-              disabled={
-                workspace.isCommercialMutationBusy
-              }
-              onClick={
-                workspace.calculatePricing
-              }
-            >
-              <Calculator
-                aria-hidden="true"
-                size={17}
-              />
-
-              {workspace.pricingLoading
-                ? "Calculando precios..."
-                : workspace.pricing
-                  ? "Actualizar estimacion"
-                  : "Calcular precios"}
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              disabled={
-                workspace.isCommercialMutationBusy
-              }
-              onClick={
-                workspace.confirmSelection
-              }
-            >
-              <Calculator
-                aria-hidden="true"
-                size={17}
-              />
-
-              {workspace.confirmationLoading
-                ? "Confirmando..."
-                : "Confirmar configuraciones"}
-            </Button>
-          )}
-
-          <p className="text-right text-xs text-foreground-secondary">
-            {proposalConfirmed
-              ? "Configuraciones confirmadas para pricing."
-              : "Confirma las configuraciones para habilitar el calculo de precios."}
-          </p>
-        </div>
-      ) : null}
-
-      {workspace.requirement ? (
+{workspace.requirement ? (
         <RequirementDocumentsLifecycle
           key={
             workspace.requirement.requirementId
@@ -449,70 +389,24 @@ export function RequirementWorkspace({
           }
         />
       ) : null}
-
-      {!readOnly &&
-      workspace.confirmationError ? (
-        <PreQuotesError
-          title="No fue posible confirmar las configuraciones"
-          message={getTechnicalProposalSelectionConfirmationErrorMessage(
-            workspace.confirmationError,
-          )}
-          onRetry={
-            workspace.confirmSelection
-          }
-          retryLabel="Reintentar confirmacion"
-        />
-      ) : null}
-
-      {!readOnly &&
-      workspace.pricingCancelMessage ? (
-        <Surface variant="subtle">
-          <p className="text-sm text-foreground-secondary">
-            {workspace.pricingCancelMessage}
-          </p>
-        </Surface>
-      ) : null}
-
-      {!readOnly &&
-      workspace.pricingError ? (
-        <PreQuotesError
-          title={
-            workspace.pricingAfterSelectionError
-              ? "Seleccion guardada; precios pendientes"
-              : "No fue posible calcular los precios"
-          }
-          message={
-            workspace.pricingAfterSelectionError
-              ? "La configuracion se guardo correctamente, pero no fue posible actualizar sus precios. Puedes reintentar sin volver a guardar la seleccion."
-              : getRequirementPricingErrorMessage(
-                  workspace.pricingError,
-                )
-          }
-          onRetry={
-            workspace.calculatePricing
-          }
-          retryLabel={
-            workspace.pricingAfterSelectionError
-              ? "Reintentar precios"
-              : undefined
-          }
-        />
-      ) : null}
-
-      {workspace.pricing ? (
-        <RequirementPricingSummary
-          pricing={workspace.pricing}
-        />
-      ) : null}
-
-      {workspace.proposal ? (
-        <TechnicalProposalSummary
+{workspace.proposal && workspace.requirement ? (
+        <PreQuoteExperienceFlow
+          preQuoteDisplayName={preQuoteName?.trim() || preQuoteSerial?.trim() || "Precotizacion sin nombre"}
+          requirement={workspace.requirement}
           requirementId={
-            workspace.requirement!
+            workspace.requirement
               .requirementId
           }
           proposal={workspace.proposal}
           pricing={workspace.pricing}
+          pricingLoading={workspace.pricingLoading}
+          pricingError={workspace.pricingError}
+          pricingAfterSelectionError={workspace.pricingAfterSelectionError}
+          pricingCancelMessage={workspace.pricingCancelMessage}
+          confirmationLoading={workspace.confirmationLoading}
+          confirmationError={workspace.confirmationError}
+          onConfirmSelection={workspace.confirmSelection}
+          onCalculatePricing={workspace.calculatePricing}
           readOnly={readOnly}
           selectionCatalog={
             workspace.selectionCatalog

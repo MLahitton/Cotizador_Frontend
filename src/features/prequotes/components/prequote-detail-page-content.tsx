@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useSearchParams } from "next/navigation";
 
@@ -143,6 +143,8 @@ export function PreQuoteDetailPageContent({
 
           <RequirementWorkspace
             preQuoteId={preQuote.id}
+            preQuoteName={preQuote.name}
+            preQuoteSerial={preQuote.serial}
             projectIsActive={project.isActive}
             readOnly={isAdminView}
           />

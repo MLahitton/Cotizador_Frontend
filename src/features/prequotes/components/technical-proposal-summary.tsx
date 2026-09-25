@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { SearchableCatalogCombobox, type SearchableCatalogOption } from "@/components/ui/searchable-catalog-combobox";
 import { Select } from "@/components/ui/select";
 import { Surface } from "@/components/ui/surface";
+import { PreQuoteExperienceItemPager } from "@/features/prequotes/components/prequote-experience-item-pager";
 import { TechnicalProposalItemCard } from "@/features/prequotes/components/technical-proposal-item-card";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
+import type { ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
 import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 import type { CreateManualTechnicalProposalItemRequest } from "@/features/prequotes/technical-proposal-api";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
@@ -288,7 +290,7 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }
 
 
-export function TechnicalProposalSummary({ requirementId, proposal, pricing, readOnly = false, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onClearSelectionError, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled, recentChatAction }: {
+export function TechnicalProposalSummary({ requirementId, proposal, pricing, readOnly = false, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onClearSelectionError, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled, recentChatAction, itemListVariant = "default", experienceDrafts = {}, experienceFinalAction, onSaveExperienceDraft = () => undefined }: {
   requirementId: string;
   proposal: TechnicalProposal;
   pricing: RequirementPricing | null;
@@ -308,6 +310,10 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, rea
   onUpdateInclusion: (itemId: string, isIncluded: boolean, reason?: string | null) => boolean | Promise<boolean>;
   commercialMutationDisabled: boolean;
   recentChatAction: { itemIds: string[]; pricingStatus: string | null } | null;
+  itemListVariant?: "default" | "experience";
+  experienceDrafts?: ItemExperienceDrafts;
+  experienceFinalAction?: ReactNode;
+  onSaveExperienceDraft?: (draft: ItemExperienceDraft) => void;
 }) {
   const [readinessFilter, setReadinessFilter] = useState<ReadinessFilter>("ALL");
   const pricingByProposalItemId = new Map(
@@ -354,29 +360,55 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, rea
       ) : null}
       <div>
         <h3 className="text-lg font-semibold text-foreground">Elementos</h3>
-        <div className="mt-3 grid min-w-0 gap-4 xl:grid-cols-2">
-          {visibleItems.map((item) => (
-            <TechnicalProposalItemCard
-              key={item.itemId}
-              item={item}
+        <div className="mt-3">
+          {itemListVariant === "experience" ? (
+            <PreQuoteExperienceItemPager
+              items={visibleItems}
               requirementId={requirementId}
-              pricing={pricingByProposalItemId.get(item.itemId) ?? null}
-              currency={pricing?.currency ?? null}
+              pricing={pricing}
               readOnly={readOnly}
               selectionCatalog={selectionCatalog}
               selectionCatalogLoading={selectionCatalogLoading}
               selectionCatalogError={selectionCatalogError}
               onRetrySelectionCatalog={onRetrySelectionCatalog}
-              isSavingSelection={savingSelectionItemIds.includes(item.itemId)}
-              selectionErrorMessage={selectionErrorMessages[item.itemId] ?? null}
-              onSaveSelection={(request) => onSaveSelection(item.itemId, request)}
-              onClearSelectionError={() => onClearSelectionError(item.itemId)}
+              savingSelectionItemIds={savingSelectionItemIds}
+              selectionErrorMessages={selectionErrorMessages}
+              onSaveSelection={onSaveSelection}
+              onClearSelectionError={onClearSelectionError}
               onChatActionExecuted={onChatActionExecuted}
-              onUpdateInclusion={(isIncluded, reason) => onUpdateInclusion(item.itemId, isIncluded, reason)}
+              onUpdateInclusion={onUpdateInclusion}
               commercialMutationDisabled={commercialMutationDisabled}
-              recentChatActionPricingStatus={recentChatAction?.itemIds.includes(item.itemId) ? recentChatAction.pricingStatus : undefined}
+              recentChatAction={recentChatAction}
+              experienceDrafts={experienceDrafts}
+              finalAction={experienceFinalAction}
+              onSaveExperienceDraft={onSaveExperienceDraft}
             />
-          ))}
+          ) : (
+            <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+              {visibleItems.map((item) => (
+                <TechnicalProposalItemCard
+                  key={item.itemId}
+                  item={item}
+                  requirementId={requirementId}
+                  pricing={pricingByProposalItemId.get(item.itemId) ?? null}
+                  currency={pricing?.currency ?? null}
+                  readOnly={readOnly}
+                  selectionCatalog={selectionCatalog}
+                  selectionCatalogLoading={selectionCatalogLoading}
+                  selectionCatalogError={selectionCatalogError}
+                  onRetrySelectionCatalog={onRetrySelectionCatalog}
+                  isSavingSelection={savingSelectionItemIds.includes(item.itemId)}
+                  selectionErrorMessage={selectionErrorMessages[item.itemId] ?? null}
+                  onSaveSelection={(request) => onSaveSelection(item.itemId, request)}
+                  onClearSelectionError={() => onClearSelectionError(item.itemId)}
+                  onChatActionExecuted={onChatActionExecuted}
+                  onUpdateInclusion={(isIncluded, reason) => onUpdateInclusion(item.itemId, isIncluded, reason)}
+                  commercialMutationDisabled={commercialMutationDisabled}
+                  recentChatActionPricingStatus={recentChatAction?.itemIds.includes(item.itemId) ? recentChatAction.pricingStatus : undefined}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
