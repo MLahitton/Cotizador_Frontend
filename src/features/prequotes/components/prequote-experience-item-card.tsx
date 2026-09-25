@@ -1,10 +1,11 @@
 "use client";
 
-import { CheckCircle2, CircleAlert, MessageCircle } from "lucide-react";
+import { CheckCircle2, CircleAlert, MapPin, MessageCircle, Pencil, Save, X } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Surface } from "@/components/ui/surface";
 import { PreQuoteExperienceItemConfigurator } from "@/features/prequotes/components/prequote-experience-item-configurator";
 import { RequirementChatPanel } from "@/features/prequotes/components/requirement-chat-panel";
@@ -13,7 +14,7 @@ import { TechnicalProposalVisualPreview } from "@/features/prequotes/components/
 import { formatRequirementMoney } from "@/features/prequotes/requirement-pricing-formatters";
 import { getExperienceSelectionsSummary } from "@/features/prequotes/prequote-experience-demo-config";
 import type { RequirementPricingItem } from "@/features/prequotes/requirement-pricing-types";
-import type { ItemExperienceDraft } from "@/features/prequotes/prequote-experience-types";
+import type { ExperienceLocationField, ItemExperienceDraft } from "@/features/prequotes/prequote-experience-types";
 import type { RequirementChatActionPlan } from "@/features/prequotes/requirement-chat-types";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 import {
@@ -36,6 +37,19 @@ function itemState(item: TechnicalProposalItem): { label: string; tone: "success
 
 function optionName(option: { displayName: string } | null | undefined): string {
   return option?.displayName ?? "Por definir";
+}
+
+function locationTone(source: ExperienceLocationField["source"]): "success" | "brand" | "neutral" {
+  if (source === "real") return "success";
+  if (source === "manual") return "brand";
+  return "neutral";
+}
+
+function locationLabel(source: ExperienceLocationField["source"]): string {
+  if (source === "real") return "Real";
+  if (source === "manual") return "Manual";
+  if (source === "derived") return "Derivada";
+  return "Placeholder";
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
@@ -94,7 +108,10 @@ export function PreQuoteExperienceItemCard({
   commercialMutationDisabled,
   recentChatActionPricingStatus,
   experienceDraft,
+  location,
+  experienceDisabled,
   onSaveExperienceDraft,
+  onSaveItemLocation,
 }: {
   item: TechnicalProposalItem;
   requirementId: string;
@@ -114,10 +131,15 @@ export function PreQuoteExperienceItemCard({
   commercialMutationDisabled: boolean;
   recentChatActionPricingStatus?: string | null;
   experienceDraft: ItemExperienceDraft;
+  location: ExperienceLocationField;
+  experienceDisabled: boolean;
   onSaveExperienceDraft: (draft: ItemExperienceDraft) => void;
+  onSaveItemLocation: (value: string) => void;
 }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [experienceOpen, setExperienceOpen] = useState(false);
+  const [locationEditing, setLocationEditing] = useState(false);
+  const [locationDraft, setLocationDraft] = useState(location.value);
   const [inclusionBusy, setInclusionBusy] = useState(false);
   const state = itemState(item);
   const effectiveSystem = item.selected?.system ?? item.suggested.system;
@@ -127,6 +149,7 @@ export function PreQuoteExperienceItemCard({
   const totalArea = deriveDisplayTotalAreaM2(item.areaM2, item.effectiveWidthMm, item.effectiveHeightMm, item.effectiveQuantity);
   const functionalType = item.visualModel?.functionalType ?? item.trace.functionalType ?? item.elementType;
   const disableMutations = readOnly || commercialMutationDisabled || isSavingSelection || inclusionBusy;
+  const disableExperienceControls = readOnly || experienceDisabled;
   const experienceSummary = getExperienceSelectionsSummary(experienceDraft, 4);
   const recentActionLabel = recentChatActionPricingStatus
     ? recentChatActionPricingStatus === "PRICING_UPDATED"
@@ -144,6 +167,12 @@ export function PreQuoteExperienceItemCard({
     }
   };
 
+  const saveLocation = () => {
+    if (disableExperienceControls) return;
+    onSaveItemLocation(locationDraft);
+    setLocationEditing(false);
+  };
+
   return (
     <Surface
       padding="md"
@@ -159,6 +188,56 @@ export function PreQuoteExperienceItemCard({
           <p className="mt-1 break-words text-sm leading-6 text-foreground-secondary">
             {item.description || item.elementType}
           </p>
+          <div className="mt-2 rounded-sm border border-border-subtle bg-surface-subtle p-3">
+            {!locationEditing ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+                  <MapPin aria-hidden="true" size={15} className="text-foreground-secondary" />
+                  <span className="font-semibold text-foreground">Ubicacion:</span>
+                  <span className="break-words text-foreground-secondary">{location.value}</span>
+                  <Badge tone={locationTone(location.source)} size="sm">{locationLabel(location.source)}</Badge>
+                </div>
+                {!readOnly ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={disableExperienceControls}
+                    onClick={() => {
+                      setLocationDraft(location.value);
+                      setLocationEditing(true);
+                    }}
+                  >
+                    <Pencil aria-hidden="true" size={14} />
+                    Editar
+                  </Button>
+                ) : null}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-foreground">
+                  Ubicacion
+                  <Input
+                    className="mt-1"
+                    value={locationDraft}
+                    disabled={disableExperienceControls}
+                    maxLength={120}
+                    onChange={(event) => setLocationDraft(event.target.value)}
+                  />
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" disabled={disableExperienceControls} onClick={saveLocation}>
+                    <Save aria-hidden="true" size={14} />
+                    Guardar
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" disabled={disableExperienceControls} onClick={() => setLocationEditing(false)}>
+                    <X aria-hidden="true" size={14} />
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
           {recentActionLabel ? <p className="mt-2 text-xs font-semibold text-success">{recentActionLabel}</p> : null}
         </div>
         <div className="shrink-0 text-sm font-semibold text-foreground-secondary">
@@ -206,7 +285,7 @@ export function PreQuoteExperienceItemCard({
             </div>
           </div>
           {!readOnly ? (
-            <Button type="button" variant="secondary" size="sm" onClick={() => setExperienceOpen((value) => !value)}>
+            <Button type="button" variant="secondary" size="sm" disabled={disableExperienceControls} onClick={() => setExperienceOpen((value) => !value)}>
               {experienceOpen ? "Cerrar experiencia" : "Configurar experiencia"}
             </Button>
           ) : null}
@@ -217,6 +296,7 @@ export function PreQuoteExperienceItemCard({
         <PreQuoteExperienceItemConfigurator
           item={item}
           draft={experienceDraft}
+          disabled={disableExperienceControls}
           onCancel={() => setExperienceOpen(false)}
           onSave={(draft) => {
             onSaveExperienceDraft(draft);

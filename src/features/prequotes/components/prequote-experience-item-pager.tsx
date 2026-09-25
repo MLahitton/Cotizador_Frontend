@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PreQuoteExperienceItemCard } from "@/features/prequotes/components/prequote-experience-item-card";
 import { mergeExperienceDraftWithItem } from "@/features/prequotes/prequote-experience-demo-config";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
-import type { ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
+import type { ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
 import type { RequirementChatActionPlan } from "@/features/prequotes/requirement-chat-types";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 import type { TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
@@ -33,8 +33,11 @@ export function PreQuoteExperienceItemPager({
   commercialMutationDisabled,
   recentChatAction,
   experienceDrafts,
+  itemLocations,
+  experienceDisabled,
   finalAction,
   onSaveExperienceDraft,
+  onSaveItemLocation,
 }: {
   items: TechnicalProposalItem[];
   requirementId: string;
@@ -53,8 +56,11 @@ export function PreQuoteExperienceItemPager({
   commercialMutationDisabled: boolean;
   recentChatAction: { itemIds: string[]; pricingStatus: string | null } | null;
   experienceDrafts: ItemExperienceDrafts;
+  itemLocations: ExperienceLocationFields;
+  experienceDisabled: boolean;
   finalAction?: ReactNode;
   onSaveExperienceDraft: (draft: ItemExperienceDraft) => void;
+  onSaveItemLocation: (itemId: string, value: string) => void;
 }) {
   const [page, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(items.length / ITEMS_PER_PAGE));
@@ -66,7 +72,6 @@ export function PreQuoteExperienceItemPager({
     [pricing],
   );
   const visibleItems = items.slice(startIndex, endIndex);
-  const isLastPage = safePage >= pageCount - 1;
 
   const goPrevious = () => setPage((current) => Math.max(0, Math.min(current, pageCount - 1) - 1));
   const goNext = () => setPage((current) => Math.min(pageCount - 1, Math.min(current, pageCount - 1) + 1));
@@ -119,12 +124,15 @@ export function PreQuoteExperienceItemPager({
             commercialMutationDisabled={commercialMutationDisabled}
             recentChatActionPricingStatus={recentChatAction?.itemIds.includes(item.itemId) ? recentChatAction.pricingStatus : undefined}
             experienceDraft={mergeExperienceDraftWithItem(item, experienceDrafts[item.itemId])}
+            location={itemLocations[item.itemId] ?? { value: "Ubicacion por confirmar", source: "placeholder" }}
+            experienceDisabled={experienceDisabled}
             onSaveExperienceDraft={onSaveExperienceDraft}
+            onSaveItemLocation={(value) => onSaveItemLocation(item.itemId, value)}
           />
         ))}
       </div>
 
-      {isLastPage && finalAction ? (
+      {finalAction ? (
         <div className="border-t border-border-subtle pt-5">
           {finalAction}
         </div>

@@ -11,7 +11,7 @@ import { Surface } from "@/components/ui/surface";
 import { PreQuoteExperienceItemPager } from "@/features/prequotes/components/prequote-experience-item-pager";
 import { TechnicalProposalItemCard } from "@/features/prequotes/components/technical-proposal-item-card";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
-import type { ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
+import type { ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
 import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 import type { CreateManualTechnicalProposalItemRequest } from "@/features/prequotes/technical-proposal-api";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
@@ -290,7 +290,7 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }
 
 
-export function TechnicalProposalSummary({ requirementId, proposal, pricing, readOnly = false, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onClearSelectionError, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled, recentChatAction, itemListVariant = "default", experienceDrafts = {}, experienceFinalAction, onSaveExperienceDraft = () => undefined }: {
+export function TechnicalProposalSummary({ requirementId, proposal, pricing, readOnly = false, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onClearSelectionError, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled, recentChatAction, itemListVariant = "default", experienceDrafts = {}, itemLocations = {}, experienceDisabled = false, experienceFinalAction, onSaveExperienceDraft = () => undefined, onSaveItemLocation = () => undefined }: {
   requirementId: string;
   proposal: TechnicalProposal;
   pricing: RequirementPricing | null;
@@ -312,8 +312,11 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, rea
   recentChatAction: { itemIds: string[]; pricingStatus: string | null } | null;
   itemListVariant?: "default" | "experience";
   experienceDrafts?: ItemExperienceDrafts;
+  itemLocations?: ExperienceLocationFields;
+  experienceDisabled?: boolean;
   experienceFinalAction?: ReactNode;
   onSaveExperienceDraft?: (draft: ItemExperienceDraft) => void;
+  onSaveItemLocation?: (itemId: string, value: string) => void;
 }) {
   const [readinessFilter, setReadinessFilter] = useState<ReadinessFilter>("ALL");
   const pricingByProposalItemId = new Map(
@@ -380,8 +383,11 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, rea
               commercialMutationDisabled={commercialMutationDisabled}
               recentChatAction={recentChatAction}
               experienceDrafts={experienceDrafts}
+              itemLocations={itemLocations}
+              experienceDisabled={experienceDisabled}
               finalAction={experienceFinalAction}
               onSaveExperienceDraft={onSaveExperienceDraft}
+              onSaveItemLocation={onSaveItemLocation}
             />
           ) : (
             <div className="grid min-w-0 gap-4 xl:grid-cols-2">

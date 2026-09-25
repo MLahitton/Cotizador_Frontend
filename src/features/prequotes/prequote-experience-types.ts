@@ -34,3 +34,9 @@ export interface ItemExperienceDraft {
 export type ItemExperienceDrafts = Record<string, ItemExperienceDraft>;
 
 export type ExperienceDraftFactory = (item: TechnicalProposalItem) => ItemExperienceDraft;
+export interface ExperienceLocationField {
+  value: string;
+  source: "real" | "derived" | "placeholder" | "manual";
+}
+
+export type ExperienceLocationFields = Record<string, ExperienceLocationField>;

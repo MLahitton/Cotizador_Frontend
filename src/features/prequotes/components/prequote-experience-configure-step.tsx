@@ -4,20 +4,26 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { TechnicalProposalSummary } from "@/features/prequotes/components/technical-proposal-summary";
-import type { ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
+import type { ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
 
 type TechnicalProposalSummaryProps = ComponentProps<typeof TechnicalProposalSummary>;
 
 type PreQuoteExperienceConfigureStepProps = TechnicalProposalSummaryProps & {
   experienceDrafts: ItemExperienceDrafts;
+  itemLocations: ExperienceLocationFields;
+  experienceDisabled: boolean;
   finalAction: ReactNode;
   onSaveExperienceDraft: (draft: ItemExperienceDraft) => void;
+  onSaveItemLocation: (itemId: string, value: string) => void;
 };
 
 export function PreQuoteExperienceConfigureStep({
   experienceDrafts,
+  itemLocations,
+  experienceDisabled,
   finalAction,
   onSaveExperienceDraft,
+  onSaveItemLocation,
   ...props
 }: PreQuoteExperienceConfigureStepProps) {
   const reviewedCount = props.proposal.items.filter((item) => experienceDrafts[item.itemId]?.wasReviewedByUser).length;
@@ -41,8 +47,11 @@ export function PreQuoteExperienceConfigureStep({
         {...props}
         itemListVariant="experience"
         experienceDrafts={experienceDrafts}
+        itemLocations={itemLocations}
+        experienceDisabled={experienceDisabled}
         experienceFinalAction={finalAction}
         onSaveExperienceDraft={onSaveExperienceDraft}
+        onSaveItemLocation={onSaveItemLocation}
       />
     </section>
   );

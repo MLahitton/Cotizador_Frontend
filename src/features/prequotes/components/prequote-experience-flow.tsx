@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
+import { DisabledActionHint } from "@/features/prequotes/components/disabled-action-hint";
 import { PreQuoteExperienceConfigureStep } from "@/features/prequotes/components/prequote-experience-configure-step";
 import { PreQuoteExperienceContextStep } from "@/features/prequotes/components/prequote-experience-context-step";
 import { PreQuoteExperienceMomentsStep } from "@/features/prequotes/components/prequote-experience-moments-step";
@@ -12,12 +13,13 @@ import { PreQuoteExperienceStepper, PREQUOTE_EXPERIENCE_STEPS, type PreQuoteExpe
 import { PreQuoteExperienceSummaryStep } from "@/features/prequotes/components/prequote-experience-summary-step";
 import { PreQuotesError } from "@/features/prequotes/components/prequotes-status";
 import { TechnicalProposalSummary } from "@/features/prequotes/components/technical-proposal-summary";
-import { getTechnicalProposalSelectionConfirmationErrorMessage } from "@/features/prequotes/technical-proposal-selection-api";
 import { getRequirementPricingErrorMessage } from "@/features/prequotes/requirement-pricing-api";
+import { getTechnicalProposalSelectionConfirmationErrorMessage } from "@/features/prequotes/technical-proposal-selection-api";
 import { createDefaultExperienceDraft, mergeExperienceDraftWithItem } from "@/features/prequotes/prequote-experience-demo-config";
-import type { ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
+import type { ExperienceLocationField, ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 import type { CreatedRequirement, CurrentRequirement } from "@/features/prequotes/requirement-types";
+import type { TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 
 type TechnicalProposalSummaryProps = ComponentProps<typeof TechnicalProposalSummary>;
 
@@ -39,6 +41,8 @@ type PreQuoteExperienceFlowProps = TechnicalProposalSummaryProps & {
   onConfirmSelection: () => void | Promise<unknown>;
   onCalculatePricing: () => void | Promise<unknown>;
 };
+
+const SUMMARY_DISABLED_REASON = "Confirma las configuraciones y calcula la estimacion para habilitar el resumen.";
 
 const STEP_HEADERS: Record<PreQuoteExperienceStepId, StepHeaderContent> = {
   context: {
@@ -86,8 +90,43 @@ function hasUsablePricing(pricing: RequirementPricing | null, pricingLoading: bo
   );
 }
 
+function inferItemLocation(item: TechnicalProposalItem): ExperienceLocationField {
+  const evidenceContext = item.evidence.find((evidence) => evidence.contextLabel?.trim())?.contextLabel?.trim();
+  if (evidenceContext) return { value: evidenceContext, source: "derived" };
+
+  const text = [item.reference, item.description, item.elementType, item.trace.operation, item.trace.functionalType]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const candidates: Array<[string, string[]]> = [
+    ["Sala", ["sala", "estar", "living"]],
+    ["Alcoba", ["alcoba", "habitacion", "dormitorio"]],
+    ["Terraza", ["terraza", "balcon", "balcón"]],
+    ["Bano", ["bano", "baño", "bathroom", "ducha"]],
+    ["Fachada", ["fachada", "facade"]],
+    ["Cocina", ["cocina", "kitchen"]],
+    ["Estudio", ["estudio"]],
+  ];
+  const match = candidates.find(([, words]) => words.some((word) => text.includes(word)));
+  if (match) return { value: match[0], source: "derived" };
+
+  return { value: "Ubicacion por confirmar", source: "placeholder" };
+}
+
+function buildInitialLocations(items: TechnicalProposalItem[]): ExperienceLocationFields {
+  return Object.fromEntries(items.map((item) => [item.itemId, inferItemLocation(item)]));
+}
+
+function confirmDisabledReason(blockingItems: number): string {
+  if (blockingItems > 0) return `${blockingItems} elementos requieren correccion antes de confirmar.`;
+  return "Hay configuraciones pendientes o elementos que requieren correccion antes de confirmar.";
+}
+
 function ConfigurationActionBlock({
   proposalConfirmed,
+  canConfirm,
+  confirmReason,
   canOpenSummary,
   pricing,
   pricingLoading,
@@ -102,6 +141,8 @@ function ConfigurationActionBlock({
   onGoSummary,
 }: {
   proposalConfirmed: boolean;
+  canConfirm: boolean;
+  confirmReason: string;
   canOpenSummary: boolean;
   pricing: RequirementPricing | null;
   pricingLoading: boolean;
@@ -116,6 +157,8 @@ function ConfigurationActionBlock({
   onGoSummary: () => void;
 }) {
   const hasPricing = Boolean(pricing);
+  const confirmDisabled = isCommercialMutationBusy || !canConfirm;
+  const confirmHint = !isCommercialMutationBusy && !canConfirm ? confirmReason : null;
 
   return (
     <Surface variant="elevated" padding="lg" className="border-brand/40">
@@ -136,11 +179,13 @@ function ConfigurationActionBlock({
 
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
           {!proposalConfirmed ? (
-            <Button type="button" disabled={isCommercialMutationBusy} onClick={onConfirmSelection} className="w-full sm:w-auto">
-              <CheckCircle2 aria-hidden="true" size={17} strokeWidth={1.75} />
-              {confirmationLoading ? "Confirmando..." : "Confirmar configuraciones"}
-              <ArrowRight aria-hidden="true" size={17} strokeWidth={1.75} />
-            </Button>
+            <DisabledActionHint message={confirmHint} position="top">
+              <Button type="button" disabled={confirmDisabled} onClick={onConfirmSelection} className="w-full sm:w-auto">
+                <CheckCircle2 aria-hidden="true" size={17} strokeWidth={1.75} />
+                {confirmationLoading ? "Confirmando..." : "Confirmar configuraciones"}
+                <ArrowRight aria-hidden="true" size={17} strokeWidth={1.75} />
+              </Button>
+            </DisabledActionHint>
           ) : (
             <>
               <Button type="button" disabled={isCommercialMutationBusy} onClick={onCalculatePricing} className="w-full sm:w-auto">
@@ -208,6 +253,9 @@ export function PreQuoteExperienceFlow({
 }: PreQuoteExperienceFlowProps) {
   const [currentStep, setCurrentStep] = useState<PreQuoteExperienceStepId>("context");
   const [shouldOpenSummaryAfterPricing, setShouldOpenSummaryAfterPricing] = useState(false);
+  const [itemLocations, setItemLocations] = useState<ExperienceLocationFields>(() =>
+    buildInitialLocations(technicalProposalProps.proposal.items),
+  );
   const [experienceDrafts, setExperienceDrafts] = useState<ItemExperienceDrafts>(() =>
     Object.fromEntries(
       technicalProposalProps.proposal.items.map((item) => [
@@ -216,6 +264,10 @@ export function PreQuoteExperienceFlow({
       ]),
     ),
   );
+  const effectiveItemLocations = useMemo<ExperienceLocationFields>(() => ({
+    ...buildInitialLocations(technicalProposalProps.proposal.items),
+    ...itemLocations,
+  }), [itemLocations, technicalProposalProps.proposal.items]);
   const effectiveExperienceDrafts = useMemo<ItemExperienceDrafts>(() =>
     Object.fromEntries(
       technicalProposalProps.proposal.items.map((item) => [
@@ -227,13 +279,26 @@ export function PreQuoteExperienceFlow({
   const saveExperienceDraft = (draft: ItemExperienceDraft) => {
     setExperienceDrafts((current) => ({ ...current, [draft.itemId]: draft }));
   };
+  const saveItemLocation = (itemId: string, value: string) => {
+    const trimmed = value.trim();
+    setItemLocations((current) => ({
+      ...current,
+      [itemId]: {
+        value: trimmed || "Ubicacion por confirmar",
+        source: trimmed ? "manual" : "placeholder",
+      },
+    }));
+  };
   const proposalConfirmed = technicalProposalProps.proposal.commercialConfirmation.state === "CONFIRMED";
   const pricingUsable = hasUsablePricing(technicalProposalProps.pricing, pricingLoading, pricingError);
   const canOpenSummary = proposalConfirmed && pricingUsable;
+  const canConfirm = technicalProposalProps.proposal.readiness.isReadyForConfirmation;
+  const confirmReason = confirmDisabledReason(technicalProposalProps.proposal.readiness.blockingItems);
   const effectiveStep = currentStep === "summary" && !canOpenSummary ? "configure" : currentStep;
   const previous = previousStep(effectiveStep);
   const next = nextStep(effectiveStep, canOpenSummary);
   const header = STEP_HEADERS[effectiveStep];
+
   useEffect(() => {
     if (!shouldOpenSummaryAfterPricing || pricingLoading) return;
 
@@ -257,6 +322,8 @@ export function PreQuoteExperienceFlow({
   const configurationAction = technicalProposalProps.readOnly ? null : (
     <ConfigurationActionBlock
       proposalConfirmed={proposalConfirmed}
+      canConfirm={canConfirm}
+      confirmReason={confirmReason}
       canOpenSummary={canOpenSummary}
       pricing={technicalProposalProps.pricing}
       pricingLoading={pricingLoading}
@@ -285,7 +352,7 @@ export function PreQuoteExperienceFlow({
         <PreQuoteExperienceStepper
           currentStep={effectiveStep}
           disabledSteps={{ summary: !canOpenSummary }}
-          disabledReason="Confirma las configuraciones y calcula la estimacion para continuar."
+          disabledReason={SUMMARY_DISABLED_REASON}
           onStepChange={setCurrentStep}
         />
       </div>
@@ -311,8 +378,11 @@ export function PreQuoteExperienceFlow({
         <PreQuoteExperienceConfigureStep
           {...technicalProposalProps}
           experienceDrafts={effectiveExperienceDrafts}
-          onSaveExperienceDraft={saveExperienceDraft}
+          itemLocations={effectiveItemLocations}
+          experienceDisabled={technicalProposalProps.commercialMutationDisabled}
           finalAction={configurationAction}
+          onSaveExperienceDraft={saveExperienceDraft}
+          onSaveItemLocation={saveItemLocation}
         />
       ) : null}
 
@@ -321,6 +391,7 @@ export function PreQuoteExperienceFlow({
           proposal={technicalProposalProps.proposal}
           pricing={technicalProposalProps.pricing}
           experienceDrafts={effectiveExperienceDrafts}
+          itemLocations={effectiveItemLocations}
           onBackToConfigure={() => setCurrentStep("configure")}
         />
       ) : null}
@@ -340,15 +411,17 @@ export function PreQuoteExperienceFlow({
           {!canOpenSummary && effectiveStep === "configure" ? (
             <span className="text-sm text-foreground-secondary">Resumen se habilita despues de confirmar y calcular.</span>
           ) : null}
-          <Button
-            type="button"
-            disabled={!next}
-            onClick={() => next && setCurrentStep(next)}
-            className="w-full sm:w-auto"
-          >
-            Siguiente
-            <ArrowRight aria-hidden="true" size={17} strokeWidth={1.75} />
-          </Button>
+          <DisabledActionHint message={!next && effectiveStep === "configure" ? SUMMARY_DISABLED_REASON : null} position="top">
+            <Button
+              type="button"
+              disabled={!next}
+              onClick={() => next && setCurrentStep(next)}
+              className="w-full sm:w-auto"
+            >
+              Siguiente
+              <ArrowRight aria-hidden="true" size={17} strokeWidth={1.75} />
+            </Button>
+          </DisabledActionHint>
         </div>
       </div>
     </section>
