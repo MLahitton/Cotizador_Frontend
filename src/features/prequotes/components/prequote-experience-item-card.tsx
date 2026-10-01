@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { CheckCircle2, CircleAlert, MapPin, MessageCircle, Pencil, Save, X } from "lucide-react";
 import { useState } from "react";
@@ -14,7 +14,7 @@ import { TechnicalProposalVisualPreview } from "@/features/prequotes/components/
 import { formatRequirementMoney } from "@/features/prequotes/requirement-pricing-formatters";
 import { getExperienceSelectionsSummary } from "@/features/prequotes/prequote-experience-demo-config";
 import type { RequirementPricingItem } from "@/features/prequotes/requirement-pricing-types";
-import type { ExperienceLocationField, ItemExperienceDraft } from "@/features/prequotes/prequote-experience-types";
+import type { ExperienceLocationField, ItemExperienceDraft, RequirementExperienceCatalog } from "@/features/prequotes/prequote-experience-types";
 import type { RequirementChatActionPlan } from "@/features/prequotes/requirement-chat-types";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 import {
@@ -107,10 +107,15 @@ export function PreQuoteExperienceItemCard({
   onUpdateInclusion,
   commercialMutationDisabled,
   recentChatActionPricingStatus,
+  experienceCatalog,
   experienceDraft,
+  experienceDraftStatus,
+  experienceDraftError,
   location,
   experienceDisabled,
+  onChangeExperienceDraft,
   onSaveExperienceDraft,
+  onReloadExperienceDraft,
   onSaveItemLocation,
 }: {
   item: TechnicalProposalItem;
@@ -130,10 +135,15 @@ export function PreQuoteExperienceItemCard({
   onUpdateInclusion: (isIncluded: boolean, reason?: string | null) => boolean | Promise<boolean>;
   commercialMutationDisabled: boolean;
   recentChatActionPricingStatus?: string | null;
+  experienceCatalog: RequirementExperienceCatalog | null;
   experienceDraft: ItemExperienceDraft;
+  experienceDraftStatus: "idle" | "dirty" | "saving" | "saved" | "error" | "conflict" | "loading";
+  experienceDraftError: string | null;
   location: ExperienceLocationField;
   experienceDisabled: boolean;
-  onSaveExperienceDraft: (draft: ItemExperienceDraft) => void;
+  onChangeExperienceDraft: (draft: ItemExperienceDraft) => void;
+  onSaveExperienceDraft: (draft: ItemExperienceDraft) => boolean | Promise<boolean>;
+  onReloadExperienceDraft: () => void;
   onSaveItemLocation: (value: string) => void;
 }) {
   const [chatOpen, setChatOpen] = useState(false);
@@ -149,12 +159,12 @@ export function PreQuoteExperienceItemCard({
   const totalArea = deriveDisplayTotalAreaM2(item.areaM2, item.effectiveWidthMm, item.effectiveHeightMm, item.effectiveQuantity);
   const functionalType = item.visualModel?.functionalType ?? item.trace.functionalType ?? item.elementType;
   const disableMutations = readOnly || commercialMutationDisabled || isSavingSelection || inclusionBusy;
-  const disableExperienceControls = readOnly || experienceDisabled;
-  const experienceSummary = getExperienceSelectionsSummary(experienceDraft, 4);
+  const disableExperienceControls = readOnly || experienceDisabled || !experienceCatalog;
+  const experienceSummary = getExperienceSelectionsSummary(experienceDraft, experienceCatalog, 4);
   const recentActionLabel = recentChatActionPricingStatus
     ? recentChatActionPricingStatus === "PRICING_UPDATED"
-      ? "Cambio aplicado · Precio actualizado"
-      : "Cambio aplicado · Precio pendiente"
+      ? "Cambio aplicado Â· Precio actualizado"
+      : "Cambio aplicado Â· Precio pendiente"
     : null;
 
   const handleInclusionChange = async () => {
@@ -275,13 +285,14 @@ export function PreQuoteExperienceItemCard({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs font-semibold uppercase text-foreground-secondary">Experiencia</p>
-              <Badge tone="neutral" size="sm">Placeholder</Badge>
-              {experienceDraft.wasReviewedByUser ? <Badge tone="brand" size="sm">Revisado</Badge> : null}
+              <Badge tone={experienceDraftStatus === "dirty" ? "warning" : experienceDraft.hasServerDraft ? "brand" : "neutral"} size="sm">
+                {experienceDraftStatus === "dirty" ? "Cambios sin guardar" : experienceDraft.hasServerDraft ? "Guardado" : "Sin responder"}
+              </Badge>
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
-              {experienceSummary.map((label) => (
+              {experienceSummary.length > 0 ? experienceSummary.map((label) => (
                 <Badge key={label} tone="neutral" size="sm">{label}</Badge>
-              ))}
+              )) : <span className="text-sm text-foreground-secondary">Sin respuestas guardadas.</span>}
             </div>
           </div>
           {!readOnly ? (
@@ -295,13 +306,22 @@ export function PreQuoteExperienceItemCard({
       {!readOnly && experienceOpen ? (
         <PreQuoteExperienceItemConfigurator
           item={item}
+          catalog={experienceCatalog!}
           draft={experienceDraft}
+          status={experienceDraftStatus}
+          errorMessage={experienceDraftError}
           disabled={disableExperienceControls}
-          onCancel={() => setExperienceOpen(false)}
-          onSave={(draft) => {
-            onSaveExperienceDraft(draft);
+          onCancel={() => {
+            onReloadExperienceDraft();
             setExperienceOpen(false);
           }}
+          onDraftChange={onChangeExperienceDraft}
+          onSave={async (draft) => {
+            const saved = await onSaveExperienceDraft(draft);
+            if (saved) setExperienceOpen(false);
+            return saved;
+          }}
+          onReload={onReloadExperienceDraft}
           onOpenChat={() => setChatOpen(true)}
         />
       ) : null}

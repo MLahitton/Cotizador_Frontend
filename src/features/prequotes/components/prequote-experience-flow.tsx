@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, ArrowRight, Calculator, CheckCircle2 } from "lucide-react";
-import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
@@ -13,10 +13,11 @@ import { PreQuoteExperienceStepper, PREQUOTE_EXPERIENCE_STEPS, type PreQuoteExpe
 import { PreQuoteExperienceSummaryStep } from "@/features/prequotes/components/prequote-experience-summary-step";
 import { PreQuotesError } from "@/features/prequotes/components/prequotes-status";
 import { TechnicalProposalSummary } from "@/features/prequotes/components/technical-proposal-summary";
+import { getRequirementExperienceCatalog, getRequirementExperienceDrafts, getRequirementExperienceErrorMessage, updateRequirementExperienceDraft } from "@/features/prequotes/requirement-experience-api";
 import { getRequirementPricingErrorMessage } from "@/features/prequotes/requirement-pricing-api";
 import { getTechnicalProposalSelectionConfirmationErrorMessage } from "@/features/prequotes/technical-proposal-selection-api";
-import { createDefaultExperienceDraft, mergeExperienceDraftWithItem } from "@/features/prequotes/prequote-experience-demo-config";
-import type { ExperienceLocationField, ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
+import { createEmptyExperienceDraft, itemDraftFromServer, mergeExperienceDraftWithItem } from "@/features/prequotes/prequote-experience-demo-config";
+import type { ExperienceLocationField, ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts, RequirementExperienceCatalog } from "@/features/prequotes/prequote-experience-types";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 import type { CreatedRequirement, CurrentRequirement } from "@/features/prequotes/requirement-types";
 import type { TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
@@ -44,25 +45,27 @@ type PreQuoteExperienceFlowProps = TechnicalProposalSummaryProps & {
 
 const SUMMARY_DISABLED_REASON = "Confirma las configuraciones y calcula la estimacion para habilitar el resumen.";
 
+type ExperienceDraftStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "conflict" | "loading";
+
 const STEP_HEADERS: Record<PreQuoteExperienceStepId, StepHeaderContent> = {
   context: {
-    eyebrow: "01 · CONTEXTO",
+    eyebrow: "01 Â· CONTEXTO",
     title: "Entendimos su proyecto",
     description: "Antes de configurar, revisamos la base comercial y los datos que todavia falta confirmar.",
   },
   moments: {
-    eyebrow: "02 · MOMENTOS",
+    eyebrow: "02 Â· MOMENTOS",
     title: "Momentos del proyecto",
     description: "Una lectura simple del avance actual y de lo que sigue para convertir el requerimiento en propuesta.",
   },
   configure: {
-    eyebrow: "03 · CONFIGURAR",
+    eyebrow: "03 Â· CONFIGURAR",
     title: "Configuremos cada elemento",
     description: "Ajusta seleccion tecnica, experiencia por item y decisiones comerciales sin perder la informacion real existente.",
   },
   summary: {
-    eyebrow: "04 · RESUMEN",
-    title: "Asi quedo configurado su proyecto",
+    eyebrow: "04 Â· RESUMEN",
+    title: "Asi quedo configurado tu proyecto",
     description: "Una lectura global para conversar alcance, experiencia e inversion estimada con datos reales de pricing.",
   },
 };
@@ -102,8 +105,8 @@ function inferItemLocation(item: TechnicalProposalItem): ExperienceLocationField
   const candidates: Array<[string, string[]]> = [
     ["Sala", ["sala", "estar", "living"]],
     ["Alcoba", ["alcoba", "habitacion", "dormitorio"]],
-    ["Terraza", ["terraza", "balcon", "balcón"]],
-    ["Bano", ["bano", "baño", "bathroom", "ducha"]],
+    ["Terraza", ["terraza", "balcon", "balcÃ³n"]],
+    ["Bano", ["bano", "baÃ±o", "bathroom", "ducha"]],
     ["Fachada", ["fachada", "facade"]],
     ["Cocina", ["cocina", "kitchen"]],
     ["Estudio", ["estudio"]],
@@ -116,6 +119,10 @@ function inferItemLocation(item: TechnicalProposalItem): ExperienceLocationField
 
 function buildInitialLocations(items: TechnicalProposalItem[]): ExperienceLocationFields {
   return Object.fromEntries(items.map((item) => [item.itemId, inferItemLocation(item)]));
+}
+
+function draftKey(draft: ItemExperienceDraft): string {
+  return JSON.stringify({ spaceTypeCode: draft.spaceTypeCode, answers: draft.answers });
 }
 
 function confirmDisabledReason(blockingItems: number): string {
@@ -253,17 +260,18 @@ export function PreQuoteExperienceFlow({
 }: PreQuoteExperienceFlowProps) {
   const [currentStep, setCurrentStep] = useState<PreQuoteExperienceStepId>("context");
   const [shouldOpenSummaryAfterPricing, setShouldOpenSummaryAfterPricing] = useState(false);
+  const loadSequence = useRef(0);
+  const [experienceReloadToken, setExperienceReloadToken] = useState(0);
   const [itemLocations, setItemLocations] = useState<ExperienceLocationFields>(() =>
     buildInitialLocations(technicalProposalProps.proposal.items),
   );
-  const [experienceDrafts, setExperienceDrafts] = useState<ItemExperienceDrafts>(() =>
-    Object.fromEntries(
-      technicalProposalProps.proposal.items.map((item) => [
-        item.itemId,
-        createDefaultExperienceDraft(item),
-      ]),
-    ),
-  );
+  const [experienceCatalog, setExperienceCatalog] = useState<RequirementExperienceCatalog | null>(null);
+  const [experienceLoadError, setExperienceLoadError] = useState<string | null>(null);
+  const [experienceLoading, setExperienceLoading] = useState(false);
+  const [savedExperienceDrafts, setSavedExperienceDrafts] = useState<ItemExperienceDrafts>({});
+  const [editedExperienceDrafts, setEditedExperienceDrafts] = useState<ItemExperienceDrafts>({});
+  const [savingExperienceItemIds, setSavingExperienceItemIds] = useState<string[]>([]);
+  const [experienceDraftErrors, setExperienceDraftErrors] = useState<Record<string, string | null>>({});
   const effectiveItemLocations = useMemo<ExperienceLocationFields>(() => ({
     ...buildInitialLocations(technicalProposalProps.proposal.items),
     ...itemLocations,
@@ -272,12 +280,66 @@ export function PreQuoteExperienceFlow({
     Object.fromEntries(
       technicalProposalProps.proposal.items.map((item) => [
         item.itemId,
-        mergeExperienceDraftWithItem(item, experienceDrafts[item.itemId]),
+        mergeExperienceDraftWithItem(item, editedExperienceDrafts[item.itemId] ?? savedExperienceDrafts[item.itemId]),
       ]),
     ),
-  [experienceDrafts, technicalProposalProps.proposal.items]);
-  const saveExperienceDraft = (draft: ItemExperienceDraft) => {
-    setExperienceDrafts((current) => ({ ...current, [draft.itemId]: draft }));
+  [editedExperienceDrafts, savedExperienceDrafts, technicalProposalProps.proposal.items]);
+  const experienceDraftStatuses = useMemo<Record<string, ExperienceDraftStatus>>(() =>
+    Object.fromEntries(technicalProposalProps.proposal.items.map((item) => {
+      const itemId = item.itemId;
+      if (savingExperienceItemIds.includes(itemId)) return [itemId, "saving"];
+      if (experienceDraftErrors[itemId]?.includes("version mas reciente")) return [itemId, "conflict"];
+      if (experienceDraftErrors[itemId]) return [itemId, "error"];
+      if (experienceLoading) return [itemId, "loading"];
+      const saved = savedExperienceDrafts[itemId] ?? createEmptyExperienceDraft(item);
+      const edited = editedExperienceDrafts[itemId];
+      if (edited && draftKey(edited) !== draftKey(saved)) return [itemId, "dirty"];
+      if (saved.hasServerDraft) return [itemId, "saved"];
+      return [itemId, "idle"];
+    })),
+  [editedExperienceDrafts, experienceDraftErrors, experienceLoading, savedExperienceDrafts, savingExperienceItemIds, technicalProposalProps.proposal.items]);
+  const changeExperienceDraft = (draft: ItemExperienceDraft) => {
+    setEditedExperienceDrafts((current) => ({ ...current, [draft.itemId]: draft }));
+    setExperienceDraftErrors((current) => ({ ...current, [draft.itemId]: null }));
+  };
+  const reloadExperienceDraft = (itemId: string) => {
+    const item = technicalProposalProps.proposal.items.find((value) => value.itemId === itemId);
+    if (!item) return;
+    setEditedExperienceDrafts((current) => {
+      const next = { ...current };
+      delete next[itemId];
+      return next;
+    });
+    setExperienceDraftErrors((current) => ({ ...current, [itemId]: null }));
+  };
+  const saveExperienceDraft = async (draft: ItemExperienceDraft): Promise<boolean> => {
+    if (!experienceCatalog || savingExperienceItemIds.includes(draft.itemId)) return false;
+    const item = technicalProposalProps.proposal.items.find((value) => value.itemId === draft.itemId);
+    if (!item) return false;
+    const saved = savedExperienceDrafts[draft.itemId] ?? createEmptyExperienceDraft(item);
+    setSavingExperienceItemIds((current) => current.includes(draft.itemId) ? current : [...current, draft.itemId]);
+    setExperienceDraftErrors((current) => ({ ...current, [draft.itemId]: null }));
+    try {
+      const updated = await updateRequirementExperienceDraft(
+        technicalProposalProps.proposal.technicalProposalId,
+        draft.itemId,
+        {
+          catalogVersion: experienceCatalog.version,
+          spaceTypeCode: draft.spaceTypeCode,
+          expectedRevision: saved.revision,
+          answers: Object.entries(draft.answers).map(([benefitCode, optionCode]) => ({ benefitCode, optionCode })),
+        },
+      );
+      const mapped = itemDraftFromServer(updated);
+      setSavedExperienceDrafts((current) => ({ ...current, [draft.itemId]: mapped }));
+      setEditedExperienceDrafts((current) => ({ ...current, [draft.itemId]: mapped }));
+      return true;
+    } catch (error) {
+      setExperienceDraftErrors((current) => ({ ...current, [draft.itemId]: getRequirementExperienceErrorMessage(error) }));
+      return false;
+    } finally {
+      setSavingExperienceItemIds((current) => current.filter((itemId) => itemId !== draft.itemId));
+    }
   };
   const saveItemLocation = (itemId: string, value: string) => {
     const trimmed = value.trim();
@@ -289,6 +351,35 @@ export function PreQuoteExperienceFlow({
       },
     }));
   };
+  useEffect(() => {
+    const proposalId = technicalProposalProps.proposal.technicalProposalId;
+    const sequence = loadSequence.current + 1;
+    loadSequence.current = sequence;
+    setExperienceLoading(true);
+    setExperienceLoadError(null);
+    setExperienceCatalog(null);
+    setSavedExperienceDrafts({});
+    setEditedExperienceDrafts({});
+    setExperienceDraftErrors({});
+    setSavingExperienceItemIds([]);
+
+    void Promise.all([
+      getRequirementExperienceCatalog(),
+      getRequirementExperienceDrafts(proposalId),
+    ]).then(([catalog, drafts]) => {
+      if (loadSequence.current !== sequence) return;
+      const mappedDrafts = Object.fromEntries(drafts.items.map((draft) => [draft.technicalProposalItemId, itemDraftFromServer(draft)]));
+      setExperienceCatalog(catalog);
+      setSavedExperienceDrafts(mappedDrafts);
+      setEditedExperienceDrafts(mappedDrafts);
+    }).catch((error) => {
+      if (loadSequence.current !== sequence) return;
+      setExperienceLoadError(getRequirementExperienceErrorMessage(error));
+    }).finally(() => {
+      if (loadSequence.current === sequence) setExperienceLoading(false);
+    });
+  }, [experienceReloadToken, technicalProposalProps.proposal.technicalProposalId]);
+
   const proposalConfirmed = technicalProposalProps.proposal.commercialConfirmation.state === "CONFIRMED";
   const pricingUsable = hasUsablePricing(technicalProposalProps.pricing, pricingLoading, pricingError);
   const canOpenSummary = proposalConfirmed && pricingUsable;
@@ -374,14 +465,28 @@ export function PreQuoteExperienceFlow({
         />
       ) : null}
 
+      {effectiveStep === "configure" && experienceLoadError ? (
+        <PreQuotesError
+          title="No fue posible cargar las preferencias"
+          message={experienceLoadError}
+          onRetry={() => setExperienceReloadToken((value) => value + 1)}
+          retryLabel="Reintentar carga"
+        />
+      ) : null}
+
       {effectiveStep === "configure" ? (
         <PreQuoteExperienceConfigureStep
           {...technicalProposalProps}
+          experienceCatalog={experienceCatalog}
           experienceDrafts={effectiveExperienceDrafts}
           itemLocations={effectiveItemLocations}
-          experienceDisabled={technicalProposalProps.commercialMutationDisabled}
+          experienceDisabled={technicalProposalProps.commercialMutationDisabled || experienceLoading || !experienceCatalog}
           finalAction={configurationAction}
+          experienceDraftStatuses={experienceDraftStatuses}
+          experienceDraftErrors={experienceDraftErrors}
+          onChangeExperienceDraft={changeExperienceDraft}
           onSaveExperienceDraft={saveExperienceDraft}
+          onReloadExperienceDraft={reloadExperienceDraft}
           onSaveItemLocation={saveItemLocation}
         />
       ) : null}
@@ -390,6 +495,7 @@ export function PreQuoteExperienceFlow({
         <PreQuoteExperienceSummaryStep
           proposal={technicalProposalProps.proposal}
           pricing={technicalProposalProps.pricing}
+          experienceCatalog={experienceCatalog}
           experienceDrafts={effectiveExperienceDrafts}
           itemLocations={effectiveItemLocations}
           onBackToConfigure={() => setCurrentStep("configure")}

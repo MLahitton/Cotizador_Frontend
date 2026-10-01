@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
-import { ArrowLeft, CheckCircle2, Eye, ShieldCheck, Sparkles, Thermometer, Volume2, WalletCards } from "lucide-react";
+import { ArrowLeft, Eye, ShieldCheck, Sparkles, Thermometer, Volume2, WalletCards } from "lucide-react";
 import { useState, type ComponentType } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { getExperienceTrendCounts } from "@/features/prequotes/prequote-experience-demo-config";
-import type { ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
+import type { ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts, RequirementExperienceCatalog } from "@/features/prequotes/prequote-experience-types";
 import { formatRequirementMoney } from "@/features/prequotes/requirement-pricing-formatters";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
 import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
@@ -19,16 +19,13 @@ function itemTitle(item: TechnicalProposalItem): string {
   return item.reference ?? item.elementId ?? `Item ${item.sequence}`;
 }
 
-function itemSubtitle(item: TechnicalProposalItem, draft: ItemExperienceDraft | undefined): string {
-  const values = [
-    draft?.selections.view,
-    draft?.selections.tranquility,
-    draft?.selections.temperature,
-    draft?.selections.security,
-    item.selected?.system?.displayName ?? item.suggested.system?.displayName,
-    item.selected?.glass?.displayName ?? item.suggested.glass?.displayName,
-  ].filter((value): value is string => Boolean(value));
-  return values.slice(0, 3).join(" · ") || "Configuracion comercial revisada";
+function itemSubtitle(item: TechnicalProposalItem, draft: ItemExperienceDraft | undefined, catalog: RequirementExperienceCatalog | null): string {
+  const values = draft ? Object.entries(draft.answers).map(([benefitCode, optionCode]) => {
+    const question = catalog?.questions.find((candidate) => candidate.benefitCode === benefitCode);
+    const option = question?.options.find((candidate) => candidate.optionCode === optionCode);
+    return option?.shortLabel || option?.optionLabel || null;
+  }).filter((value): value is string => Boolean(value)) : [];
+  return values.slice(0, 3).join(" · ") || "Sin preferencias guardadas";
 }
 
 function formatPriceRange(pricing: RequirementPricing): string | null {
@@ -49,12 +46,14 @@ function trendIcon(value: string): TrendIcon {
 export function PreQuoteExperienceSummaryStep({
   proposal,
   pricing,
+  experienceCatalog,
   experienceDrafts,
   itemLocations,
   onBackToConfigure,
 }: {
   proposal: TechnicalProposal;
   pricing: RequirementPricing | null;
+  experienceCatalog: RequirementExperienceCatalog | null;
   experienceDrafts: ItemExperienceDrafts;
   itemLocations: ExperienceLocationFields;
   onBackToConfigure: () => void;
@@ -66,11 +65,10 @@ export function PreQuoteExperienceSummaryStep({
   const startIndex = safePage * SUMMARY_ITEMS_PER_PAGE;
   const endIndex = Math.min(startIndex + SUMMARY_ITEMS_PER_PAGE, includedItems.length);
   const visibleItems = includedItems.slice(startIndex, endIndex);
-  const trends = getExperienceTrendCounts(
-    proposal.items
-      .map((item) => experienceDrafts[item.itemId])
-      .filter((draft): draft is NonNullable<typeof draft> => Boolean(draft)),
-  ).slice(0, 4);
+  const savedIncludedDrafts = includedItems
+    .map((item) => experienceDrafts[item.itemId])
+    .filter((draft): draft is NonNullable<typeof draft> => Boolean(draft?.hasServerDraft));
+  const trends = getExperienceTrendCounts(savedIncludedDrafts, experienceCatalog).slice(0, 4);
   const range = pricing ? formatPriceRange(pricing) : null;
   const confidenceText = pricing
     ? pricing.requiresReview
@@ -89,7 +87,7 @@ export function PreQuoteExperienceSummaryStep({
         {trends.length > 0 ? trends.map((trend) => {
           const Icon = trendIcon(trend.value);
           return (
-            <div key={trend.value} className="rounded-sm border border-border-subtle bg-surface p-3">
+            <div key={`${trend.benefitCode}:${trend.optionCode}`} className="rounded-sm border border-border-subtle bg-surface p-3">
               <div className="flex items-start gap-2">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
                   <Icon aria-hidden={true} size={16} strokeWidth={1.75} />
@@ -103,8 +101,8 @@ export function PreQuoteExperienceSummaryStep({
           );
         }) : (
           <div className="rounded-sm border border-border-subtle bg-surface p-3 sm:col-span-2 lg:col-span-4">
-            <p className="text-sm font-semibold text-foreground">Sin tendencias seleccionadas</p>
-            <p className="mt-1 text-xs text-foreground-secondary">Configura experiencia por item para ver agregaciones reales.</p>
+            <p className="text-sm font-semibold text-foreground">Sin tendencias guardadas</p>
+            <p className="mt-1 text-xs text-foreground-secondary">Guarda preferencias por item para ver agregaciones reales.</p>
           </div>
         )}
       </div>
@@ -131,11 +129,10 @@ export function PreQuoteExperienceSummaryStep({
                   <p className="mt-1 text-sm text-foreground-secondary">{itemLocations[item.itemId]?.value ?? "Ubicacion por confirmar"}</p>
                 </div>
                 <p className="min-w-0 break-words text-sm leading-6 text-foreground-secondary">
-                  {itemSubtitle(item, experienceDrafts[item.itemId])}
+                  {itemSubtitle(item, experienceDrafts[item.itemId], experienceCatalog)}
                 </p>
-                <span className="inline-flex items-center gap-1 text-sm font-semibold text-success">
-                  <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.75} />
-                  OK
+                <span className="inline-flex text-sm font-semibold text-foreground-secondary">
+                  {experienceDrafts[item.itemId]?.hasServerDraft ? "Preferencias guardadas" : "Sin preferencias"}
                 </span>
               </div>
             ))}
@@ -145,7 +142,7 @@ export function PreQuoteExperienceSummaryStep({
         <Surface variant="elevated" padding="lg" className="h-fit self-start border-brand/40 bg-brand-soft">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-foreground-secondary">Orden de inversion</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-foreground-secondary">Precio tecnico actual</p>
               <p className="mt-3 break-words text-3xl font-semibold text-foreground">
                 {pricing ? formatRequirementMoney(pricing.estimatedSubtotal.expected, pricing.currency) : "Pendiente"}
               </p>
@@ -154,7 +151,10 @@ export function PreQuoteExperienceSummaryStep({
           </div>
 
           {range ? (
-            <p className="mt-4 text-sm leading-6 text-foreground-secondary">Rango estimado: {range}</p>
+            <>
+              <p className="mt-4 text-sm leading-6 text-foreground-secondary">Rango estimado: {range}</p>
+              <p className="mt-2 text-xs text-foreground-secondary">Precio de la seleccion tecnica actual; no incorpora estas preferencias pendientes.</p>
+            </>
           ) : (
             <p className="mt-4 text-sm leading-6 text-foreground-secondary">No hay rango disponible para esta estimacion.</p>
           )}
@@ -177,10 +177,10 @@ export function PreQuoteExperienceSummaryStep({
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Sparkles aria-hidden="true" className="text-brand" size={17} strokeWidth={1.75} />
-              Lectura final lista
+              Resumen disponible
             </p>
             <p className="mt-1 text-sm leading-6 text-foreground-secondary">
-              Puedes volver a configurar sin perder selecciones reales ni preferencias locales del wizard.
+              Puedes volver a configurar sin perder selecciones tecnicas ni preferencias editadas en esta propuesta.
             </p>
           </div>
           <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onBackToConfigure}>

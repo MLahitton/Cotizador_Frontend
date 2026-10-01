@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PreQuoteExperienceItemCard } from "@/features/prequotes/components/prequote-experience-item-card";
 import { mergeExperienceDraftWithItem } from "@/features/prequotes/prequote-experience-demo-config";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
-import type { ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
+import type { ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts, RequirementExperienceCatalog } from "@/features/prequotes/prequote-experience-types";
 import type { RequirementChatActionPlan } from "@/features/prequotes/requirement-chat-types";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
 import type { TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
@@ -32,11 +32,16 @@ export function PreQuoteExperienceItemPager({
   onUpdateInclusion,
   commercialMutationDisabled,
   recentChatAction,
+  experienceCatalog,
   experienceDrafts,
   itemLocations,
   experienceDisabled,
   finalAction,
+  experienceDraftStatuses,
+  experienceDraftErrors,
+  onChangeExperienceDraft,
   onSaveExperienceDraft,
+  onReloadExperienceDraft,
   onSaveItemLocation,
 }: {
   items: TechnicalProposalItem[];
@@ -55,11 +60,16 @@ export function PreQuoteExperienceItemPager({
   onUpdateInclusion: (itemId: string, isIncluded: boolean, reason?: string | null) => boolean | Promise<boolean>;
   commercialMutationDisabled: boolean;
   recentChatAction: { itemIds: string[]; pricingStatus: string | null } | null;
+  experienceCatalog: RequirementExperienceCatalog | null;
   experienceDrafts: ItemExperienceDrafts;
   itemLocations: ExperienceLocationFields;
   experienceDisabled: boolean;
   finalAction?: ReactNode;
-  onSaveExperienceDraft: (draft: ItemExperienceDraft) => void;
+  experienceDraftStatuses: Record<string, "idle" | "dirty" | "saving" | "saved" | "error" | "conflict" | "loading">;
+  experienceDraftErrors: Record<string, string | null>;
+  onChangeExperienceDraft: (draft: ItemExperienceDraft) => void;
+  onSaveExperienceDraft: (draft: ItemExperienceDraft) => boolean | Promise<boolean>;
+  onReloadExperienceDraft: (itemId: string) => void;
   onSaveItemLocation: (itemId: string, value: string) => void;
 }) {
   const [page, setPage] = useState(0);
@@ -123,10 +133,15 @@ export function PreQuoteExperienceItemPager({
             onUpdateInclusion={(isIncluded, reason) => onUpdateInclusion(item.itemId, isIncluded, reason)}
             commercialMutationDisabled={commercialMutationDisabled}
             recentChatActionPricingStatus={recentChatAction?.itemIds.includes(item.itemId) ? recentChatAction.pricingStatus : undefined}
+            experienceCatalog={experienceCatalog}
             experienceDraft={mergeExperienceDraftWithItem(item, experienceDrafts[item.itemId])}
+            experienceDraftStatus={experienceDraftStatuses[item.itemId] ?? "idle"}
+            experienceDraftError={experienceDraftErrors[item.itemId] ?? null}
             location={itemLocations[item.itemId] ?? { value: "Ubicacion por confirmar", source: "placeholder" }}
             experienceDisabled={experienceDisabled}
+            onChangeExperienceDraft={onChangeExperienceDraft}
             onSaveExperienceDraft={onSaveExperienceDraft}
+            onReloadExperienceDraft={() => onReloadExperienceDraft(item.itemId)}
             onSaveItemLocation={(value) => onSaveItemLocation(item.itemId, value)}
           />
         ))}

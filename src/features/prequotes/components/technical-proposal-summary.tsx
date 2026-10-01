@@ -11,7 +11,7 @@ import { Surface } from "@/components/ui/surface";
 import { PreQuoteExperienceItemPager } from "@/features/prequotes/components/prequote-experience-item-pager";
 import { TechnicalProposalItemCard } from "@/features/prequotes/components/technical-proposal-item-card";
 import type { RequirementPricing } from "@/features/prequotes/requirement-pricing-types";
-import type { ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts } from "@/features/prequotes/prequote-experience-types";
+import type { ExperienceLocationFields, ItemExperienceDraft, ItemExperienceDrafts, RequirementExperienceCatalog } from "@/features/prequotes/prequote-experience-types";
 import type { TechnicalProposal, TechnicalProposalItem } from "@/features/prequotes/technical-proposal-types";
 import type { CreateManualTechnicalProposalItemRequest } from "@/features/prequotes/technical-proposal-api";
 import type { TechnicalProposalSelectionRequest } from "@/features/prequotes/technical-proposal-selection-api";
@@ -247,7 +247,7 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }) {
   const categoryText = Object.entries(proposal.readiness.categories)
     .map(([category, count]) => `${count} ${category.toLowerCase()}`)
-    .join(" · ");
+    .join(" Â· ");
   const hasPricingBlockers = proposal.readiness.pricingBlockingDefinitions > 0;
   const hasConfirmationReview = proposal.readiness.blockingDefinitions > 0;
 
@@ -290,7 +290,7 @@ function ReadinessSummary({ proposal, onFilterChange, activeFilter }: {
 }
 
 
-export function TechnicalProposalSummary({ requirementId, proposal, pricing, readOnly = false, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onClearSelectionError, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled, recentChatAction, itemListVariant = "default", experienceDrafts = {}, itemLocations = {}, experienceDisabled = false, experienceFinalAction, onSaveExperienceDraft = () => undefined, onSaveItemLocation = () => undefined }: {
+export function TechnicalProposalSummary({ requirementId, proposal, pricing, readOnly = false, selectionCatalog, selectionCatalogLoading, selectionCatalogError, onRetrySelectionCatalog, savingSelectionItemIds, selectionErrorMessages, manualItemCreating, manualItemError, onSaveSelection, onClearSelectionError, onChatActionExecuted, onCreateManualItem, onUpdateInclusion, commercialMutationDisabled, recentChatAction, itemListVariant = "default", experienceCatalog = null, experienceDrafts = {}, itemLocations = {}, experienceDisabled = false, experienceFinalAction, experienceDraftStatuses = {}, experienceDraftErrors = {}, onChangeExperienceDraft = () => undefined, onSaveExperienceDraft = () => false, onReloadExperienceDraft = () => undefined, onSaveItemLocation = () => undefined }: {
   requirementId: string;
   proposal: TechnicalProposal;
   pricing: RequirementPricing | null;
@@ -311,11 +311,16 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, rea
   commercialMutationDisabled: boolean;
   recentChatAction: { itemIds: string[]; pricingStatus: string | null } | null;
   itemListVariant?: "default" | "experience";
+  experienceCatalog?: RequirementExperienceCatalog | null;
   experienceDrafts?: ItemExperienceDrafts;
   itemLocations?: ExperienceLocationFields;
   experienceDisabled?: boolean;
   experienceFinalAction?: ReactNode;
-  onSaveExperienceDraft?: (draft: ItemExperienceDraft) => void;
+  experienceDraftStatuses?: Record<string, "idle" | "dirty" | "saving" | "saved" | "error" | "conflict" | "loading">;
+  experienceDraftErrors?: Record<string, string | null>;
+  onChangeExperienceDraft?: (draft: ItemExperienceDraft) => void;
+  onSaveExperienceDraft?: (draft: ItemExperienceDraft) => boolean | Promise<boolean>;
+  onReloadExperienceDraft?: (itemId: string) => void;
   onSaveItemLocation?: (itemId: string, value: string) => void;
 }) {
   const [readinessFilter, setReadinessFilter] = useState<ReadinessFilter>("ALL");
@@ -382,11 +387,16 @@ export function TechnicalProposalSummary({ requirementId, proposal, pricing, rea
               onUpdateInclusion={onUpdateInclusion}
               commercialMutationDisabled={commercialMutationDisabled}
               recentChatAction={recentChatAction}
+              experienceCatalog={experienceCatalog}
               experienceDrafts={experienceDrafts}
               itemLocations={itemLocations}
               experienceDisabled={experienceDisabled}
               finalAction={experienceFinalAction}
+              experienceDraftStatuses={experienceDraftStatuses}
+              experienceDraftErrors={experienceDraftErrors}
+              onChangeExperienceDraft={onChangeExperienceDraft}
               onSaveExperienceDraft={onSaveExperienceDraft}
+              onReloadExperienceDraft={onReloadExperienceDraft}
               onSaveItemLocation={onSaveItemLocation}
             />
           ) : (
