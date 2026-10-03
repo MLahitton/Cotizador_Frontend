@@ -9,6 +9,7 @@ export interface AppShellProps {
   email: string;
   initials: string;
   onSignOut: () => void;
+  sidebarDefaultCollapsed?: boolean;
 }
 
 export function AppShell({
@@ -17,6 +18,7 @@ export function AppShell({
   email,
   initials,
   onSignOut,
+  sidebarDefaultCollapsed = false,
 }: AppShellProps) {
   return (
     <div className="flex min-h-screen min-w-0 overflow-x-hidden bg-background text-foreground">
@@ -26,7 +28,7 @@ export function AppShell({
       >
         Saltar al contenido principal
       </a>
-      <AppSidebar />
+      <AppSidebar defaultCollapsed={sidebarDefaultCollapsed} />
       <div className="min-w-0 flex-1">
         <AppHeader
           displayName={displayName}

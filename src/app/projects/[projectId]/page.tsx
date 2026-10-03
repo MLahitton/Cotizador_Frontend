@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/features/auth/auth-context";
 import { ProtectedRoute } from "@/features/auth/protected-route";
-import { ProjectDetailPageContent } from "@/features/projects/components/project-detail-page-content";
+import { ProjectWorkspacePageContent } from "@/features/projects/components/project-workspace-page-content";
 
 function ProjectDetailContent() {
   const params = useParams<{ projectId?: string | string[] }>();
@@ -35,8 +35,9 @@ function ProjectDetailContent() {
       email={user.email}
       initials={initials}
       onSignOut={handleSignOut}
+      sidebarDefaultCollapsed
     >
-      <ProjectDetailPageContent projectId={projectId} />
+      <ProjectWorkspacePageContent projectId={projectId} />
     </AppShell>
   );
 }
