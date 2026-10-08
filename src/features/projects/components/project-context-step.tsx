@@ -101,14 +101,16 @@ function MetricCard({
   value,
   helper,
   Icon,
+  className = "",
 }: {
   label: string;
   value: string;
   helper: string;
   Icon: LucideIcon;
+  className?: string;
 }) {
   return (
-    <div className="rounded-md border border-border-subtle bg-surface p-4">
+    <div className={`rounded-md border border-border-subtle bg-surface p-4 ${className}`}>
       <div className="flex items-start gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-accent-soft text-accent-dark">
           <Icon aria-hidden="true" size={18} strokeWidth={1.75} />
@@ -275,9 +277,9 @@ const priorityItems: Array<{
   },
 ];
 
-function PriorityCard({ label, Icon }: { label: string; Icon: LucideIcon }) {
+function PriorityCard({ label, Icon, className = "" }: { label: string; Icon: LucideIcon; className?: string }) {
   return (
-    <div className="flex min-h-24 flex-col items-center justify-center px-3 py-3 text-center">
+    <div className={`flex min-h-24 flex-col items-center justify-center px-3 py-3 text-center sm:px-4 ${className}`}>
       <span className="flex h-10 w-10 items-center justify-center rounded-full border border-accent-soft-strong bg-accent-soft text-accent-dark">
         <Icon aria-hidden="true" size={19} strokeWidth={1.75} />
       </span>
@@ -399,7 +401,7 @@ export function ProjectContextStep({
             Resumen comercial calculado con la informacion vigente disponible.
           </p>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:gap-4">
           <MetricCard
             label="Items incluidos"
             value={
@@ -425,6 +427,7 @@ export function ProjectContextStep({
             value={approximateArea}
             helper="Calculada con medidas efectivas"
             Icon={Ruler}
+            className="sm:col-span-2 md:col-span-1"
           />
         </div>
       </section>
@@ -445,9 +448,14 @@ export function ProjectContextStep({
           </p>
         </div>
         <div className="overflow-hidden rounded-md border border-accent-soft-strong bg-surface">
-          <div className="grid grid-cols-2 divide-y divide-accent-soft-strong sm:grid-cols-3 sm:divide-x sm:divide-y-0 xl:grid-cols-5">
-            {priorityItems.map(({ label, Icon }) => (
-              <PriorityCard key={label} label={label} Icon={Icon} />
+          <div className="grid grid-cols-2 divide-y divide-accent-soft-strong md:grid-cols-5 md:divide-x md:divide-y-0">
+            {priorityItems.map(({ label, Icon }, index) => (
+              <PriorityCard
+                key={label}
+                label={label}
+                Icon={Icon}
+                className={index === 4 ? "col-span-2 md:col-span-1" : undefined}
+              />
             ))}
           </div>
         </div>

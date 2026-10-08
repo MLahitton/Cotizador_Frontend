@@ -93,6 +93,11 @@ function isItemReadiness(value: unknown): boolean {
     value.pendingDefinitions.every(isPendingDefinition);
 }
 
+function isItemDataCompleteness(value: unknown): boolean {
+  return isRecord(value) && isNonEmptyString(value.state) &&
+    typeof value.isComplete === "boolean" && isStringArray(value.missingFields);
+}
+
 function isProposalReadiness(value: unknown): boolean {
   return isRecord(value) && isReadinessState(value.state) &&
     typeof value.isReadyForConfirmation === "boolean" && typeof value.isReadyForPricing === "boolean" &&
@@ -156,7 +161,8 @@ function isCommercialConfirmation(value: unknown): boolean {
 function isProposalItem(value: unknown): boolean {
   if (!isRecord(value) || !isRecord(value.suggested) ||
       !isRecord(value.alternatives) || !isRecord(value.confidence) ||
-      !isRecord(value.historicalEvidence) || !isRecord(value.trace) || !isItemReadiness(value.readiness) ||
+      !isRecord(value.historicalEvidence) || !isRecord(value.trace) ||
+      !isItemDataCompleteness(value.dataCompleteness) || !isItemReadiness(value.readiness) ||
       (value.visualModel !== null && !isVisualSystemModel(value.visualModel))) return false;
 
   const suggested = value.suggested;
@@ -189,7 +195,7 @@ function isProposalItem(value: unknown): boolean {
     (value.excludedAtUtc === null || isDateTime(value.excludedAtUtc)) &&
     isNullableString(value.excludedByUserId) && isNullableString(value.exclusionReason) &&
     isNullableNumber(value.extractionConfidence) && isNullableString(value.extractionStatus) &&
-    isNullableString(value.manualNote) &&
+    isNullableString(value.manualNote) && isNullableString(value.manualObservation) &&
     (suggested.system === null || isSystemOption(suggested.system)) &&
     (suggested.glass === null || isGlassOption(suggested.glass)) &&
     (suggested.finish === null || isFinishOption(suggested.finish)) &&
@@ -211,7 +217,10 @@ function isProposalItem(value: unknown): boolean {
     isNullableNumber(historical.bestSimilarity) && isNullableNumber(historical.averageSimilarity) && examplesValid &&
     ["requestedSystemRaw", "requestedProfileRaw", "functionalType", "operation", "glassRawSpecification", "glassTypeRaw", "glassTypeNormalized", "finishRawDescription", "finishNormalizedType", "finishColorRaw", "finishColorNormalized", "geometryType"]
       .every((key) => isNullableString(trace[key])) &&
-    isNullableNumber(trace.glassThicknessMm) && isStringArray(trace.specialFeatures) && evidenceValid;
+    isNullableNumber(trace.glassThicknessMm) && isStringArray(trace.specialFeatures) &&
+    evidenceValid && isNullableString(value.occurrenceContext) &&
+    isNullableString(value.extractedLocation) && isNullableString(value.manualLocationOverride) &&
+    isNullableString(value.effectiveLocation);
 }
 
 function isTechnicalProposal(value: unknown): value is TechnicalProposal {
@@ -243,6 +252,56 @@ export async function getTechnicalProposal(requirementId: string): Promise<Techn
   return response;
 }
 
+
+export interface TechnicalProposalItemLocationRequest {
+  location: string | null;
+}
+
+export interface TechnicalProposalItemLocationResponse {
+  technicalProposalId: string;
+  itemId: string;
+  extractedLocation: string | null;
+  manualLocationOverride: string | null;
+  effectiveLocation: string | null;
+}
+
+function isItemLocationResponse(value: unknown): value is TechnicalProposalItemLocationResponse {
+  return isRecord(value) && isNonEmptyString(value.technicalProposalId) &&
+    isNonEmptyString(value.itemId) && isNullableString(value.extractedLocation) &&
+    isNullableString(value.manualLocationOverride) && isNullableString(value.effectiveLocation);
+}
+
+export async function updateTechnicalProposalItemLocation(
+  technicalProposalId: string,
+  itemId: string,
+  request: TechnicalProposalItemLocationRequest,
+): Promise<TechnicalProposalItemLocationResponse> {
+  const response = await apiRequest(
+    `/api/v2/technical-proposals/${encodeURIComponent(technicalProposalId)}/items/${encodeURIComponent(itemId)}/location`,
+    { method: "PUT", authenticated: true, body: request },
+  );
+  if (!isItemLocationResponse(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio la ubicacion del item con un formato inesperado.",
+    });
+  }
+  return response;
+}
+
+export function getTechnicalProposalItemLocationErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) return "No fue posible guardar la ubicacion.";
+  const messages: Record<number, string> = {
+    0: "No fue posible conectar con el servidor.",
+    400: "La ubicacion no es valida.",
+    401: "Tu sesion expiro. Inicia sesion nuevamente.",
+    403: "No tienes acceso para modificar esta ubicacion.",
+    404: "La propuesta o el elemento ya no esta disponible.",
+    500: "No fue posible guardar la ubicacion.",
+  };
+  return messages[error.status] ?? "No fue posible guardar la ubicacion.";
+}
 export function getTechnicalProposalErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return "No fue posible consultar la propuesta tecnica.";
   const messages: Record<number, string> = {
@@ -314,4 +373,52 @@ export function getCreateManualTechnicalProposalItemErrorMessage(error: unknown)
     500: "No fue posible agregar el elemento manual.",
   };
   return messages[error.status] ?? "No fue posible agregar el elemento manual.";
+}
+
+export interface TechnicalProposalItemObservationRequest {
+  observation: string | null;
+}
+
+export interface TechnicalProposalItemObservationResponse {
+  technicalProposalId: string;
+  itemId: string;
+  manualObservation: string | null;
+}
+
+function isItemObservationResponse(value: unknown): value is TechnicalProposalItemObservationResponse {
+  return isRecord(value) && isNonEmptyString(value.technicalProposalId) &&
+    isNonEmptyString(value.itemId) && isNullableString(value.manualObservation);
+}
+
+export async function updateTechnicalProposalItemObservation(
+  technicalProposalId: string,
+  itemId: string,
+  request: TechnicalProposalItemObservationRequest,
+): Promise<TechnicalProposalItemObservationResponse> {
+  const response = await apiRequest(
+    `/api/v2/technical-proposals/${encodeURIComponent(technicalProposalId)}/items/${encodeURIComponent(itemId)}/observation`,
+    { method: "PUT", authenticated: true, body: request },
+  );
+  if (!isItemObservationResponse(response)) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio la observacion del item con un formato inesperado.",
+    });
+  }
+  return response;
+}
+
+export function getTechnicalProposalItemObservationErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) return "No fue posible guardar la observacion.";
+  const messages: Record<number, string> = {
+    0: "No fue posible conectar con el servidor.",
+    400: "La observacion no es valida.",
+    401: "Tu sesion expiro. Inicia sesion nuevamente.",
+    403: "No tienes acceso para modificar esta observacion.",
+    404: "La propuesta o el elemento ya no esta disponible.",
+    409: "No se puede modificar la observacion en el estado actual.",
+    500: "No fue posible guardar la observacion.",
+  };
+  return messages[error.status] ?? "No fue posible guardar la observacion.";
 }

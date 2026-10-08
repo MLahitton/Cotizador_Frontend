@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getTechnicalProposal } from "@/features/prequotes/technical-proposal-api";
+import {
+  getTechnicalProposal,
+  type TechnicalProposalItemLocationResponse,
+  type TechnicalProposalItemObservationResponse,
+} from "@/features/prequotes/technical-proposal-api";
+import type {
+  TechnicalProposalItemInclusionResponse,
+  TechnicalProposalSelectionRequest,
+} from "@/features/prequotes/technical-proposal-selection-api";
 import type { TechnicalProposal } from "@/features/prequotes/technical-proposal-types";
 
 export interface ProjectWorkspaceProposalError {
@@ -72,6 +80,130 @@ export function useProjectWorkspaceProposal(
     setReloadKey((current) => current + 1);
   }, []);
 
+  const applyItemInclusionUpdate = useCallback((
+    update: TechnicalProposalItemInclusionResponse,
+  ) => {
+    setState((current) => {
+      if (
+        current.status !== "success" ||
+        current.data.technicalProposalId.toLowerCase() !==
+          update.technicalProposalId.toLowerCase()
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        data: {
+          ...current.data,
+          items: current.data.items.map((item) =>
+            item.itemId.toLowerCase() === update.itemId.toLowerCase()
+              ? {
+                  ...item,
+                  isIncluded: update.isIncluded,
+                  excludedAtUtc: update.excludedAtUtc,
+                  excludedByUserId: update.excludedByUserId,
+                  exclusionReason: update.exclusionReason,
+                }
+              : item,
+          ),
+        },
+      };
+    });
+  }, []);
+
+  const applyItemLocationUpdate = useCallback((
+    update: TechnicalProposalItemLocationResponse,
+  ) => {
+    setState((current) => {
+      if (
+        current.status !== "success" ||
+        current.data.technicalProposalId.toLowerCase() !==
+          update.technicalProposalId.toLowerCase()
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        data: {
+          ...current.data,
+          items: current.data.items.map((item) =>
+            item.itemId.toLowerCase() === update.itemId.toLowerCase()
+              ? {
+                  ...item,
+                  extractedLocation: update.extractedLocation,
+                  manualLocationOverride: update.manualLocationOverride,
+                  effectiveLocation: update.effectiveLocation,
+                  occurrenceContext: update.extractedLocation,
+                }
+              : item,
+          ),
+        },
+      };
+    });
+  }, []);
+
+
+  const applyItemObservationUpdate = useCallback((
+    update: TechnicalProposalItemObservationResponse,
+  ) => {
+    setState((current) => {
+      if (
+        current.status !== "success" ||
+        current.data.technicalProposalId.toLowerCase() !==
+          update.technicalProposalId.toLowerCase()
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        data: {
+          ...current.data,
+          items: current.data.items.map((item) =>
+            item.itemId.toLowerCase() === update.itemId.toLowerCase()
+              ? {
+                  ...item,
+                  manualObservation: update.manualObservation,
+                }
+              : item,
+          ),
+        },
+      };
+    });
+  }, []);
+  const applyItemPhysicalUpdate = useCallback((
+    itemId: string,
+    request: TechnicalProposalSelectionRequest,
+  ) => {
+    setState((current) => {
+      if (current.status !== "success") {
+        return current;
+      }
+
+      return {
+        ...current,
+        data: {
+          ...current.data,
+          items: current.data.items.map((item) =>
+            item.itemId.toLowerCase() === itemId.toLowerCase()
+              ? {
+                  ...item,
+                  manualQuantityOverride: request.quantity ?? item.manualQuantityOverride,
+                  manualWidthMmOverride: request.widthMm ?? item.manualWidthMmOverride,
+                  manualHeightMmOverride: request.heightMm ?? item.manualHeightMmOverride,
+                  effectiveQuantity: request.quantity ?? item.effectiveQuantity,
+                  effectiveWidthMm: request.widthMm ?? item.effectiveWidthMm,
+                  effectiveHeightMm: request.heightMm ?? item.effectiveHeightMm,
+                }
+              : item,
+          ),
+        },
+      };
+    });
+  }, []);
+
   return {
     proposal: state.key === key && state.status === "success" ? state.data : null,
     proposalError: state.key === key && state.status === "error" ? state.error : null,
@@ -80,5 +212,9 @@ export function useProjectWorkspaceProposal(
       Boolean(requirementId) &&
       (state.key !== key || state.status === "loading"),
     retryProposal: retry,
+    applyItemInclusionUpdate,
+    applyItemLocationUpdate,
+    applyItemObservationUpdate,
+    applyItemPhysicalUpdate,
   };
 }

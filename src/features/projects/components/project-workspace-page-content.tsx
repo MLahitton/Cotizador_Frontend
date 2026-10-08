@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { Surface } from "@/components/ui/surface";
 import { useAuth } from "@/features/auth/auth-context";
@@ -10,10 +11,10 @@ import {
   ProjectDetailsErrorFeedback,
   ProjectDetailsLoading,
 } from "@/features/projects/components/project-detail-feedback";
+import { ProjectConfigurationStep } from "@/features/projects/components/project-configuration-step";
 import { ProjectContextStep } from "@/features/projects/components/project-context-step";
 import { ProjectEditForm } from "@/features/projects/components/project-edit-form";
 import {
-  ProjectConfigurationStep,
   ProjectDocumentsStep,
   ProjectMomentsStep,
   ProjectSummaryStep,
@@ -45,6 +46,19 @@ function ProjectWorkspaceSuccessMessage({
   );
 }
 
+function isProjectWorkspaceStep(value: string | null): value is ProjectWorkspaceStep {
+  return value === "context"
+    || value === "moments"
+    || value === "configuration"
+    || value === "summary"
+    || value === "documents";
+}
+
+function getStepFromSearchParams(searchParams: Pick<URLSearchParams, "get">): ProjectWorkspaceStep {
+  const requestedStep = searchParams.get("section") ?? searchParams.get("step");
+  return isProjectWorkspaceStep(requestedStep) ? requestedStep : "context";
+}
+
 function ProjectWorkspaceStepContent({
   activeStep,
   workspace,
@@ -52,6 +66,7 @@ function ProjectWorkspaceStepContent({
   isProposalLoading,
   hasProposalError,
   onRetryProposal,
+  onItemInclusionUpdated,
 }: {
   activeStep: ProjectWorkspaceStep;
   workspace: NonNullable<ReturnType<typeof useProjectWorkspace>["workspace"]>;
@@ -59,6 +74,7 @@ function ProjectWorkspaceStepContent({
   isProposalLoading: boolean;
   hasProposalError: boolean;
   onRetryProposal: () => void;
+  onItemInclusionUpdated: ReturnType<typeof useProjectWorkspaceProposal>["applyItemInclusionUpdate"];
 }) {
   switch (activeStep) {
     case "context":
@@ -74,7 +90,16 @@ function ProjectWorkspaceStepContent({
     case "moments":
       return <ProjectMomentsStep />;
     case "configuration":
-      return <ProjectConfigurationStep />;
+      return (
+        <ProjectConfigurationStep
+          workspace={workspace}
+          proposal={proposal}
+          isProposalLoading={isProposalLoading}
+          hasProposalError={hasProposalError}
+          onRetryProposal={onRetryProposal}
+          onItemInclusionUpdated={onItemInclusionUpdated}
+        />
+      );
     case "summary":
       return <ProjectSummaryStep />;
     case "documents":
@@ -89,7 +114,12 @@ export function ProjectWorkspacePageContent({
 }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
-  const [activeStep, setActiveStep] = useState<ProjectWorkspaceStep>("context");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeStep = getStepFromSearchParams(searchParams);
+  const handleStepChange = useCallback((step: ProjectWorkspaceStep) => {
+    router.push(`/projects/${encodeURIComponent(projectId)}${step === "context" ? "" : `?section=${step}`}`);
+  }, [projectId, router]);
   const {
     workspace,
     workspaceError,
@@ -114,6 +144,7 @@ export function ProjectWorkspacePageContent({
     proposalError,
     isProposalLoading,
     retryProposal,
+    applyItemInclusionUpdate,
   } = useProjectWorkspaceProposal(
     workspace?.workflow.requirementId ?? null,
     shouldLoadProposal,
@@ -366,7 +397,7 @@ export function ProjectWorkspacePageContent({
       <div className="grid gap-5 lg:grid-cols-[14rem_minmax(0,1fr)]">
         <ProjectWorkspaceNavigation
           activeStep={activeStep}
-          onStepChange={setActiveStep}
+          onStepChange={handleStepChange}
         />
         <ProjectWorkspaceStepContent
           activeStep={activeStep}
@@ -375,6 +406,7 @@ export function ProjectWorkspacePageContent({
           isProposalLoading={isProposalLoading}
           hasProposalError={Boolean(proposalError)}
           onRetryProposal={retryProposal}
+          onItemInclusionUpdated={applyItemInclusionUpdate}
         />
       </div>
     </div>

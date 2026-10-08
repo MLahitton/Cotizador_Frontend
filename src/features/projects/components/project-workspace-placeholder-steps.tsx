@@ -108,17 +108,17 @@ function ProjectMomentItem({
       {!isLast ? (
         <span
           aria-hidden="true"
-          className="absolute left-6 top-12 h-[calc(100%-3rem)] w-px bg-accent-soft-strong"
+          className="absolute left-6 top-12 h-[calc(100%-3rem)] w-px bg-[#8D9DB7]/50"
         />
       ) : null}
-      <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-accent-soft-strong bg-accent-soft text-accent-dark">
+      <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full bg-[#8D9DB7] text-white shadow-sm shadow-[#8D9DB7]/25">
         <span className="text-sm font-semibold tabular-nums">
           {String(index + 1).padStart(2, "0")}
         </span>
       </div>
       <div className="min-w-0 rounded-md border border-border-subtle bg-surface px-4 py-3 shadow-sm shadow-black/[0.02]">
         <div className="flex min-w-0 items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-dark">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[#657A9B]">
             <Icon aria-hidden="true" size={18} strokeWidth={1.75} />
           </span>
           <div className="min-w-0">
@@ -147,15 +147,15 @@ function PlanningInfoCard({
   Icon: LucideIcon;
 }) {
   return (
-    <div className="rounded-md border border-border-subtle bg-surface p-4 shadow-sm shadow-black/[0.02]">
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-dark">
-          <Icon aria-hidden="true" size={19} strokeWidth={1.75} />
+    <div className="rounded-md border border-[#8D9DB7]/35 bg-surface p-3 shadow-sm shadow-[#8D9DB7]/10 sm:p-4">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#D9E3F0] text-[#657A9B] shadow-sm shadow-[#8D9DB7]/15">
+          <Icon aria-hidden="true" size={18} strokeWidth={1.75} />
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-foreground">{title}</p>
-          <p className="mt-1 text-xl font-semibold text-foreground">{value}</p>
-          <p className="mt-2 text-sm leading-6 text-foreground-secondary">
+          <p className="mt-0.5 text-base font-semibold text-foreground">{value}</p>
+          <p className="mt-1 text-xs leading-5 text-foreground-secondary sm:text-sm sm:leading-6">
             {description}
           </p>
         </div>
@@ -192,7 +192,7 @@ export function ProjectMomentsStep() {
           </ol>
         </Surface>
 
-        <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+        <aside className="grid gap-3 sm:grid-cols-2 xl:sticky xl:top-24 xl:self-start xl:grid-cols-1">
           <PlanningInfoCard
             title="Tu fecha requerida"
             value="Por definir"

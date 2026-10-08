@@ -45,12 +45,21 @@ function isAnswer(value: unknown): boolean {
   return isRecord(value) && isNonEmptyString(value.benefitCode) && isNonEmptyString(value.optionCode);
 }
 
+function isLevel1Resolution(value: unknown): boolean {
+  return isRecord(value) &&
+    isNullableString(value.systemTier) && isNullableString(value.glassFamily) &&
+    typeof value.isComplete === "boolean" &&
+    isNonNegativeInteger(value.answeredBenefits) && isNonNegativeInteger(value.requiredBenefits);
+}
+
 function isItemDraft(value: unknown): value is RequirementExperienceItemDraft {
   return isRecord(value) && isNonEmptyString(value.technicalProposalItemId) &&
     isNullableString(value.catalogVersion) && isNullableString(value.spaceTypeCode) &&
     isNonEmptyString(value.resolutionState) && isNonNegativeInteger(value.revision) &&
     (value.updatedAtUtc === null || isDateTime(value.updatedAtUtc)) &&
-    isNullableString(value.updatedByUserId) && Array.isArray(value.answers) &&
+    isNullableString(value.updatedByUserId) &&
+    (value.level1Resolution === null || isLevel1Resolution(value.level1Resolution)) &&
+    Array.isArray(value.answers) &&
     value.answers.every(isAnswer);
 }
 

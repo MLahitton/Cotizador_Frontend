@@ -14,6 +14,7 @@ export function createEmptyExperienceDraft(item: TechnicalProposalItem): ItemExp
     revision: 0,
     updatedAtUtc: null,
     updatedByUserId: null,
+    level1Resolution: null,
     answers: {},
     hasServerDraft: false,
   };
@@ -28,6 +29,7 @@ export function itemDraftFromServer(draft: RequirementExperienceItemDraft): Item
     revision: draft.revision,
     updatedAtUtc: draft.updatedAtUtc,
     updatedByUserId: draft.updatedByUserId,
+    level1Resolution: draft.level1Resolution,
     answers: Object.fromEntries(draft.answers.map((answer) => [answer.benefitCode, answer.optionCode])),
     hasServerDraft: draft.catalogVersion !== null || draft.revision > 0 || draft.answers.length > 0,
   };
@@ -40,6 +42,28 @@ export function mergeExperienceDraftWithItem(
   return existing ?? createEmptyExperienceDraft(item);
 }
 
+
+export function defaultDraftForItem(
+  item: TechnicalProposalItem,
+  catalog: RequirementExperienceCatalog | null,
+  existing: ItemExperienceDraft | undefined,
+): ItemExperienceDraft {
+  const merged = mergeExperienceDraftWithItem(item, existing);
+
+  if (catalog && merged.catalogVersion !== null && merged.catalogVersion !== catalog.version) {
+    return {
+      ...merged,
+      catalogVersion: catalog.version,
+      spaceTypeCode: null,
+      answers: {},
+      level1Resolution: null,
+    };
+  }
+
+  return catalog && merged.catalogVersion === null
+    ? { ...merged, catalogVersion: catalog.version, spaceTypeCode: null }
+    : merged;
+}
 export function formatExperienceSpaceType(catalog: RequirementExperienceCatalog | null, spaceTypeCode: string | null): string {
   if (!spaceTypeCode) return "Espacio pendiente";
   return catalog?.spaces.find((space) => space.code === spaceTypeCode)?.label ?? spaceTypeCode;

@@ -64,19 +64,21 @@ export function ProjectWorkspaceNavigation({
         {steps.map(({ id, label, disabled, Icon }) => {
           const isActive = activeStep === id;
           return (
-            <li key={id} className="min-w-[9.5rem] lg:min-w-0">
+            <li key={id} className="w-44 flex-none lg:w-auto lg:flex-auto lg:min-w-0">
               <Button
                 type="button"
                 variant="ghost"
                 disabled={disabled}
                 title={
                   disabled
-                    ? "Disponible despues de confirmar la configuracion y calcular la propuesta."
+                    ? "Disponible después de confirmar la configuración y calcular la propuesta."
                     : label
                 }
                 className={cn(
                   "h-11 w-full justify-start gap-2 rounded-sm border px-3 text-left text-sm",
-                  isActive
+                  isActive && id === "moments"
+                    ? "border-[#8D9DB7]/60 bg-[#D9E3F0] text-foreground shadow-sm shadow-[#8D9DB7]/15"
+                    : isActive
                     ? "border-accent bg-accent-soft text-foreground shadow-sm shadow-accent/10"
                     : "border-transparent bg-transparent text-foreground-secondary hover:bg-surface-subtle hover:text-foreground",
                   disabled ? "opacity-55" : "",

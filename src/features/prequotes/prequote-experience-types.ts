@@ -39,7 +39,16 @@ export interface RequirementExperienceItemDraft {
   revision: number;
   updatedAtUtc: string | null;
   updatedByUserId: string | null;
+  level1Resolution: RequirementExperienceLevel1Resolution | null;
   answers: RequirementExperienceAnswer[];
+}
+
+export interface RequirementExperienceLevel1Resolution {
+  systemTier: string | null;
+  glassFamily: string | null;
+  isComplete: boolean;
+  answeredBenefits: number;
+  requiredBenefits: number;
 }
 
 export interface RequirementExperienceDraftsResponse {
@@ -64,6 +73,7 @@ export interface ItemExperienceDraft {
   revision: number;
   updatedAtUtc: string | null;
   updatedByUserId: string | null;
+  level1Resolution: RequirementExperienceLevel1Resolution | null;
   answers: ExperienceAnswers;
   hasServerDraft: boolean;
 }

@@ -94,6 +94,12 @@ export interface TechnicalProposalItemReadiness {
   pendingDefinitions: TechnicalProposalPendingDefinition[];
 }
 
+export interface TechnicalProposalItemDataCompleteness {
+  state: string;
+  isComplete: boolean;
+  missingFields: string[];
+}
+
 export interface TechnicalProposalReadiness {
   state: TechnicalProposalReadinessState;
   isReadyForConfirmation: boolean;
@@ -193,6 +199,7 @@ export interface TechnicalProposalItem {
   extractionConfidence: number | null;
   extractionStatus: string | null;
   manualNote: string | null;
+  manualObservation: string | null;
   suggested: {
     system: TechnicalProposalSystemOption | null;
     glass: TechnicalProposalGlassOption | null;
@@ -219,7 +226,8 @@ export interface TechnicalProposalItem {
   finishResolutionReasons: string[];
   isTechnicallyComplete: boolean;
   isPriceable: boolean;
-    readiness: TechnicalProposalItemReadiness;
+  dataCompleteness: TechnicalProposalItemDataCompleteness;
+  readiness: TechnicalProposalItemReadiness;
   historicalEvidence: {
     status: HistoricalEvidenceStatus;
     supportCount: number;
@@ -245,6 +253,10 @@ export interface TechnicalProposalItem {
     geometryType: string | null;
   };
   evidence: TechnicalProposalEvidence[];
+  occurrenceContext: string | null;
+  extractedLocation: string | null;
+  manualLocationOverride: string | null;
+  effectiveLocation: string | null;
 }
 
 export interface TechnicalProposal {
