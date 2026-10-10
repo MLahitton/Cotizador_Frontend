@@ -29,8 +29,11 @@ import type {
   ItemExperienceDraft,
   RequirementExperienceCatalog,
   RequirementExperienceCatalogQuestion,
+  RequirementExperienceLevel2Response,
+  RequirementExperienceLevel2State,
 } from "@/features/prequotes/prequote-experience-types";
 import {
+  getRequirementExperienceLevel2,
   getRequirementExperienceCatalog,
   getRequirementExperienceDrafts,
   getRequirementExperienceErrorMessage,
@@ -251,6 +254,62 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function level2StatusLabel(state: RequirementExperienceLevel2State): string | null {
+  if (state === "REQUIRES_REVIEW") return "Requiere revision";
+  if (state === "BLOCKED") return "No disponible";
+  if (state === "PENDING") return "Pendiente";
+  return null;
+}
+
+function level2StatusTone(state: RequirementExperienceLevel2State): "neutral" | "warning" | "danger" {
+  if (state === "BLOCKED") return "danger";
+  if (state === "REQUIRES_REVIEW") return "warning";
+  return "neutral";
+}
+
+function level2DisplayValue(state: RequirementExperienceLevel2State, suggestedName: string | null | undefined): string {
+  if (state === "RESOLVED" && suggestedName) return suggestedName;
+  if (state === "REQUIRES_REVIEW") return "Pendiente de definicion";
+  if (state === "BLOCKED") return "No disponible";
+  return "Por definir";
+}
+
+function TechnicalConfigRow({
+  label,
+  value,
+  secondary,
+  state,
+  loading,
+}: {
+  label: string;
+  value: string;
+  secondary?: string | null;
+  state?: RequirementExperienceLevel2State;
+  loading?: boolean;
+}) {
+  const badgeLabel = state ? level2StatusLabel(state) : null;
+
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-border-subtle py-2 text-sm last:border-b-0">
+      <span className="shrink-0 font-semibold text-foreground">{label}</span>
+      <div className="min-w-0 text-right">
+        {loading ? (
+          <span className="inline-flex items-center justify-end gap-1 font-semibold text-foreground-secondary">
+            <Loader2 aria-hidden="true" size={13} className="animate-spin" />
+            Cargando
+          </span>
+        ) : (
+          <>
+            <p className="break-words text-foreground-secondary">{value}</p>
+            {secondary ? <p className="mt-0.5 break-words text-xs text-foreground-secondary">{secondary}</p> : null}
+            {badgeLabel && state ? <Badge tone={level2StatusTone(state)} size="sm" className="mt-1">{badgeLabel}</Badge> : null}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId: string; itemId: string }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -286,6 +345,10 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
   const [physicalError, setPhysicalError] = useState<string | null>(null);
   const [inclusionStatus, setInclusionStatus] = useState<SaveStatus>("idle");
   const [inclusionError, setInclusionError] = useState<string | null>(null);
+  const [level2, setLevel2] = useState<RequirementExperienceLevel2Response | null>(null);
+  const [isLevel2Loading, setIsLevel2Loading] = useState(false);
+  const [level2Error, setLevel2Error] = useState<string | null>(null);
+  const [level2RefreshKey, setLevel2RefreshKey] = useState(0);
 
   const item = useMemo(
     () => proposal?.items.find((candidate) => candidate.itemId.toLowerCase() === itemId.toLowerCase()) ?? null,
@@ -331,6 +394,43 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
       cancelled = true;
     };
   }, [catalog, item, proposal?.technicalProposalId]);
+
+  useEffect(() => {
+    if (!proposal?.technicalProposalId || !item) {
+      queueMicrotask(() => {
+        setLevel2(null);
+        setLevel2Error(null);
+        setIsLevel2Loading(false);
+      });
+      return;
+    }
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setIsLevel2Loading(true);
+      setLevel2Error(null);
+    });
+
+    void getRequirementExperienceLevel2(proposal.technicalProposalId, item.itemId)
+      .then((response) => {
+        if (cancelled) return;
+        setLevel2(response);
+        setLevel2Error(null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLevel2(null);
+        setLevel2Error("No fue posible cargar la configuracion tecnica.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLevel2Loading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [item, level2RefreshKey, proposal?.technicalProposalId]);
 
   useEffect(() => {
     if (!item) return;
@@ -441,6 +541,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
       });
       setDraft(itemDraftFromServer(response));
       setDraftStatus("saved");
+      setLevel2RefreshKey((value) => value + 1);
     } catch (error) {
       const message = getRequirementExperienceErrorMessage(error);
       setDraftError(message);
@@ -492,6 +593,15 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
     const totalArea = deriveDisplayTotalAreaM2(item.areaM2, item.effectiveWidthMm, item.effectiveHeightMm, item.effectiveQuantity);
     const missingFields = item.dataCompleteness.missingFields.map((field) => missingFieldLabels[field]).filter(Boolean);
     const resolution = draft?.level1Resolution;
+    const systemDisplay = level2Error
+      ? "No disponible"
+      : level2DisplayValue(level2?.system.state ?? "PENDING", level2?.system.suggested?.name);
+    const glassDisplay = level2Error
+      ? "No disponible"
+      : level2DisplayValue(level2?.glass.state ?? "PENDING", level2?.glass.suggested?.name);
+    const systemSecondary = !level2Error && level2?.system.state === "RESOLVED" ? level2.system.suggested?.code : null;
+    const glassSecondary = !level2Error && level2?.glass.state === "RESOLVED" ? level2.glass.suggested?.code : null;
+    const showLevel2Loading = isLevel2Loading || (!level2 && !level2Error);
 
     content = (
       <section className="space-y-5">
@@ -590,9 +700,22 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
             <InfoRow label="Linea de sistema" value={resolution?.systemTier ?? "Por definir"} />
             <InfoRow label="Familia de vidrio" value={resolution?.glassFamily ?? "Por definir"} />
             <InfoRow label="Estado" value={resolution?.isComplete ? "Prioridades completas" : "Prioridades incompletas"} />
-            <InfoRow label="Sistema exacto" value="Por definir" />
-            <InfoRow label="Composicion de vidrio" value="Por definir" />
+            <TechnicalConfigRow
+              label="Sistema exacto"
+              value={systemDisplay}
+              secondary={systemSecondary}
+              state={level2Error ? "BLOCKED" : level2?.system.state}
+              loading={showLevel2Loading}
+            />
+            <TechnicalConfigRow
+              label="Composicion de vidrio"
+              value={glassDisplay}
+              secondary={glassSecondary}
+              state={level2Error ? "BLOCKED" : level2?.glass.state}
+              loading={showLevel2Loading}
+            />
             <InfoRow label="Acabado" value="Por definir" />
+            {level2Error ? <p className="text-xs font-semibold text-warning">{level2Error}</p> : null}
           </Surface>
         </div>
 

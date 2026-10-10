@@ -1,14 +1,17 @@
 ﻿import {
   isDateTime,
   isNonEmptyString,
+  isNullableNumber,
   isNonNegativeInteger,
   isNullableString,
   isRecord,
+  isStringArray,
 } from "@/features/prequotes/newpipe-guards";
 import type {
   RequirementExperienceCatalog,
   RequirementExperienceDraftsResponse,
   RequirementExperienceItemDraft,
+  RequirementExperienceLevel2Response,
   UpdateRequirementExperienceDraftRequest,
 } from "@/features/prequotes/prequote-experience-types";
 import { apiRequest } from "@/lib/http/api-client";
@@ -68,6 +71,62 @@ function isDraftsResponse(value: unknown): value is RequirementExperienceDraftsR
     Array.isArray(value.items) && value.items.every(isItemDraft);
 }
 
+function isLevel2State(value: unknown): boolean {
+  return value === "RESOLVED" || value === "REQUIRES_REVIEW" || value === "PENDING" ||
+    value === "BLOCKED" || value === "PENDING_EXTERNAL_SOURCE";
+}
+
+function isLevel2CandidateState(value: unknown): boolean {
+  return value === "COMPATIBLE" || value === "REQUIRES_REVIEW" || value === "INCOMPATIBLE";
+}
+
+function isLevel2SystemCandidate(value: unknown): boolean {
+  return isRecord(value) &&
+    isNonEmptyString(value.id) && isNonEmptyString(value.code) && isNonEmptyString(value.name) &&
+    isNullableString(value.technicalName) && isNullableString(value.commercialName) &&
+    isNullableString(value.functionalType) && isNullableString(value.family) &&
+    isNullableString(value.series) && isLevel2CandidateState(value.compatibilityState) &&
+    isNonNegativeInteger(value.rank) && isStringArray(value.reviewReasons) &&
+    isStringArray(value.blockingReasons);
+}
+
+function isLevel2GlassCandidate(value: unknown): boolean {
+  return isRecord(value) &&
+    isNonEmptyString(value.id) && isNonEmptyString(value.code) && isNonEmptyString(value.name) &&
+    isNullableString(value.family) && isNullableString(value.composition) &&
+    isNullableString(value.treatment) && isNullableNumber(value.outerThicknessMm) &&
+    isNullableNumber(value.innerThicknessMm) && isLevel2CandidateState(value.compatibilityState) &&
+    isNonNegativeInteger(value.rank) && isStringArray(value.reviewReasons) &&
+    isStringArray(value.blockingReasons);
+}
+
+function isLevel2System(value: unknown): boolean {
+  return isRecord(value) && isLevel2State(value.state) &&
+    (value.suggested === null || isLevel2SystemCandidate(value.suggested)) &&
+    Array.isArray(value.candidates) && value.candidates.every(isLevel2SystemCandidate) &&
+    isStringArray(value.reviewReasons) && isStringArray(value.blockingReasons);
+}
+
+function isLevel2Glass(value: unknown): boolean {
+  return isRecord(value) && isLevel2State(value.state) &&
+    isNullableString(value.glassFamily) &&
+    (value.suggested === null || isLevel2GlassCandidate(value.suggested)) &&
+    Array.isArray(value.candidates) && value.candidates.every(isLevel2GlassCandidate) &&
+    isStringArray(value.reviewReasons) && isStringArray(value.blockingReasons);
+}
+
+function isLevel2Finish(value: unknown): boolean {
+  return isRecord(value) && isLevel2State(value.state) &&
+    isStringArray(value.reviewReasons) && isStringArray(value.blockingReasons);
+}
+
+function isLevel2Response(value: unknown): value is RequirementExperienceLevel2Response {
+  return isRecord(value) && isNonEmptyString(value.technicalProposalId) &&
+    isNonEmptyString(value.technicalProposalItemId) && isNullableString(value.effectiveFunctionalType) &&
+    isLevel2System(value.system) && isLevel2Glass(value.glass) &&
+    isLevel2Finish(value.finish) && isLevel2State(value.overallState);
+}
+
 export async function getRequirementExperienceCatalog(): Promise<RequirementExperienceCatalog> {
   const response = await apiRequest("/api/v2/requirements/experience-catalog", { authenticated: true });
   if (!isRequirementExperienceCatalog(response)) {
@@ -111,6 +170,26 @@ export async function updateRequirementExperienceDraft(
       status: 0,
       title: "Respuesta invalida",
       detail: "El servidor devolvio el borrador de experiencia con un formato inesperado.",
+    });
+  }
+  return response;
+}
+
+export async function getRequirementExperienceLevel2(
+  technicalProposalId: string,
+  technicalProposalItemId: string,
+): Promise<RequirementExperienceLevel2Response> {
+  const response = await apiRequest(
+    `/api/v2/requirements/technical-proposals/${encodeURIComponent(technicalProposalId)}/items/${encodeURIComponent(technicalProposalItemId)}/experience-level2`,
+    { authenticated: true },
+  );
+  if (!isLevel2Response(response) ||
+    response.technicalProposalId.toLowerCase() !== technicalProposalId.toLowerCase() ||
+    response.technicalProposalItemId.toLowerCase() !== technicalProposalItemId.toLowerCase()) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio la configuracion tecnica con un formato inesperado.",
     });
   }
   return response;
