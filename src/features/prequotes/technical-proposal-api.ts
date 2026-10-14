@@ -25,6 +25,7 @@ import type {
   VisualPanelRole,
   VisualSystemModel,
   TechnicalProposalItemSource,
+  TechnicalProposalItemDataCompleteness,
 } from "@/features/prequotes/technical-proposal-types";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
@@ -252,6 +253,37 @@ export async function getTechnicalProposal(requirementId: string): Promise<Techn
   return response;
 }
 
+
+export interface TechnicalProposalItemPhysicalDataRequest {
+  quantity: number | null;
+  widthMm: number | null;
+  heightMm: number | null;
+}
+
+export interface TechnicalProposalItemPhysicalDataResponse extends TechnicalProposalItemPhysicalDataRequest {
+  technicalProposalId: string;
+  itemId: string;
+  commercialRevision: number;
+  dataCompleteness: TechnicalProposalItemDataCompleteness;
+}
+
+export async function updateTechnicalProposalItemPhysicalData(
+  technicalProposalId: string,
+  itemId: string,
+  request: TechnicalProposalItemPhysicalDataRequest,
+): Promise<TechnicalProposalItemPhysicalDataResponse> {
+  const response = await apiRequest(
+    `/api/v2/technical-proposals/${encodeURIComponent(technicalProposalId)}/items/${encodeURIComponent(itemId)}/physical-data`,
+    { method: "PUT", authenticated: true, body: request },
+  );
+  if (!isRecord(response) || response.technicalProposalId !== technicalProposalId ||
+      response.itemId !== itemId || !isNullableNumber(response.quantity) ||
+      !isNullableNumber(response.widthMm) || !isNullableNumber(response.heightMm) ||
+      !isNonNegativeInteger(response.commercialRevision) || !isItemDataCompleteness(response.dataCompleteness)) {
+    throw new ApiError({ status: 0, title: "Respuesta invalida", detail: "No fue posible actualizar las medidas del elemento." });
+  }
+  return response as unknown as TechnicalProposalItemPhysicalDataResponse;
+}
 
 export interface TechnicalProposalItemLocationRequest {
   location: string | null;

@@ -1,5 +1,7 @@
 "use client";
 
+import { configurationBlockerMessage, isActionableConfigurationBlocker } from "@/features/projects/experience-configuration-copy";
+
 import {
   AlertCircle,
   CheckCircle2,
@@ -9,7 +11,9 @@ import {
   MapPin,
   Plus,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +21,11 @@ import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { TechnicalProposalVisualPreview } from "@/features/prequotes/components/technical-proposal-visual-preview";
 import {
+  confirmRequirementExperienceConfiguration,
+  getRequirementExperienceConfiguration,
   getRequirementExperienceCatalog,
   getRequirementExperienceDrafts,
+  getRequirementExperienceConfigurationErrorCode,
   getRequirementExperienceErrorMessage,
   updateRequirementExperienceDraft,
 } from "@/features/prequotes/requirement-experience-api";
@@ -27,6 +34,8 @@ import type {
   ItemExperienceDraft,
   ItemExperienceDrafts,
   RequirementExperienceCatalog,
+  RequirementExperienceConfigurationStatusResponse,
+  RequirementExperienceConfigurationItemStatus,
   RequirementExperienceCatalogQuestion,
 } from "@/features/prequotes/prequote-experience-types";
 import {
@@ -50,6 +59,7 @@ const ITEMS_PER_PAGE = 4;
 
 type ItemFilter = "all" | "complete" | "incomplete" | "excluded";
 type DraftStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "conflict";
+type ConfigurationStatusState = "idle" | "loading" | "success" | "error";
 
 const filters: Array<{ id: ItemFilter; label: string }> = [
   { id: "all", label: "Todos" },
@@ -63,6 +73,113 @@ const missingFieldLabels: Record<string, string> = {
   WIDTH: "Falta ancho",
   HEIGHT: "Falta alto",
 };
+
+function formatConfirmationDate(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return new Intl.DateTimeFormat("es-CO", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function configurationStatusCopy(
+  configuration: RequirementExperienceConfigurationStatusResponse,
+): {
+  badge: string;
+  title: string;
+  description: string;
+  actionLabel: string | null;
+  badgeTone: "neutral" | "success" | "warning";
+} {
+  if (configuration.status === "CONFIRMED") {
+    return {
+      badge: "Confirmada",
+      title: "Configuracion confirmada",
+      description: "La configuracion actual coincide con la ultima confirmacion.",
+      actionLabel: null,
+      badgeTone: "success",
+    };
+  }
+
+  if (configuration.status === "STALE") {
+    return {
+      badge: "Modificada",
+      title: "Configuracion modificada",
+      description: "Hay cambios posteriores a la ultima configuracion confirmada.",
+      actionLabel: "Confirmar cambios",
+      badgeTone: "warning",
+    };
+  }
+
+  if (configuration.canConfirm) {
+    return {
+      badge: "Lista",
+      title: "Lista para confirmar",
+      description: "La configuracion tecnica esta completa y lista para continuar.",
+      actionLabel: "Confirmar configuracion",
+      badgeTone: "success",
+    };
+  }
+
+  return {
+    badge: "Borrador",
+    title: "Borrador",
+    description: "Faltan algunos datos antes de poder confirmar la configuracion.",
+    actionLabel: "Confirmar configuracion",
+    badgeTone: "neutral",
+  };
+}
+
+function includedConfigurationItems(
+  configuration: RequirementExperienceConfigurationStatusResponse,
+): RequirementExperienceConfigurationItemStatus[] {
+  return configuration.items
+    .filter((item) => item.isIncluded)
+    .sort((first, second) => {
+      const firstSequence = first.sequence ?? Number.MAX_SAFE_INTEGER;
+      const secondSequence = second.sequence ?? Number.MAX_SAFE_INTEGER;
+      if (firstSequence !== secondSequence) return firstSequence - secondSequence;
+
+      return itemDisplayLabel(first).localeCompare(itemDisplayLabel(second), "es");
+    });
+}
+
+function itemDisplayLabel(item: RequirementExperienceConfigurationItemStatus): string {
+  const reference = item.reference?.trim();
+  if (reference) return reference;
+  if (item.sequence !== null) return `Elemento ${item.sequence}`;
+  return "Elemento";
+}
+
+function itemsWithBlockingReason(
+  configuration: RequirementExperienceConfigurationStatusResponse,
+  reason: string,
+): RequirementExperienceConfigurationItemStatus[] {
+  return includedConfigurationItems(configuration).filter((item) =>
+    item.blockingReasons.includes(reason),
+  );
+}
+
+function itemsWithAnyReviewReason(
+  configuration: RequirementExperienceConfigurationStatusResponse,
+): RequirementExperienceConfigurationItemStatus[] {
+  return includedConfigurationItems(configuration).filter((item) =>
+    item.reviewReasons.length > 0,
+  );
+}
+
+function hasFinishDependency(
+  configuration: RequirementExperienceConfigurationStatusResponse,
+): boolean {
+  return includedConfigurationItems(configuration).some((item) =>
+    item.blockingReasons.includes("FINISH_REQUIRED") ||
+    item.blockingReasons.includes("FINISH_PENDING_EXTERNAL_SOURCE"),
+  );
+}
 
 function answerCount(draft: ItemExperienceDraft, catalog: RequirementExperienceCatalog | null): number {
   if (!catalog) {
@@ -177,7 +294,7 @@ function DraftFeedback({
 
 function isUvQuestion(question: RequirementExperienceCatalogQuestion): boolean {
   const optionCodes = question.options.map((option) => option.optionCode).sort().join("|");
-  return optionCodes === "NO|YES";
+  return optionCodes === "UV_NO|UV_YES";
 }
 
 function optionLabel(option: RequirementExperienceCatalogQuestion["options"][number]): string {
@@ -253,8 +370,8 @@ function UvToggleControl({
   disabled: boolean;
   onSelect: (optionCode: string) => void;
 }) {
-  const noOption = question.options.find((option) => option.optionCode === "NO") ?? question.options[0];
-  const yesOption = question.options.find((option) => option.optionCode === "YES") ?? question.options[1];
+  const noOption = question.options.find((option) => option.optionCode === "UV_NO") ?? question.options[0];
+  const yesOption = question.options.find((option) => option.optionCode === "UV_YES") ?? question.options[1];
   const options = [noOption, yesOption].filter((option): option is RequirementExperienceCatalogQuestion["options"][number] => Boolean(option));
 
   return (
@@ -604,6 +721,288 @@ function ConfigurationAvailabilityState({
   );
 }
 
+function ConfigurationItemLinks({
+  items,
+  projectId,
+}: {
+  items: RequirementExperienceConfigurationItemStatus[];
+  projectId: string;
+}) {
+  if (items.length === 0) return null;
+
+  if (items.length > 5) {
+    return (
+      <p className="mt-2 text-sm text-foreground-secondary">
+        {items.length} elementos requieren atencion. Usa la lista de configuracion para revisarlos por referencia.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2" aria-label="Elementos con cantidad pendiente">
+      {items.map((item) => (
+        <Link
+          key={item.technicalProposalItemId}
+          href={`/projects/${encodeURIComponent(projectId)}/items/${encodeURIComponent(item.technicalProposalItemId)}`}
+          className="inline-flex min-h-9 items-center rounded-full border border-[#C4D2E6] bg-[#EAF1FB] px-3 text-sm font-semibold text-foreground transition hover:border-[#657A9B] hover:bg-[#D9E3F0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#657A9B]"
+        >
+          {itemDisplayLabel(item)}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function ConfigurationPendingRow({
+  tone,
+  title,
+  count,
+  countLabel,
+  description,
+  children,
+}: {
+  tone: "action" | "process" | "review";
+  title: string;
+  count?: number;
+  countLabel?: string;
+  description: string;
+  children?: ReactNode;
+}) {
+  const markerClassName = tone === "action"
+    ? "bg-warning"
+    : tone === "review"
+      ? "bg-[#657A9B]"
+      : "bg-[#8D9DB7]";
+
+  return (
+    <div className="rounded-md border border-border-subtle bg-surface p-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 gap-2">
+          <span aria-hidden="true" className={cn("mt-2 h-2 w-2 shrink-0 rounded-full", markerClassName)} />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">{title}</p>
+            <p className="mt-1 text-sm leading-6 text-foreground-secondary">{description}</p>
+          </div>
+        </div>
+        {typeof count === "number" ? (
+          <span className="shrink-0 text-sm font-semibold text-foreground-secondary">
+            {count} {countLabel ?? (count === 1 ? "elemento" : "elementos")}
+          </span>
+        ) : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function ExperienceConfigurationConfirmationPanel({
+  projectId,
+  configuration,
+  state,
+  confirming,
+  notice,
+  error,
+  onConfirm,
+  onRetry,
+}: {
+  projectId: string;
+  configuration: RequirementExperienceConfigurationStatusResponse | null;
+  state: ConfigurationStatusState;
+  confirming: boolean;
+  notice: string | null;
+  error: string | null;
+  onConfirm: () => void;
+  onRetry: () => void;
+}) {
+  if (state === "loading" || state === "idle") {
+    return (
+      <Surface className="border-[#C4D2E6] bg-[#EAF1FB]/70" aria-busy="true">
+        <div className="flex items-center gap-3 text-sm font-semibold text-foreground-secondary">
+          <Loader2 aria-hidden="true" size={18} className="animate-spin text-[#657A9B]" />
+          Consultando estado de configuracion...
+        </div>
+      </Surface>
+    );
+  }
+
+  if (state === "error" || !configuration) {
+    return (
+      <Surface className="border-warning bg-warning-soft">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 gap-3">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface text-warning">
+              <AlertCircle aria-hidden="true" size={18} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                No fue posible consultar el estado de la configuracion.
+              </p>
+              <p className="mt-1 text-sm leading-6 text-foreground-secondary">
+                Puedes seguir revisando los elementos mientras intentamos consultar nuevamente.
+              </p>
+            </div>
+          </div>
+          <Button type="button" variant="outline" size="sm" className="bg-surface" onClick={onRetry}>
+            Reintentar
+          </Button>
+        </div>
+      </Surface>
+    );
+  }
+
+  const copy = configurationStatusCopy(configuration);
+  const quantityPendingItems = itemsWithBlockingReason(configuration, "QUANTITY_REQUIRED");
+  const glassPendingItems = itemsWithBlockingReason(configuration, "GLASS_REQUIRED");
+  const reviewItems = itemsWithAnyReviewReason(configuration);
+  const finishPending = hasFinishDependency(configuration);
+  const additionalReasons = [...new Set([
+    ...configuration.blockingReasons,
+    ...includedConfigurationItems(configuration).flatMap((item) => item.blockingReasons),
+  ])].filter((reason) => !["QUANTITY_REQUIRED", "GLASS_REQUIRED", "FINISH_REQUIRED", "FINISH_PENDING_EXTERNAL_SOURCE"].includes(reason) ||
+    itemsWithBlockingReason(configuration, reason).length === 0);
+  const hasActionablePending = quantityPendingItems.length > 0;
+  const hasProcessDependencies = glassPendingItems.length > 0 || finishPending;
+  const hasReviews = reviewItems.length > 0;
+  const showBeforeConfirmDetails = configuration.status !== "CONFIRMED" &&
+    (hasActionablePending || hasProcessDependencies || additionalReasons.length > 0);
+  const confirmedDate = formatConfirmationDate(configuration.confirmedAtUtc);
+  const showAction = Boolean(copy.actionLabel);
+  const actionDisabled = !configuration.canConfirm || confirming;
+
+  return (
+    <Surface className="border-[#C4D2E6] bg-[#EAF1FB]/70">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={copy.badgeTone} size="sm">
+              {copy.badge}
+            </Badge>
+            {configuration.latestConfirmationRevision ? (
+              <Badge tone="neutral" size="sm">
+                Revision {configuration.latestConfirmationRevision}
+              </Badge>
+            ) : null}
+            {confirmedDate ? (
+              <span className="text-xs font-semibold text-foreground-secondary">
+                {confirmedDate}
+              </span>
+            ) : null}
+          </div>
+          <h3 className="mt-3 text-lg font-semibold text-foreground">
+            {copy.title}
+          </h3>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-foreground-secondary">
+            {copy.description}
+          </p>
+          {configuration.confirmedByUserId && configuration.status === "CONFIRMED" ? (
+            <p className="mt-1 text-xs font-semibold text-foreground-secondary">
+              Confirmada por el usuario registrado.
+            </p>
+          ) : null}
+        </div>
+
+        {showAction ? (
+          <div className="flex flex-col items-start gap-2 lg:items-end">
+            <Button
+              type="button"
+              disabled={actionDisabled}
+              onClick={onConfirm}
+              aria-describedby={!configuration.canConfirm ? "experience-configuration-blockers" : undefined}
+            >
+              {confirming ? "Confirmando..." : copy.actionLabel}
+            </Button>
+            {!configuration.canConfirm ? (
+              <span className="text-xs font-semibold text-foreground-secondary">
+                Completa lo pendiente para habilitar la confirmacion.
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      {showBeforeConfirmDetails ? (
+        <div id="experience-configuration-blockers" className="mt-4 rounded-md border border-warning/30 bg-warning-soft/60 p-3">
+          <p className="text-sm font-semibold text-foreground">Antes de confirmar</p>
+          <div className="mt-3 grid gap-3">
+            {additionalReasons.map((reason) => {
+              const items = itemsWithBlockingReason(configuration, reason);
+              const actionable = isActionableConfigurationBlocker(reason);
+              return <ConfigurationPendingRow key={reason} tone={actionable ? "action" : "process"} title={configurationBlockerMessage(reason)} description={actionable ? "Abre el elemento para revisar su configuracion." : "Esta definicion debe resolverse antes de confirmar."}>
+                {actionable && items.length > 0 ? <ConfigurationItemLinks items={items} projectId={projectId} /> : null}
+              </ConfigurationPendingRow>;
+            })}
+            {quantityPendingItems.length > 0 ? (
+              <ConfigurationPendingRow
+                tone="action"
+                title="Cantidad pendiente"
+                count={quantityPendingItems.length}
+                description={`${quantityPendingItems.length === 1 ? "Un elemento necesita" : `${quantityPendingItems.length} elementos necesitan`} completar su cantidad.`}
+              >
+                <ConfigurationItemLinks items={quantityPendingItems} projectId={projectId} />
+              </ConfigurationPendingRow>
+            ) : null}
+
+            {glassPendingItems.length > 0 ? (
+              <ConfigurationPendingRow
+                tone="process"
+                title="Vidrio pendiente"
+                count={glassPendingItems.length}
+                description={
+                  glassPendingItems.length === includedConfigurationItems(configuration).length
+                    ? "El vidrio todavia esta pendiente de definicion para los elementos del proyecto."
+                    : "La definicion del vidrio continua pendiente para algunos elementos del proyecto."
+                }
+              />
+            ) : null}
+
+            {finishPending ? (
+              <ConfigurationPendingRow
+                tone="process"
+                title="Acabado pendiente"
+                description="El acabado esta pendiente de definicion."
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {hasReviews ? (
+        <div className="mt-3 rounded-md border border-[#C4D2E6] bg-surface p-3">
+          <p className="text-sm font-semibold text-foreground">
+            Revision tecnica
+          </p>
+          <p className="mt-1 text-sm leading-6 text-foreground-secondary">
+            Hay {reviewItems.length === 1 ? "un elemento cuya definicion tecnica requiere" : `${reviewItems.length} elementos cuya definicion tecnica requiere`} revision. Esto no cambia por si solo la disponibilidad de confirmacion.
+          </p>
+          {reviewItems.length <= 5 ? (
+            <div className="mt-3 flex flex-wrap gap-2" aria-label="Elementos con revision tecnica">
+              {reviewItems.map((item) => (
+                <span
+                  key={item.technicalProposalItemId}
+                  className="inline-flex min-h-8 items-center rounded-full border border-[#C4D2E6] bg-[#EAF1FB]/70 px-3 text-xs font-semibold text-foreground-secondary"
+                >
+                  {itemDisplayLabel(item)}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {notice ? (
+        <p role="status" className="mt-3 text-sm font-semibold text-success">
+          {notice}
+        </p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="mt-3 text-sm font-semibold text-danger">
+          {error}
+        </p>
+      ) : null}
+    </Surface>
+  );
+}
+
 function isProcessingRequirement(status: string | null): boolean {
   return status === "PROCESSING";
 }
@@ -625,6 +1024,7 @@ export function ProjectConfigurationStep({
 }) {
   const router = useRouter();
   const [catalog, setCatalog] = useState<RequirementExperienceCatalog | null>(null);
+  const [catalogRetryKey, setCatalogRetryKey] = useState(0);
   const [drafts, setDrafts] = useState<ItemExperienceDrafts>({});
   const [catalogState, setCatalogState] = useState<"idle" | "loading" | "success" | "error">("loading");
   const [draftsState, setDraftsState] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -632,6 +1032,12 @@ export function ProjectConfigurationStep({
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [inclusionBusy, setInclusionBusy] = useState<Record<string, boolean>>({});
   const [inclusionErrors, setInclusionErrors] = useState<Record<string, string | null>>({});
+  const [configurationStatus, setConfigurationStatus] =
+    useState<RequirementExperienceConfigurationStatusResponse | null>(null);
+  const [configurationState, setConfigurationState] = useState<ConfigurationStatusState>("idle");
+  const [configurationConfirming, setConfigurationConfirming] = useState(false);
+  const [configurationNotice, setConfigurationNotice] = useState<string | null>(null);
+  const [configurationError, setConfigurationError] = useState<string | null>(null);
   const [filter, setFilter] = useState<ItemFilter>("all");
   const [page, setPage] = useState(0);
 
@@ -670,7 +1076,7 @@ export function ProjectConfigurationStep({
     return () => {
       cancelled = true;
     };
-  }, [shouldLoadExperienceData]);
+  }, [shouldLoadExperienceData, catalogRetryKey]);
 
   const loadDrafts = useCallback(() => {
     if (!shouldLoadExperienceData || !technicalProposalId) {
@@ -704,6 +1110,32 @@ export function ProjectConfigurationStep({
       loadDrafts();
     });
   }, [loadDrafts]);
+
+  const loadConfigurationStatus = useCallback(async () => {
+    if (!shouldLoadExperienceData || !technicalProposalId) {
+      setConfigurationStatus(null);
+      setConfigurationState("idle");
+      setConfigurationNotice(null);
+      setConfigurationError(null);
+      return;
+    }
+
+    setConfigurationState("loading");
+    setConfigurationError(null);
+    try {
+      const response = await getRequirementExperienceConfiguration(technicalProposalId);
+      setConfigurationStatus(response);
+      setConfigurationState("success");
+    } catch {
+      setConfigurationState("error");
+    }
+  }, [shouldLoadExperienceData, technicalProposalId]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadConfigurationStatus();
+    });
+  }, [loadConfigurationStatus]);
 
   const counts = useMemo(
     () => completenessCounts(proposal?.items ?? []),
@@ -760,6 +1192,7 @@ export function ProjectConfigurationStep({
         [response.technicalProposalItemId]: itemDraftFromServer(response),
       }));
       setStatuses((current) => ({ ...current, [draft.itemId]: "saved" }));
+      void loadConfigurationStatus();
     } catch (error: unknown) {
       const message = getRequirementExperienceErrorMessage(error);
       setStatuses((current) => ({
@@ -770,7 +1203,7 @@ export function ProjectConfigurationStep({
       }));
       setErrors((current) => ({ ...current, [draft.itemId]: message }));
     }
-  }, [catalog, technicalProposalId]);
+  }, [catalog, loadConfigurationStatus, technicalProposalId]);
 
   const openItem = useCallback((item: TechnicalProposalItem) => {
     router.push(`/projects/${encodeURIComponent(workspace.project.id)}/items/${encodeURIComponent(item.itemId)}`);
@@ -790,6 +1223,7 @@ export function ProjectConfigurationStep({
         { isIncluded: !item.isIncluded, reason: null },
       );
       onItemInclusionUpdated(response);
+      void loadConfigurationStatus();
     } catch {
       setInclusionErrors((current) => ({
         ...current,
@@ -798,7 +1232,36 @@ export function ProjectConfigurationStep({
     } finally {
       setInclusionBusy((current) => ({ ...current, [item.itemId]: false }));
     }
-  }, [onItemInclusionUpdated, requirementId]);
+  }, [loadConfigurationStatus, onItemInclusionUpdated, requirementId]);
+
+  const confirmConfiguration = useCallback(async () => {
+    if (!technicalProposalId || configurationConfirming) {
+      return;
+    }
+
+    setConfigurationConfirming(true);
+    setConfigurationNotice(null);
+    setConfigurationError(null);
+    try {
+      const response = await confirmRequirementExperienceConfiguration(technicalProposalId);
+      setConfigurationStatus(response);
+      setConfigurationState("success");
+      setConfigurationNotice("Configuracion confirmada.");
+    } catch (error: unknown) {
+      const code = getRequirementExperienceConfigurationErrorCode(error);
+      if (code === "REQUIREMENT_EXPERIENCE_CONFIGURATION_BLOCKED") {
+        await loadConfigurationStatus();
+        setConfigurationError("La configuracion cambio y necesita una nueva revision antes de confirmarse.");
+      } else if (code === "REQUIREMENT_EXPERIENCE_CONFLICT") {
+        await loadConfigurationStatus();
+        setConfigurationError("La configuracion fue actualizada. Revisamos nuevamente su estado.");
+      } else {
+        setConfigurationError("No fue posible confirmar la configuracion.");
+      }
+    } finally {
+      setConfigurationConfirming(false);
+    }
+  }, [configurationConfirming, loadConfigurationStatus, technicalProposalId]);
 
   if (isProposalLoading) {
     return (
@@ -876,7 +1339,7 @@ export function ProjectConfigurationStep({
             Ajusta las prioridades de cada elemento según las necesidades del proyecto.
           </p>
         </div>
-        <Button type="button" variant="outline" disabled title="Pendiente de flujo manual V4">
+        <Button type="button" variant="outline" disabled title="Pendiente de definicion">
           <Plus aria-hidden="true" size={16} />
           Agregar elemento
         </Button>
@@ -912,11 +1375,11 @@ export function ProjectConfigurationStep({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="neutral" size="sm">
-              {catalog?.version ?? "Catálogo pendiente"}
+              {catalog ? "Prioridades del proyecto" : "Prioridades pendientes"}
             </Badge>
             {loadingExperience ? <Badge tone="neutral" size="sm">Cargando preferencias</Badge> : null}
             {experienceError ? (
-              <Button type="button" variant="outline" size="sm" onClick={loadDrafts}>
+              <Button type="button" variant="outline" size="sm" onClick={() => { setCatalogRetryKey((value) => value + 1); if (draftsState === "error") loadDrafts(); }}>
                 Reintentar preferencias
               </Button>
             ) : null}
@@ -981,6 +1444,17 @@ export function ProjectConfigurationStep({
           })}
         </div>
       )}
+
+      <ExperienceConfigurationConfirmationPanel
+        projectId={workspace.project.id}
+        configuration={configurationStatus}
+        state={configurationState}
+        confirming={configurationConfirming}
+        notice={configurationNotice}
+        error={configurationError}
+        onConfirm={confirmConfiguration}
+        onRetry={loadConfigurationStatus}
+      />
     </section>
   );
 }

@@ -1,4 +1,4 @@
-﻿import {
+import {
   isDateTime,
   isNonEmptyString,
   isNullableNumber,
@@ -9,10 +9,15 @@
 } from "@/features/prequotes/newpipe-guards";
 import type {
   RequirementExperienceCatalog,
+  RequirementExperienceConfigurationItemStatus,
+  RequirementExperienceConfigurationStatus,
+  RequirementExperienceConfigurationStatusResponse,
   RequirementExperienceDraftsResponse,
   RequirementExperienceItemDraft,
   RequirementExperienceLevel2Response,
   UpdateRequirementExperienceDraftRequest,
+  UpdateRequirementExperienceLevel2GlassRequest,
+  UpdateRequirementExperienceLevel2SystemRequest,
 } from "@/features/prequotes/prequote-experience-types";
 import { apiRequest } from "@/lib/http/api-client";
 import { ApiError } from "@/lib/http/api-error";
@@ -76,8 +81,16 @@ function isLevel2State(value: unknown): boolean {
     value === "BLOCKED" || value === "PENDING_EXTERNAL_SOURCE";
 }
 
+function isConfigurationStatus(value: unknown): value is RequirementExperienceConfigurationStatus {
+  return value === "DRAFT" || value === "CONFIRMED" || value === "STALE";
+}
+
 function isLevel2CandidateState(value: unknown): boolean {
   return value === "COMPATIBLE" || value === "REQUIRES_REVIEW" || value === "INCOMPATIBLE";
+}
+
+function isLevel2OverrideState(value: unknown): boolean {
+  return value === "NONE" || value === "VALID" || value === "REQUIRES_REVIEW" || value === "STALE";
 }
 
 function isLevel2SystemCandidate(value: unknown): boolean {
@@ -103,6 +116,9 @@ function isLevel2GlassCandidate(value: unknown): boolean {
 function isLevel2System(value: unknown): boolean {
   return isRecord(value) && isLevel2State(value.state) &&
     (value.suggested === null || isLevel2SystemCandidate(value.suggested)) &&
+    (value.override === null || isLevel2SystemCandidate(value.override)) &&
+    (value.effective === null || isLevel2SystemCandidate(value.effective)) &&
+    isLevel2OverrideState(value.overrideState) &&
     Array.isArray(value.candidates) && value.candidates.every(isLevel2SystemCandidate) &&
     isStringArray(value.reviewReasons) && isStringArray(value.blockingReasons);
 }
@@ -111,6 +127,9 @@ function isLevel2Glass(value: unknown): boolean {
   return isRecord(value) && isLevel2State(value.state) &&
     isNullableString(value.glassFamily) &&
     (value.suggested === null || isLevel2GlassCandidate(value.suggested)) &&
+    (value.override === null || isLevel2GlassCandidate(value.override)) &&
+    (value.effective === null || isLevel2GlassCandidate(value.effective)) &&
+    isLevel2OverrideState(value.overrideState) &&
     Array.isArray(value.candidates) && value.candidates.every(isLevel2GlassCandidate) &&
     isStringArray(value.reviewReasons) && isStringArray(value.blockingReasons);
 }
@@ -122,9 +141,47 @@ function isLevel2Finish(value: unknown): boolean {
 
 function isLevel2Response(value: unknown): value is RequirementExperienceLevel2Response {
   return isRecord(value) && isNonEmptyString(value.technicalProposalId) &&
-    isNonEmptyString(value.technicalProposalItemId) && isNullableString(value.effectiveFunctionalType) &&
-    isLevel2System(value.system) && isLevel2Glass(value.glass) &&
+    isNonEmptyString(value.technicalProposalItemId) && isNullableNumber(value.technicalSelectionRevision) &&
+    isNullableString(value.effectiveFunctionalType) && isLevel2System(value.system) && isLevel2Glass(value.glass) &&
     isLevel2Finish(value.finish) && isLevel2State(value.overallState);
+}
+
+function isConfigurationItemStatus(value: unknown): value is RequirementExperienceConfigurationItemStatus {
+  return isRecord(value) &&
+    isNonEmptyString(value.technicalProposalItemId) &&
+    isNullableString(value.reference) &&
+    isNullableNumber(value.sequence) &&
+    typeof value.isIncluded === "boolean" &&
+    isNullableNumber(value.quantity) &&
+    isNullableNumber(value.widthMm) &&
+    isNullableNumber(value.heightMm) &&
+    isNullableNumber(value.areaM2) &&
+    isNullableString(value.location) &&
+    isNullableString(value.systemId) &&
+    isNullableString(value.glassTypeId) &&
+    isNullableString(value.finishTypeId) &&
+    (value.systemState === null || isLevel2State(value.systemState)) &&
+    (value.glassState === null || isLevel2State(value.glassState)) &&
+    (value.finishState === null || isLevel2State(value.finishState)) &&
+    (value.systemOverrideState === null || isLevel2OverrideState(value.systemOverrideState)) &&
+    (value.glassOverrideState === null || isLevel2OverrideState(value.glassOverrideState)) &&
+    (value.readinessState === "READY" || value.readinessState === "WARNING" || value.readinessState === "BLOCKED") &&
+    isStringArray(value.reviewReasons) &&
+    isStringArray(value.blockingReasons);
+}
+
+function isConfigurationStatusResponse(value: unknown): value is RequirementExperienceConfigurationStatusResponse {
+  return isRecord(value) &&
+    isNonEmptyString(value.technicalProposalId) &&
+    isConfigurationStatus(value.status) &&
+    typeof value.canConfirm === "boolean" &&
+    isNullableNumber(value.latestConfirmationRevision) &&
+    (value.confirmedAtUtc === null || isDateTime(value.confirmedAtUtc)) &&
+    isNullableString(value.confirmedByUserId) &&
+    isStringArray(value.reviewReasons) &&
+    isStringArray(value.blockingReasons) &&
+    Array.isArray(value.items) &&
+    value.items.every(isConfigurationItemStatus);
 }
 
 export async function getRequirementExperienceCatalog(): Promise<RequirementExperienceCatalog> {
@@ -193,6 +250,97 @@ export async function getRequirementExperienceLevel2(
     });
   }
   return response;
+}
+
+
+export async function updateRequirementExperienceLevel2System(
+  technicalProposalId: string,
+  technicalProposalItemId: string,
+  request: UpdateRequirementExperienceLevel2SystemRequest,
+): Promise<RequirementExperienceLevel2Response> {
+  const response = await apiRequest(
+    `/api/v2/requirements/technical-proposals/${encodeURIComponent(technicalProposalId)}/items/${encodeURIComponent(technicalProposalItemId)}/experience-level2/system`,
+    { method: "PUT", authenticated: true, body: request },
+  );
+  if (!isLevel2Response(response) ||
+    response.technicalProposalId.toLowerCase() !== technicalProposalId.toLowerCase() ||
+    response.technicalProposalItemId.toLowerCase() !== technicalProposalItemId.toLowerCase()) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio la seleccion de sistema con un formato inesperado.",
+    });
+  }
+  return response;
+}
+
+export async function updateRequirementExperienceLevel2Glass(
+  technicalProposalId: string,
+  technicalProposalItemId: string,
+  request: UpdateRequirementExperienceLevel2GlassRequest,
+): Promise<RequirementExperienceLevel2Response> {
+  const response = await apiRequest(
+    `/api/v2/requirements/technical-proposals/${encodeURIComponent(technicalProposalId)}/items/${encodeURIComponent(technicalProposalItemId)}/experience-level2/glass`,
+    { method: "PUT", authenticated: true, body: request },
+  );
+  if (!isLevel2Response(response) ||
+    response.technicalProposalId.toLowerCase() !== technicalProposalId.toLowerCase() ||
+    response.technicalProposalItemId.toLowerCase() !== technicalProposalItemId.toLowerCase()) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio la seleccion de vidrio con un formato inesperado.",
+    });
+  }
+  return response;
+}
+
+export async function getRequirementExperienceConfiguration(
+  technicalProposalId: string,
+): Promise<RequirementExperienceConfigurationStatusResponse> {
+  const response = await apiRequest(
+    `/api/v2/requirements/technical-proposals/${encodeURIComponent(technicalProposalId)}/experience-configuration`,
+    { authenticated: true },
+  );
+  if (!isConfigurationStatusResponse(response) ||
+    response.technicalProposalId.toLowerCase() !== technicalProposalId.toLowerCase()) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio el estado de configuracion con un formato inesperado.",
+    });
+  }
+  return response;
+}
+
+export async function confirmRequirementExperienceConfiguration(
+  technicalProposalId: string,
+): Promise<RequirementExperienceConfigurationStatusResponse> {
+  const response = await apiRequest(
+    `/api/v2/requirements/technical-proposals/${encodeURIComponent(technicalProposalId)}/experience-configuration/confirm`,
+    { method: "POST", authenticated: true },
+  );
+  if (!isConfigurationStatusResponse(response) ||
+    response.technicalProposalId.toLowerCase() !== technicalProposalId.toLowerCase()) {
+    throw new ApiError({
+      status: 0,
+      title: "Respuesta invalida",
+      detail: "El servidor devolvio la confirmacion de configuracion con un formato inesperado.",
+    });
+  }
+  return response;
+}
+
+export function getRequirementExperienceLevel2ErrorCode(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  const code = error.problemDetails?.errorCode ?? error.problemDetails?.code;
+  return typeof code === "string" ? code : null;
+}
+
+export function getRequirementExperienceConfigurationErrorCode(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  const code = error.problemDetails?.errorCode ?? error.problemDetails?.code;
+  return typeof code === "string" ? code : null;
 }
 
 export function getRequirementExperienceErrorMessage(error: unknown): string {

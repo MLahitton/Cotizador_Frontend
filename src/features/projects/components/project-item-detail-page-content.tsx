@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,33 +24,37 @@ import { Input } from "@/components/ui/input";
 import { Surface } from "@/components/ui/surface";
 import { useAuth } from "@/features/auth/auth-context";
 import { TechnicalProposalVisualPreview } from "@/features/prequotes/components/technical-proposal-visual-preview";
+import { ExperienceLevel2SelectionDialog, type ExperienceLevel2DialogOption } from "@/features/projects/components/experience-level2-selection-dialog";
 import { defaultDraftForItem, itemDraftFromServer } from "@/features/prequotes/prequote-experience-demo-config";
 import type {
   ItemExperienceDraft,
   RequirementExperienceCatalog,
   RequirementExperienceCatalogQuestion,
+  RequirementExperienceLevel2GlassCandidate,
+  RequirementExperienceLevel2OverrideState,
   RequirementExperienceLevel2Response,
-  RequirementExperienceLevel2State,
+  RequirementExperienceLevel2SystemCandidate,
 } from "@/features/prequotes/prequote-experience-types";
 import {
   getRequirementExperienceLevel2,
   getRequirementExperienceCatalog,
   getRequirementExperienceDrafts,
   getRequirementExperienceErrorMessage,
+  getRequirementExperienceLevel2ErrorCode,
   updateRequirementExperienceDraft,
+  updateRequirementExperienceLevel2Glass,
+  updateRequirementExperienceLevel2System,
 } from "@/features/prequotes/requirement-experience-api";
 import {
   getTechnicalProposalItemLocationErrorMessage,
   getTechnicalProposalItemObservationErrorMessage,
   updateTechnicalProposalItemLocation,
   updateTechnicalProposalItemObservation,
+  updateTechnicalProposalItemPhysicalData,
 } from "@/features/prequotes/technical-proposal-api";
 import {
-  getTechnicalProposalSelectionErrorMessage,
   updateTechnicalProposalItemInclusion,
-  updateTechnicalProposalItemSelection,
   type TechnicalProposalItemInclusionResponse,
-  type TechnicalProposalSelectionRequest,
 } from "@/features/prequotes/technical-proposal-selection-api";
 import {
   deriveDisplayAreaM2,
@@ -69,6 +73,7 @@ import {
 import { useProjectWorkspace } from "@/features/projects/use-project-workspace";
 import { useProjectWorkspaceProposal } from "@/features/projects/use-project-workspace-proposal";
 import { cn } from "@/lib/utils/cn";
+import { ApiError } from "@/lib/http/api-error";
 
 const missingFieldLabels: Record<string, string> = {
   QUANTITY: "Cantidad",
@@ -96,8 +101,8 @@ function cleanOptional(value: string): string | null {
 }
 
 function parsePositiveInteger(value: string): number | null {
-  const parsed = Number.parseInt(value.trim(), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  const parsed = Number(value.trim());
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function toInput(value: number | null): string {
@@ -109,7 +114,7 @@ function optionLabel(option: RequirementExperienceCatalogQuestion["options"][num
 }
 
 function isUvQuestion(question: RequirementExperienceCatalogQuestion): boolean {
-  return question.options.map((option) => option.optionCode).sort().join("|") === "NO|YES";
+  return question.options.map((option) => option.optionCode).sort().join("|") === "UV_NO|UV_YES";
 }
 
 
@@ -171,8 +176,8 @@ function PriorityControl({
   let control;
 
   if (uvQuestion) {
-    const noOption = question.options.find((option) => option.optionCode === "NO") ?? question.options[0];
-    const yesOption = question.options.find((option) => option.optionCode === "YES") ?? question.options[1];
+    const noOption = question.options.find((option) => option.optionCode === "UV_NO") ?? question.options[0];
+    const yesOption = question.options.find((option) => option.optionCode === "UV_YES") ?? question.options[1];
     const options = [noOption, yesOption].filter((option): option is RequirementExperienceCatalogQuestion["options"][number] => Boolean(option));
 
     control = (
@@ -254,62 +259,140 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function level2StatusLabel(state: RequirementExperienceLevel2State): string | null {
-  if (state === "REQUIRES_REVIEW") return "Requiere revision";
-  if (state === "BLOCKED") return "No disponible";
-  if (state === "PENDING") return "Pendiente";
-  return null;
+type Level2Kind = "system" | "glass";
+type Level2Candidate = RequirementExperienceLevel2SystemCandidate | RequirementExperienceLevel2GlassCandidate;
+
+function sameId(left: string | null | undefined, right: string | null | undefined): boolean {
+  return Boolean(left && right && left.toLowerCase() === right.toLowerCase());
 }
 
-function level2StatusTone(state: RequirementExperienceLevel2State): "neutral" | "warning" | "danger" {
-  if (state === "BLOCKED") return "danger";
-  if (state === "REQUIRES_REVIEW") return "warning";
-  return "neutral";
+function systemTitle(candidate: RequirementExperienceLevel2SystemCandidate | null | undefined): string {
+  return candidate?.commercialName?.trim() || candidate?.name?.trim() || "Pendiente de definicion";
 }
 
-function level2DisplayValue(state: RequirementExperienceLevel2State, suggestedName: string | null | undefined): string {
-  if (state === "RESOLVED" && suggestedName) return suggestedName;
-  if (state === "REQUIRES_REVIEW") return "Pendiente de definicion";
-  if (state === "BLOCKED") return "No disponible";
-  return "Por definir";
+function systemDescription(candidate: RequirementExperienceLevel2SystemCandidate): string | null {
+  return [candidate.technicalName, candidate.family, candidate.series].filter(Boolean).join(" · ") || null;
 }
 
-function TechnicalConfigRow({
-  label,
-  value,
-  secondary,
-  state,
+function glassTitle(candidate: RequirementExperienceLevel2GlassCandidate | null | undefined): string {
+  return candidate?.composition?.trim() || candidate?.name?.trim() || "Pendiente de definicion";
+}
+
+function glassDescription(candidate: RequirementExperienceLevel2GlassCandidate): string | null {
+  return [candidate.name, candidate.treatment, candidate.family].filter(Boolean).join(" · ") || null;
+}
+
+function candidateCode(candidate: Level2Candidate | null | undefined): string | null {
+  return candidate?.code?.trim() || null;
+}
+
+function overrideBadges(overrideState: RequirementExperienceLevel2OverrideState, hasEffective: boolean) {
+  if (!hasEffective) return [];
+  if (overrideState === "VALID") return [{ label: "Seleccion personalizada", tone: "brand" as const }];
+  if (overrideState === "REQUIRES_REVIEW") return [
+    { label: "Seleccion personalizada", tone: "brand" as const },
+    { label: "Requiere revision tecnica", tone: "warning" as const },
+  ];
+  if (overrideState === "STALE") return [{ label: "Seleccion anterior no compatible", tone: "warning" as const }];
+  return [{ label: "Recomendado", tone: "success" as const }];
+}
+
+function level2DialogOptions(
+  kind: Level2Kind,
+  level2: RequirementExperienceLevel2Response | null,
+): ExperienceLevel2DialogOption[] {
+  if (!level2) return [];
+  const source = kind === "system" ? level2.system : level2.glass;
+  const suggestedId = source.suggested?.id ?? null;
+  const currentId = source.effective?.id ?? null;
+  return source.candidates.map((candidate) => ({
+    id: candidate.id,
+    title: kind === "system"
+      ? systemTitle(candidate as RequirementExperienceLevel2SystemCandidate)
+      : glassTitle(candidate as RequirementExperienceLevel2GlassCandidate),
+    code: candidate.code,
+    description: kind === "system"
+      ? systemDescription(candidate as RequirementExperienceLevel2SystemCandidate)
+      : glassDescription(candidate as RequirementExperienceLevel2GlassCandidate),
+    compatibilityState: candidate.compatibilityState,
+    isSuggested: sameId(candidate.id, suggestedId),
+    isCurrent: sameId(candidate.id, currentId),
+  }));
+}
+
+function Level2TechnicalCard({
+  kind,
+  title,
   loading,
+  loadError,
+  level2,
+  saving,
+  onChange,
+  onClear,
 }: {
-  label: string;
-  value: string;
-  secondary?: string | null;
-  state?: RequirementExperienceLevel2State;
-  loading?: boolean;
+  kind: Level2Kind;
+  title: string;
+  loading: boolean;
+  loadError: string | null;
+  level2: RequirementExperienceLevel2Response | null;
+  saving: boolean;
+  onChange: () => void;
+  onClear: () => void;
 }) {
-  const badgeLabel = state ? level2StatusLabel(state) : null;
+  const model = kind === "system" ? level2?.system : level2?.glass;
+  const effective = model?.effective ?? null;
+  const suggested = model?.suggested ?? null;
+  const override = model?.override ?? null;
+  const overrideState = model?.overrideState ?? "NONE";
+  const displayTitle = kind === "system"
+    ? systemTitle(effective as RequirementExperienceLevel2SystemCandidate | null)
+    : glassTitle(effective as RequirementExperienceLevel2GlassCandidate | null);
+  const displayCode = candidateCode(effective);
+  const suggestedTitle = kind === "system"
+    ? systemTitle(suggested as RequirementExperienceLevel2SystemCandidate | null)
+    : glassTitle(suggested as RequirementExperienceLevel2GlassCandidate | null);
+  const suggestedCode = candidateCode(suggested);
+  const showSuggested = Boolean(override && suggested && !sameId(effective?.id, suggested.id));
+  const canClear = Boolean(override);
+  const actionLabel = kind === "system" ? "Cambiar sistema" : model?.suggested ? "Cambiar vidrio" : "Revisar alternativas";
+  const badges = overrideBadges(overrideState, Boolean(effective));
 
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-border-subtle py-2 text-sm last:border-b-0">
-      <span className="shrink-0 font-semibold text-foreground">{label}</span>
-      <div className="min-w-0 text-right">
+    <div className="rounded-md border border-border-subtle bg-surface p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">{title}</p>
+          {kind === "glass" && level2?.glass.glassFamily ? <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-foreground-secondary">Familia requerida: {level2.glass.glassFamily}</p> : null}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {badges.map((badge) => <Badge key={badge.label} tone={badge.tone} size="sm">{badge.label}</Badge>)}
+        </div>
+      </div>
+
+      <div className="mt-4 min-h-16">
         {loading ? (
-          <span className="inline-flex items-center justify-end gap-1 font-semibold text-foreground-secondary">
-            <Loader2 aria-hidden="true" size={13} className="animate-spin" />
-            Cargando
-          </span>
+          <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground-secondary"><Loader2 aria-hidden="true" size={15} className="animate-spin" />Cargando configuracion</span>
+        ) : loadError ? (
+          <p className="text-sm font-semibold text-warning">{loadError}</p>
         ) : (
           <>
-            <p className="break-words text-foreground-secondary">{value}</p>
-            {secondary ? <p className="mt-0.5 break-words text-xs text-foreground-secondary">{secondary}</p> : null}
-            {badgeLabel && state ? <Badge tone={level2StatusTone(state)} size="sm" className="mt-1">{badgeLabel}</Badge> : null}
+            <p className="text-base font-semibold text-foreground">{displayTitle}</p>
+            {displayCode ? <p className="mt-1 text-sm text-foreground-secondary">{displayCode}</p> : null}
+            {kind === "glass" && !effective ? <p className="mt-1 text-sm text-foreground-secondary">Composicion pendiente de definicion.</p> : null}
+            {showSuggested ? <p className="mt-3 text-xs text-foreground-secondary">Sugerido: {suggestedTitle}{suggestedCode ? ` · ${suggestedCode}` : ""}</p> : null}
+            {overrideState === "STALE" ? <p className="mt-3 text-xs font-semibold text-warning">La seleccion anterior ya no es compatible con la configuracion actual.</p> : null}
+            {kind === "glass" && !suggested && model?.candidates.some((candidate) => candidate.compatibilityState === "REQUIRES_REVIEW") ? <p className="mt-3 text-xs text-foreground-secondary">Las alternativas disponibles requieren revision tecnica.</p> : null}
           </>
         )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button type="button" size="sm" variant="outline" disabled={loading || Boolean(loadError) || saving || !level2} onClick={onChange}>{actionLabel}</Button>
+        {canClear ? <Button type="button" size="sm" variant="ghost" disabled={loading || saving || !level2} onClick={onClear}>{model?.suggested ? "Usar recomendado" : "Limpiar seleccion"}</Button> : null}
       </div>
     </div>
   );
 }
-
 export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId: string; itemId: string }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -348,7 +431,14 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
   const [level2, setLevel2] = useState<RequirementExperienceLevel2Response | null>(null);
   const [isLevel2Loading, setIsLevel2Loading] = useState(false);
   const [level2Error, setLevel2Error] = useState<string | null>(null);
+  const [level2Notice, setLevel2Notice] = useState<string | null>(null);
+  const [level2Dialog, setLevel2Dialog] = useState<Level2Kind | null>(null);
+  const [level2Saving, setLevel2Saving] = useState<Level2Kind | null>(null);
   const [level2RefreshKey, setLevel2RefreshKey] = useState(0);
+  const [experienceRetryKey, setExperienceRetryKey] = useState(0);
+  const [submittingOptionId, setSubmittingOptionId] = useState<string | null>(null);
+  const initializedItem = useRef<string | null>(null);
+  const initializedDraft = useRef<string | null>(null);
 
   const item = useMemo(
     () => proposal?.items.find((candidate) => candidate.itemId.toLowerCase() === itemId.toLowerCase()) ?? null,
@@ -367,17 +457,20 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [experienceRetryKey]);
 
   useEffect(() => {
     if (!proposal?.technicalProposalId || !item) {
-      queueMicrotask(() => setDraft(null));
       return;
     }
+    if (initializedDraft.current === `${proposal.technicalProposalId}:${item.itemId}`) return;
     let cancelled = false;
     void getRequirementExperienceDrafts(proposal.technicalProposalId)
       .then((response) => {
         if (cancelled) return;
+        const draftKey = `${proposal.technicalProposalId}:${item.itemId}`;
+        if (initializedDraft.current === draftKey) return;
+        initializedDraft.current = draftKey;
         const serverDraft = response.items.find((entry) => entry.technicalProposalItemId.toLowerCase() === item.itemId.toLowerCase());
         setDraft(defaultDraftForItem(item, catalog, serverDraft ? itemDraftFromServer(serverDraft) : undefined));
         setDraftStatus("idle");
@@ -393,13 +486,15 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
     return () => {
       cancelled = true;
     };
-  }, [catalog, item, proposal?.technicalProposalId]);
+  }, [catalog, item, proposal?.technicalProposalId, experienceRetryKey]);
 
   useEffect(() => {
     if (!proposal?.technicalProposalId || !item) {
       queueMicrotask(() => {
         setLevel2(null);
         setLevel2Error(null);
+        setLevel2Notice(null);
+        setLevel2Dialog(null);
         setIsLevel2Loading(false);
       });
       return;
@@ -417,6 +512,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
         if (cancelled) return;
         setLevel2(response);
         setLevel2Error(null);
+        setLevel2Notice(null);
       })
       .catch(() => {
         if (cancelled) return;
@@ -434,7 +530,12 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
 
   useEffect(() => {
     if (!item) return;
+    const key = `${projectId}:${item.itemId}`;
+    if (initializedItem.current === key) return;
+    let cancelled = false;
     queueMicrotask(() => {
+      if (cancelled) return;
+      initializedItem.current = key;
       setLocationInput(locationLabel(item) === "Por definir" ? "" : locationLabel(item));
       setQuantityInput(toInput(item.effectiveQuantity));
       setWidthInput(toInput(item.effectiveWidthMm));
@@ -447,7 +548,8 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
       setObservationStatus("idle");
       setObservationError(null);
     });
-  }, [item]);
+    return () => { cancelled = true; };
+  }, [item, projectId]);
 
   const handleStepChange = useCallback((step: ProjectWorkspaceStep) => {
     router.push(`/projects/${encodeURIComponent(projectId)}${step === "context" ? "" : `?section=${step}`}`);
@@ -477,21 +579,27 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
     const quantity = parsePositiveInteger(quantityInput);
     const widthMm = parsePositiveInteger(widthInput);
     const heightMm = parsePositiveInteger(heightInput);
-    if (!quantity || !widthMm || !heightMm) {
-      setPhysicalError("Completa cantidad, ancho y alto con valores mayores a cero.");
+    if ((!quantity && !widthMm && !heightMm) ||
+        (quantityInput.trim() && quantity === null) ||
+        (widthInput.trim() && widthMm === null) ||
+        (heightInput.trim() && heightMm === null)) {
+      setPhysicalError("Ingresa al menos un dato y usa numeros enteros mayores a cero. Los campos vacios conservan su valor actual.");
       setPhysicalStatus("error");
       return;
     }
-    const request: TechnicalProposalSelectionRequest = { quantity, widthMm, heightMm };
+    const request = { quantity, widthMm, heightMm };
     setPhysicalStatus("saving");
     setPhysicalError(null);
     try {
-      await updateTechnicalProposalItemSelection(proposal.technicalProposalId, item.itemId, request);
-      applyItemPhysicalUpdate(item.itemId, request);
+      const response = await updateTechnicalProposalItemPhysicalData(proposal.technicalProposalId, item.itemId, request);
+      applyItemPhysicalUpdate(response);
+      setQuantityInput(toInput(response.quantity));
+      setWidthInput(toInput(response.widthMm));
+      setHeightInput(toInput(response.heightMm));
       retryProposal();
       setPhysicalStatus("saved");
-    } catch (error) {
-      setPhysicalError(getTechnicalProposalSelectionErrorMessage(error));
+    } catch {
+      setPhysicalError("No fue posible actualizar las medidas del elemento.");
       setPhysicalStatus("error");
     }
   }, [applyItemPhysicalUpdate, heightInput, item, proposal, quantityInput, retryProposal, widthInput]);
@@ -549,6 +657,49 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
     }
   }, [catalog, draft, item, proposal]);
 
+  const refreshLevel2AfterConcurrency = useCallback(async (message: string) => {
+    if (!proposal || !item) return;
+    try {
+      const response = await getRequirementExperienceLevel2(proposal.technicalProposalId, item.itemId);
+      setLevel2(response);
+      setLevel2Error(null);
+      setLevel2Notice(message);
+      setLevel2Dialog(null);
+    } catch {
+      setLevel2Notice(message);
+      setLevel2Error("No fue posible cargar la configuracion tecnica.");
+      setLevel2Dialog(null);
+    }
+  }, [item, proposal]);
+
+  const saveLevel2Selection = useCallback(async (kind: Level2Kind, selectedId: string | null) => {
+    if (!proposal || !item || !level2 || level2Error || level2Saving) return;
+    setLevel2Saving(kind);
+    setSubmittingOptionId(selectedId);
+    setLevel2Notice(null);
+    try {
+      const expectedRevision = level2.technicalSelectionRevision;
+      const response = kind === "system"
+        ? await updateRequirementExperienceLevel2System(proposal.technicalProposalId, item.itemId, { systemId: selectedId, expectedRevision })
+        : await updateRequirementExperienceLevel2Glass(proposal.technicalProposalId, item.itemId, { glassId: selectedId, expectedRevision });
+      setLevel2(response);
+      setLevel2Error(null);
+      setLevel2Dialog(null);
+    } catch (error) {
+      const code = getRequirementExperienceLevel2ErrorCode(error);
+      if (code === "REQUIREMENT_EXPERIENCE_CONFLICT" ||
+          (error instanceof ApiError && error.status === 409 && code !== "REQUIREMENT_EXPERIENCE_LEVEL2_CANDIDATE_NOT_ALLOWED")) {
+        await refreshLevel2AfterConcurrency("La configuracion cambio mientras la estabas editando. Actualizamos las opciones disponibles.");
+      } else if (code === "REQUIREMENT_EXPERIENCE_LEVEL2_CANDIDATE_NOT_ALLOWED") {
+        await refreshLevel2AfterConcurrency("Esta alternativa ya no esta disponible para la configuracion actual.");
+      } else {
+        setLevel2Notice("No fue posible actualizar la configuracion tecnica.");
+      }
+    } finally {
+      setLevel2Saving(null);
+      setSubmittingOptionId(null);
+    }
+  }, [item, level2, level2Error, level2Saving, proposal, refreshLevel2AfterConcurrency]);
   const toggleInclusion = useCallback(async () => {
     if (!requirementId || !item) return;
     setInclusionStatus("saving");
@@ -593,15 +744,9 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
     const totalArea = deriveDisplayTotalAreaM2(item.areaM2, item.effectiveWidthMm, item.effectiveHeightMm, item.effectiveQuantity);
     const missingFields = item.dataCompleteness.missingFields.map((field) => missingFieldLabels[field]).filter(Boolean);
     const resolution = draft?.level1Resolution;
-    const systemDisplay = level2Error
-      ? "No disponible"
-      : level2DisplayValue(level2?.system.state ?? "PENDING", level2?.system.suggested?.name);
-    const glassDisplay = level2Error
-      ? "No disponible"
-      : level2DisplayValue(level2?.glass.state ?? "PENDING", level2?.glass.suggested?.name);
-    const systemSecondary = !level2Error && level2?.system.state === "RESOLVED" ? level2.system.suggested?.code : null;
-    const glassSecondary = !level2Error && level2?.glass.state === "RESOLVED" ? level2.glass.suggested?.code : null;
     const showLevel2Loading = isLevel2Loading || (!level2 && !level2Error);
+    const systemOptions = level2DialogOptions("system", level2);
+    const glassOptions = level2DialogOptions("glass", level2);
 
     content = (
       <section className="space-y-5">
@@ -669,7 +814,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
           <Surface padding="lg" className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold text-foreground">Editar datos comerciales</h3>
-              <p className="mt-1 text-sm text-foreground-secondary">Estos cambios actualizan los valores efectivos del item.</p>
+              <p className="mt-1 text-sm text-foreground-secondary">Actualiza las medidas y la ubicacion del elemento.</p>
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <label className="space-y-1.5 text-sm font-semibold text-foreground">
@@ -695,27 +840,34 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
           <Surface padding="lg" className="space-y-4 border-[#C4D2E6] bg-[#EAF1FB] p-4 sm:p-6">
             <div>
               <h3 className="text-lg font-semibold text-foreground">Configuracion resultante</h3>
-              <p className="mt-1 text-sm text-foreground-secondary">Level 1 real y campos tecnicos aun pendientes.</p>
+              <p className="mt-1 text-sm text-foreground-secondary">Solucion resultante segun tus prioridades.</p>
             </div>
-            <InfoRow label="Linea de sistema" value={resolution?.systemTier ?? "Por definir"} />
+            <InfoRow label="Nivel de desempeno" value={resolution?.systemTier === "CLASSIC" ? "Clasico" : resolution?.systemTier === "PREMIUM" ? "Premium" : "Por definir"} />
             <InfoRow label="Familia de vidrio" value={resolution?.glassFamily ?? "Por definir"} />
             <InfoRow label="Estado" value={resolution?.isComplete ? "Prioridades completas" : "Prioridades incompletas"} />
-            <TechnicalConfigRow
-              label="Sistema exacto"
-              value={systemDisplay}
-              secondary={systemSecondary}
-              state={level2Error ? "BLOCKED" : level2?.system.state}
+            <Level2TechnicalCard
+              kind="system"
+              title="Sistema"
               loading={showLevel2Loading}
+              loadError={level2Error}
+              level2={level2}
+              saving={level2Saving !== null}
+              onChange={() => setLevel2Dialog("system")}
+              onClear={() => saveLevel2Selection("system", null)}
             />
-            <TechnicalConfigRow
-              label="Composicion de vidrio"
-              value={glassDisplay}
-              secondary={glassSecondary}
-              state={level2Error ? "BLOCKED" : level2?.glass.state}
+            <Level2TechnicalCard
+              kind="glass"
+              title="Vidrio"
               loading={showLevel2Loading}
+              loadError={level2Error}
+              level2={level2}
+              saving={level2Saving !== null}
+              onChange={() => setLevel2Dialog("glass")}
+              onClear={() => saveLevel2Selection("glass", null)}
             />
             <InfoRow label="Acabado" value="Por definir" />
-            {level2Error ? <p className="text-xs font-semibold text-warning">{level2Error}</p> : null}
+            {level2Error ? <Button type="button" variant="outline" disabled={isLevel2Loading} onClick={() => setLevel2RefreshKey((value) => value + 1)}>Reintentar configuracion</Button> : null}
+            {level2Notice ? <p className="text-xs font-semibold text-warning">{level2Notice}</p> : null}
           </Surface>
         </div>
 
@@ -742,7 +894,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
                 />
               ))}
             </div>
-          ) : <p className="text-sm text-foreground-secondary">Catalogo de experiencia no disponible.</p>}
+          ) : <div role="status" className="space-y-2"><p className="text-sm text-foreground-secondary">No fue posible cargar las prioridades.</p><Button type="button" variant="outline" onClick={() => setExperienceRetryKey((value) => value + 1)}>Reintentar</Button></div>}
         </Surface>
 
         <Surface padding="lg" className="space-y-4">
@@ -776,6 +928,26 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
           </div>
         </Surface>
         {inclusionError ? <p className="text-sm font-semibold text-danger">{inclusionError}</p> : null}
+        <ExperienceLevel2SelectionDialog
+          open={level2Dialog === "system"}
+          title="Cambiar sistema"
+          subtitle="Elige una alternativa disponible para este elemento. Validaremos su compatibilidad antes de guardar."
+          options={systemOptions}
+          saving={level2Saving === "system"}
+          submittingOptionId={submittingOptionId}
+          onClose={() => setLevel2Dialog(null)}
+          onSelect={(id) => saveLevel2Selection("system", id)}
+        />
+        <ExperienceLevel2SelectionDialog
+          open={level2Dialog === "glass"}
+          title="Cambiar vidrio"
+          subtitle="Selecciona una composicion dentro de la familia requerida para este elemento. Algunas alternativas pueden requerir revision tecnica."
+          options={glassOptions}
+          saving={level2Saving === "glass"}
+          submittingOptionId={submittingOptionId}
+          onClose={() => setLevel2Dialog(null)}
+          onSelect={(id) => saveLevel2Selection("glass", id)}
+        />
       </section>
     );
   }

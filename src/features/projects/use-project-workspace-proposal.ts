@@ -6,10 +6,10 @@ import {
   getTechnicalProposal,
   type TechnicalProposalItemLocationResponse,
   type TechnicalProposalItemObservationResponse,
+  type TechnicalProposalItemPhysicalDataResponse,
 } from "@/features/prequotes/technical-proposal-api";
 import type {
   TechnicalProposalItemInclusionResponse,
-  TechnicalProposalSelectionRequest,
 } from "@/features/prequotes/technical-proposal-selection-api";
 import type { TechnicalProposal } from "@/features/prequotes/technical-proposal-types";
 
@@ -174,11 +174,10 @@ export function useProjectWorkspaceProposal(
     });
   }, []);
   const applyItemPhysicalUpdate = useCallback((
-    itemId: string,
-    request: TechnicalProposalSelectionRequest,
+    update: TechnicalProposalItemPhysicalDataResponse,
   ) => {
     setState((current) => {
-      if (current.status !== "success") {
+      if (current.status !== "success" || current.data.technicalProposalId !== update.technicalProposalId) {
         return current;
       }
 
@@ -187,15 +186,13 @@ export function useProjectWorkspaceProposal(
         data: {
           ...current.data,
           items: current.data.items.map((item) =>
-            item.itemId.toLowerCase() === itemId.toLowerCase()
+            item.itemId.toLowerCase() === update.itemId.toLowerCase()
               ? {
                   ...item,
-                  manualQuantityOverride: request.quantity ?? item.manualQuantityOverride,
-                  manualWidthMmOverride: request.widthMm ?? item.manualWidthMmOverride,
-                  manualHeightMmOverride: request.heightMm ?? item.manualHeightMmOverride,
-                  effectiveQuantity: request.quantity ?? item.effectiveQuantity,
-                  effectiveWidthMm: request.widthMm ?? item.effectiveWidthMm,
-                  effectiveHeightMm: request.heightMm ?? item.effectiveHeightMm,
+                  effectiveQuantity: update.quantity,
+                  effectiveWidthMm: update.widthMm,
+                  effectiveHeightMm: update.heightMm,
+                  dataCompleteness: update.dataCompleteness,
                 }
               : item,
           ),
