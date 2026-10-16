@@ -1,4 +1,5 @@
 const blockerMessages: Record<string, string> = {
+  EXPERIENCE_PREFERENCES_INCOMPLETE: "Completa las cinco prioridades del elemento para resolver sistema y vidrio.",
   NO_INCLUDED_ITEMS: "Incluye al menos un elemento antes de confirmar.",
   QUANTITY_REQUIRED: "Hay elementos con cantidad pendiente.",
   WIDTH_REQUIRED: "Hay elementos con ancho pendiente.",
@@ -25,6 +26,6 @@ export function configurationBlockerMessage(code: string): string {
 }
 
 export function isActionableConfigurationBlocker(code: string): boolean {
-  return ["QUANTITY_REQUIRED", "WIDTH_REQUIRED", "HEIGHT_REQUIRED", "SYSTEM_REQUIRED",
+  return ["EXPERIENCE_PREFERENCES_INCOMPLETE", "QUANTITY_REQUIRED", "WIDTH_REQUIRED", "HEIGHT_REQUIRED", "SYSTEM_REQUIRED",
     "SYSTEM_STALE", "GLASS_STALE", "LEVEL2_OVERRIDE_STALE"].includes(code);
 }

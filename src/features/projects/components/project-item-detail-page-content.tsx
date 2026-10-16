@@ -329,6 +329,7 @@ function Level2TechnicalCard({
   loading,
   loadError,
   level2,
+  preferencesPending,
   saving,
   onChange,
   onClear,
@@ -338,12 +339,14 @@ function Level2TechnicalCard({
   loading: boolean;
   loadError: string | null;
   level2: RequirementExperienceLevel2Response | null;
+  preferencesPending: boolean;
   saving: boolean;
   onChange: () => void;
   onClear: () => void;
 }) {
   const model = kind === "system" ? level2?.system : level2?.glass;
-  const effective = model?.effective ?? null;
+  const pending = preferencesPending || Boolean(model?.blockingReasons.includes("EXPERIENCE_PREFERENCES_INCOMPLETE"));
+  const effective = pending ? null : model?.effective ?? null;
   const suggested = model?.suggested ?? null;
   const override = model?.override ?? null;
   const overrideState = model?.overrideState ?? "NONE";
@@ -365,7 +368,6 @@ function Level2TechnicalCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{title}</p>
-          {kind === "glass" && level2?.glass.glassFamily ? <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-foreground-secondary">Familia requerida: {level2.glass.glassFamily}</p> : null}
         </div>
         <div className="flex flex-wrap gap-2">
           {badges.map((badge) => <Badge key={badge.label} tone={badge.tone} size="sm">{badge.label}</Badge>)}
@@ -373,7 +375,9 @@ function Level2TechnicalCard({
       </div>
 
       <div className="mt-4 min-h-16">
-        {loading ? (
+        {pending ? (
+          <p className="text-base font-semibold text-foreground">Pendiente de preferencias</p>
+        ) : loading ? (
           <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground-secondary"><Loader2 aria-hidden="true" size={15} className="animate-spin" />Cargando configuracion</span>
         ) : loadError ? (
           <p className="text-sm font-semibold text-warning">{loadError}</p>
@@ -390,8 +394,8 @@ function Level2TechnicalCard({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button type="button" size="sm" variant="outline" disabled={loading || Boolean(loadError) || saving || !level2} onClick={onChange}>{actionLabel}</Button>
-        {canClear ? <Button type="button" size="sm" variant="ghost" disabled={loading || saving || !level2} onClick={onClear}>{model?.suggested ? "Usar recomendado" : "Limpiar seleccion"}</Button> : null}
+        <Button type="button" size="sm" variant="outline" disabled={pending || loading || Boolean(loadError) || saving || !level2} onClick={onChange}>{actionLabel}</Button>
+        {canClear && !pending ? <Button type="button" size="sm" variant="ghost" disabled={loading || saving || !level2} onClick={onClear}>{model?.suggested ? "Usar recomendado" : "Limpiar seleccion"}</Button> : null}
       </div>
     </div>
   );
@@ -674,6 +678,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
       });
       setDraft(itemDraftFromServer(response));
       setDraftStatus("saved");
+      setLevel2(null);
       setLevel2RefreshKey((value) => value + 1);
     } catch (error) {
       const message = getRequirementExperienceErrorMessage(error);
@@ -871,12 +876,10 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
               <h3 className="text-lg font-semibold text-foreground">Configuracion resultante</h3>
               <p className="mt-1 text-sm text-foreground-secondary">Solucion resultante segun tus prioridades.</p>
             </div>
-            <InfoRow label="Nivel de desempeno" value={resolution?.systemTier === "CLASSIC" ? "Clasico" : resolution?.systemTier === "PREMIUM" ? "Premium" : "Por definir"} />
-            <InfoRow label="Familia de vidrio" value={resolution?.glassFamily ?? "Por definir"} />
-            <InfoRow label="Estado" value={resolution?.isComplete ? "Prioridades completas" : "Prioridades incompletas"} />
             <Level2TechnicalCard
               kind="system"
               title="Sistema"
+              preferencesPending={!resolution?.isComplete}
               loading={showLevel2Loading}
               loadError={level2Error}
               level2={level2}
@@ -887,6 +890,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
             <Level2TechnicalCard
               kind="glass"
               title="Vidrio"
+              preferencesPending={!resolution?.isComplete}
               loading={showLevel2Loading}
               loadError={level2Error}
               level2={level2}
