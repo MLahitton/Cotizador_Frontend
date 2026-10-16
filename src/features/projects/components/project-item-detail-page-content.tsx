@@ -1,5 +1,8 @@
 "use client";
 
+import { hasUncertainExtractedQuantity } from "@/features/prequotes/quantity-provenance";
+import { reconcilePhysicalDataDraft, type PhysicalDataDraft } from "@/features/projects/physical-data-draft";
+
 import {
   AlertCircle,
   ArrowLeft,
@@ -439,6 +442,14 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
   const [submittingOptionId, setSubmittingOptionId] = useState<string | null>(null);
   const initializedItem = useRef<string | null>(null);
   const initializedDraft = useRef<string | null>(null);
+  const physicalDraft = useRef<PhysicalDataDraft>({ quantity: "", widthMm: "", heightMm: "" });
+  const physicalRequestId = useRef(0);
+  const physicalSaving = useRef(false);
+
+  useEffect(() => () => {
+    physicalRequestId.current += 1;
+    physicalSaving.current = false;
+  }, [projectId, itemId]);
 
   const item = useMemo(
     () => proposal?.items.find((candidate) => candidate.itemId.toLowerCase() === itemId.toLowerCase()) ?? null,
@@ -536,6 +547,11 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
     queueMicrotask(() => {
       if (cancelled) return;
       initializedItem.current = key;
+      physicalDraft.current = {
+        quantity: toInput(item.effectiveQuantity),
+        widthMm: toInput(item.effectiveWidthMm),
+        heightMm: toInput(item.effectiveHeightMm),
+      };
       setLocationInput(locationLabel(item) === "Por definir" ? "" : locationLabel(item));
       setQuantityInput(toInput(item.effectiveQuantity));
       setWidthInput(toInput(item.effectiveWidthMm));
@@ -575,34 +591,43 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
   }, [applyItemLocationUpdate, item, proposal]);
 
   const savePhysical = useCallback(async () => {
-    if (!proposal || !item) return;
-    const quantity = parsePositiveInteger(quantityInput);
-    const widthMm = parsePositiveInteger(widthInput);
-    const heightMm = parsePositiveInteger(heightInput);
+    if (!proposal || !item || physicalSaving.current) return;
+    const submitted = { ...physicalDraft.current };
+    const quantity = parsePositiveInteger(submitted.quantity);
+    const widthMm = parsePositiveInteger(submitted.widthMm);
+    const heightMm = parsePositiveInteger(submitted.heightMm);
     if ((!quantity && !widthMm && !heightMm) ||
-        (quantityInput.trim() && quantity === null) ||
-        (widthInput.trim() && widthMm === null) ||
-        (heightInput.trim() && heightMm === null)) {
+        (submitted.quantity.trim() && quantity === null) ||
+        (submitted.widthMm.trim() && widthMm === null) ||
+        (submitted.heightMm.trim() && heightMm === null)) {
       setPhysicalError("Ingresa al menos un dato y usa numeros enteros mayores a cero. Los campos vacios conservan su valor actual.");
       setPhysicalStatus("error");
       return;
     }
     const request = { quantity, widthMm, heightMm };
+    const requestId = ++physicalRequestId.current;
+    physicalSaving.current = true;
     setPhysicalStatus("saving");
     setPhysicalError(null);
     try {
       const response = await updateTechnicalProposalItemPhysicalData(proposal.technicalProposalId, item.itemId, request);
+      const reconciled = reconcilePhysicalDataDraft(submitted, physicalDraft.current, response, requestId, physicalRequestId.current);
+      if (!reconciled) return;
       applyItemPhysicalUpdate(response);
-      setQuantityInput(toInput(response.quantity));
-      setWidthInput(toInput(response.widthMm));
-      setHeightInput(toInput(response.heightMm));
+      physicalDraft.current = reconciled.draft;
+      setQuantityInput(reconciled.draft.quantity);
+      setWidthInput(reconciled.draft.widthMm);
+      setHeightInput(reconciled.draft.heightMm);
       retryProposal();
-      setPhysicalStatus("saved");
+      setPhysicalStatus(reconciled.dirty ? "dirty" : "saved");
     } catch {
+      if (requestId !== physicalRequestId.current) return;
       setPhysicalError("No fue posible actualizar las medidas del elemento.");
       setPhysicalStatus("error");
+    } finally {
+      if (requestId === physicalRequestId.current) physicalSaving.current = false;
     }
-  }, [applyItemPhysicalUpdate, heightInput, item, proposal, quantityInput, retryProposal, widthInput]);
+  }, [applyItemPhysicalUpdate, item, proposal, retryProposal]);
 
   const saveObservation = useCallback(async () => {
     if (!proposal || !item) return;
@@ -787,6 +812,8 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
                     <InfoRow label="Ancho" value={formatProposalNumber(item.effectiveWidthMm, " mm")} />
                     <InfoRow label="Alto" value={formatProposalNumber(item.effectiveHeightMm, " mm")} />
                     <InfoRow label="Cantidad" value={formatProposalQuantity(item.effectiveQuantity).replace("Cantidad: ", "")} />
+                    {item.quantitySource === "ASSUMED_DEFAULT" ? <Badge tone="warning" size="sm">Cantidad asumida</Badge> : null}
+                    {hasUncertainExtractedQuantity(item) ? <Badge tone="warning" size="sm">Cantidad por verificar</Badge> : null}
                     <InfoRow label="Area unitaria" value={formatProposalAreaM2(unitArea)} />
                     <InfoRow label="Area total" value={formatProposalAreaM2(totalArea)} />
                   </div>
@@ -829,10 +856,12 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
               <DraftFeedback status={locationStatus} error={locationError} />
             </div>
             <div className="grid gap-4 xl:grid-cols-4">
-              <label className="space-y-1.5 text-sm font-semibold text-foreground">Cantidad<Input type="number" min={1} step={1} value={quantityInput} onChange={(event) => { setQuantityInput(event.target.value); setPhysicalStatus("dirty"); }} /></label>
-              <label className="space-y-1.5 text-sm font-semibold text-foreground">Ancho mm<Input type="number" min={1} step={1} value={widthInput} onChange={(event) => { setWidthInput(event.target.value); setPhysicalStatus("dirty"); }} /></label>
-              <label className="space-y-1.5 text-sm font-semibold text-foreground">Alto mm<Input type="number" min={1} step={1} value={heightInput} onChange={(event) => { setHeightInput(event.target.value); setPhysicalStatus("dirty"); }} /></label>
-              <div className="flex items-end"><Button type="button" className="w-full" disabled={physicalStatus === "saving" || physicalStatus === "idle"} onClick={savePhysical}>Guardar medidas</Button></div>
+              <label className="space-y-1.5 text-sm font-semibold text-foreground">Cantidad<Input type="number" min={1} step={1} value={quantityInput} onChange={(event) => { physicalDraft.current.quantity = event.target.value; setQuantityInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
+              <label className="space-y-1.5 text-sm font-semibold text-foreground">Ancho mm<Input type="number" min={1} step={1} value={widthInput} onChange={(event) => { physicalDraft.current.widthMm = event.target.value; setWidthInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
+              <label className="space-y-1.5 text-sm font-semibold text-foreground">Alto mm<Input type="number" min={1} step={1} value={heightInput} onChange={(event) => { physicalDraft.current.heightMm = event.target.value; setHeightInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
+              <div className="flex items-end"><Button type="button" className="w-full" disabled={physicalStatus === "saving" || (physicalStatus === "idle" && item.quantitySource !== "ASSUMED_DEFAULT" && !hasUncertainExtractedQuantity(item))} onClick={savePhysical}>Guardar medidas</Button></div>
+              {item.quantitySource === "ASSUMED_DEFAULT" ? <p className="text-xs text-foreground-secondary xl:col-span-4">No se encontró una cantidad explícita; se asumió 1.</p> : null}
+              {hasUncertainExtractedQuantity(item) ? <p className="text-xs text-foreground-secondary xl:col-span-4">La cantidad fue identificada con incertidumbre. Confírmala si es necesario.</p> : null}
               <div className="xl:col-span-4"><DraftFeedback status={physicalStatus} error={physicalError} /></div>
             </div>
           </Surface>

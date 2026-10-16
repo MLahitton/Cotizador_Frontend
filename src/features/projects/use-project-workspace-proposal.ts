@@ -190,6 +190,9 @@ export function useProjectWorkspaceProposal(
               ? {
                   ...item,
                   effectiveQuantity: update.quantity,
+                  quantitySource: update.quantitySource,
+                  quantityExtractionStatus: update.quantityExtractionStatus,
+                  quantityExtractionConfidence: update.quantityExtractionConfidence,
                   effectiveWidthMm: update.widthMm,
                   effectiveHeightMm: update.heightMm,
                   dataCompleteness: update.dataCompleteness,

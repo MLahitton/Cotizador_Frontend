@@ -172,6 +172,9 @@ export interface RequirementExperienceConfigurationItemStatus {
   sequence: number | null;
   isIncluded: boolean;
   quantity: number | null;
+  quantitySource: TechnicalProposalItem["quantitySource"] | null;
+  quantityExtractionStatus: TechnicalProposalItem["quantityExtractionStatus"];
+  quantityExtractionConfidence: number | null;
   widthMm: number | null;
   heightMm: number | null;
   areaM2: number | null;

@@ -1,5 +1,7 @@
 "use client";
 
+import { hasUncertainExtractedQuantity, isQuantityReviewReason } from "@/features/prequotes/quantity-provenance";
+
 import { configurationBlockerMessage, isActionableConfigurationBlocker } from "@/features/projects/experience-configuration-copy";
 
 import {
@@ -168,7 +170,7 @@ function itemsWithAnyReviewReason(
   configuration: RequirementExperienceConfigurationStatusResponse,
 ): RequirementExperienceConfigurationItemStatus[] {
   return includedConfigurationItems(configuration).filter((item) =>
-    item.reviewReasons.length > 0,
+    item.reviewReasons.some((reason) => !isQuantityReviewReason(reason)),
   );
 }
 
@@ -379,9 +381,9 @@ function UvToggleControl({
       <div className="relative w-full min-w-0 px-1 pt-1">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute left-1/4 right-1/4 top-[0.875rem] h-0.5 rounded-full bg-[#8D9DB7]/55"
+          className="pointer-events-none absolute left-[16.666%] right-[16.666%] top-[0.875rem] h-0.5 rounded-full bg-[#8D9DB7]/55"
         />
-        <div className="relative z-10 grid grid-cols-2 gap-0">
+        <div className="relative z-10 grid grid-cols-3 gap-0 [&>button:nth-child(2)]:col-start-3">
           {options.map((option) => {
             const isSelected = selectedOptionCode === option.optionCode;
             return (
@@ -561,6 +563,8 @@ function ConfigurationItemCard({
             <p className="min-w-0 text-foreground-secondary">
               <span className="font-semibold text-foreground">Cantidad: </span>
               <span>{quantity}</span>
+              {item.quantitySource === "ASSUMED_DEFAULT" ? <span className="ml-2 inline-block"><Badge tone="warning" size="sm">Cantidad asumida</Badge></span> : null}
+              {hasUncertainExtractedQuantity(item) ? <span className="ml-2 inline-block"><Badge tone="warning" size="sm">Cantidad por verificar</Badge></span> : null}
             </p>
             <p className="min-w-0 text-foreground-secondary">
               <span className="font-semibold text-foreground">Área total: </span>
@@ -852,6 +856,9 @@ function ExperienceConfigurationConfirmationPanel({
 
   const copy = configurationStatusCopy(configuration);
   const quantityPendingItems = itemsWithBlockingReason(configuration, "QUANTITY_REQUIRED");
+  const quantityReviewItems = includedConfigurationItems(configuration).filter((item) =>
+    item.reviewReasons.some(isQuantityReviewReason),
+  );
   const glassPendingItems = itemsWithBlockingReason(configuration, "GLASS_REQUIRED");
   const reviewItems = itemsWithAnyReviewReason(configuration);
   const finishPending = hasFinishDependency(configuration);
@@ -963,6 +970,19 @@ function ExperienceConfigurationConfirmationPanel({
               />
             ) : null}
           </div>
+        </div>
+      ) : null}
+
+      {quantityReviewItems.length > 0 ? (
+        <div className="mt-3 rounded-md border border-warning/30 bg-surface p-3">
+          <ConfigurationPendingRow
+            tone="action"
+            title="Cantidad por verificar"
+            count={quantityReviewItems.length}
+            description="Estos elementos tienen una cantidad asumida o identificada con incertidumbre. Confirma su cantidad si es necesario."
+          >
+            <ConfigurationItemLinks items={quantityReviewItems} projectId={projectId} />
+          </ConfigurationPendingRow>
         </div>
       ) : null}
 

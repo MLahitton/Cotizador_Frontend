@@ -1,3 +1,4 @@
+import { isQuantityExtractionStatus, type QuantityExtractionStatus } from "./quantity-provenance";
 import {
   isDateTime,
   isNonEmptyString,
@@ -190,7 +191,11 @@ function isProposalItem(value: unknown): boolean {
     isNullableNumber(value.quantity) && isNullableNumber(value.widthMm) &&
     isNullableNumber(value.heightMm) && isNullableNumber(value.manualQuantityOverride) &&
     isNullableNumber(value.manualWidthMmOverride) && isNullableNumber(value.manualHeightMmOverride) &&
-    isNullableNumber(value.effectiveQuantity) && isNullableNumber(value.effectiveWidthMm) &&
+    isNullableNumber(value.effectiveQuantity) &&
+    ["EXTRACTED", "MANUAL", "ASSUMED_DEFAULT"].includes(String(value.quantitySource)) &&
+    isQuantityExtractionStatus(value.quantityExtractionStatus) &&
+    isNullableNumber(value.quantityExtractionConfidence) &&
+    isNullableNumber(value.effectiveWidthMm) &&
     isNullableNumber(value.effectiveHeightMm) && isNullableNumber(value.areaM2) &&
     typeof value.isIncluded === "boolean" &&
     (value.excludedAtUtc === null || isDateTime(value.excludedAtUtc)) &&
@@ -261,6 +266,9 @@ export interface TechnicalProposalItemPhysicalDataRequest {
 }
 
 export interface TechnicalProposalItemPhysicalDataResponse extends TechnicalProposalItemPhysicalDataRequest {
+  quantitySource: "EXTRACTED" | "MANUAL" | "ASSUMED_DEFAULT";
+  quantityExtractionStatus: QuantityExtractionStatus | null;
+  quantityExtractionConfidence: number | null;
   technicalProposalId: string;
   itemId: string;
   commercialRevision: number;
@@ -278,6 +286,9 @@ export async function updateTechnicalProposalItemPhysicalData(
   );
   if (!isRecord(response) || response.technicalProposalId !== technicalProposalId ||
       response.itemId !== itemId || !isNullableNumber(response.quantity) ||
+      !["EXTRACTED", "MANUAL", "ASSUMED_DEFAULT"].includes(String(response.quantitySource)) ||
+      !isQuantityExtractionStatus(response.quantityExtractionStatus) ||
+      !isNullableNumber(response.quantityExtractionConfidence) ||
       !isNullableNumber(response.widthMm) || !isNullableNumber(response.heightMm) ||
       !isNonNegativeInteger(response.commercialRevision) || !isItemDataCompleteness(response.dataCompleteness)) {
     throw new ApiError({ status: 0, title: "Respuesta invalida", detail: "No fue posible actualizar las medidas del elemento." });

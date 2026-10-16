@@ -1,3 +1,4 @@
+import { isQuantityExtractionStatus } from "./quantity-provenance";
 import {
   isDateTime,
   isNonEmptyString,
@@ -153,6 +154,9 @@ function isConfigurationItemStatus(value: unknown): value is RequirementExperien
     isNullableNumber(value.sequence) &&
     typeof value.isIncluded === "boolean" &&
     isNullableNumber(value.quantity) &&
+    (value.quantitySource === null || ["EXTRACTED", "MANUAL", "ASSUMED_DEFAULT"].includes(String(value.quantitySource))) &&
+    isQuantityExtractionStatus(value.quantityExtractionStatus) &&
+    isNullableNumber(value.quantityExtractionConfidence) &&
     isNullableNumber(value.widthMm) &&
     isNullableNumber(value.heightMm) &&
     isNullableNumber(value.areaM2) &&

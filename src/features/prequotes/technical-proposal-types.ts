@@ -1,3 +1,5 @@
+import type { QuantityExtractionStatus } from "./quantity-provenance";
+
 export interface TechnicalProposalSystemOption {
   id: string;
   code: string;
@@ -189,6 +191,9 @@ export interface TechnicalProposalItem {
   manualWidthMmOverride: number | null;
   manualHeightMmOverride: number | null;
   effectiveQuantity: number | null;
+  quantitySource: "EXTRACTED" | "MANUAL" | "ASSUMED_DEFAULT";
+  quantityExtractionStatus: QuantityExtractionStatus | null;
+  quantityExtractionConfidence: number | null;
   effectiveWidthMm: number | null;
   effectiveHeightMm: number | null;
   areaM2: number | null;
