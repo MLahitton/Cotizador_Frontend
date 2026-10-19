@@ -1,5 +1,6 @@
 ﻿import {
   CalendarDays,
+  ArrowRight,
   ClipboardCheck,
   Clock3,
   Factory,
@@ -104,19 +105,21 @@ function ProjectMomentItem({
   isLast: boolean;
 }) {
   return (
-    <li className="relative grid grid-cols-[3.25rem_minmax(0,1fr)] gap-4 pb-7 last:pb-0">
+    <li className="group/moment relative min-w-0 snap-start">
       {!isLast ? (
         <span
           aria-hidden="true"
-          className="absolute left-6 top-12 h-[calc(100%-3rem)] w-px bg-[#8D9DB7]/50"
-        />
+          className="pointer-events-none absolute left-5 top-5 h-0.5 w-[calc(100%+1rem)] bg-accent"
+        >
+          <ArrowRight size={14} className="absolute -right-1 -top-1.5 text-accent-dark" />
+        </span>
       ) : null}
-      <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full bg-[#8D9DB7] text-white shadow-sm shadow-[#8D9DB7]/25">
+      <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-accent-dark text-white shadow-sm transition-colors group-hover/moment:bg-brand group-focus-within/moment:bg-brand motion-reduce:transition-none">
         <span className="text-sm font-semibold tabular-nums">
           {String(index + 1).padStart(2, "0")}
         </span>
       </div>
-      <div className="min-w-0 rounded-md border border-border-subtle bg-surface px-4 py-3 shadow-sm shadow-black/[0.02]">
+      <div tabIndex={0} className="mt-4 min-w-0 rounded-md border border-border-subtle bg-surface px-4 py-3 shadow-sm transition duration-200 hover:border-accent hover:shadow-md focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-dark motion-safe:hover:-translate-y-1 motion-safe:focus-visible:-translate-y-1 motion-reduce:transition-none">
         <div className="flex min-w-0 items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[#657A9B]">
             <Icon aria-hidden="true" size={18} strokeWidth={1.75} />
@@ -147,7 +150,7 @@ function PlanningInfoCard({
   Icon: LucideIcon;
 }) {
   return (
-    <div className="rounded-md border border-[#8D9DB7]/35 bg-surface p-3 shadow-sm shadow-[#8D9DB7]/10 sm:p-4">
+    <div className="w-full max-w-[440px] rounded-md border border-[#8D9DB7]/35 bg-surface p-3 shadow-sm shadow-[#8D9DB7]/10">
       <div className="flex min-w-0 items-start gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#D9E3F0] text-[#657A9B] shadow-sm shadow-[#8D9DB7]/15">
           <Icon aria-hidden="true" size={18} strokeWidth={1.75} />
@@ -169,16 +172,16 @@ export function ProjectMomentsStep() {
     <div className="space-y-5">
       <div>
         <h2 className="text-2xl font-semibold text-foreground">
-          Los momentos de tu proyecto
+          El recorrido de tu proyecto
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground-secondary">
-          Conoce cómo llevamos tu proyecto desde la aprobación hasta la finalización.
+          Conoce cada etapa que acompañará tu proyecto desde la aprobación hasta la entrega.
         </p>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,0.68fr)_minmax(20rem,0.32fr)]">
-        <Surface className="min-w-0">
-          <ol className="space-y-0">
+      <div className="min-w-0 space-y-5">
+        <div role="region" aria-label="Recorrido del proyecto" tabIndex={0} className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain rounded-md px-1 py-3 snap-x snap-mandatory focus-visible:outline-2 focus-visible:outline-accent-dark">
+          <ol className="grid auto-cols-[min(17rem,85%)] grid-flow-col items-start gap-6 sm:auto-cols-[18rem]">
             {projectMoments.map((moment, index) => (
               <ProjectMomentItem
                 key={moment.title}
@@ -190,9 +193,9 @@ export function ProjectMomentsStep() {
               />
             ))}
           </ol>
-        </Surface>
+        </div>
 
-        <aside className="grid gap-3 sm:grid-cols-2 xl:sticky xl:top-24 xl:self-start xl:grid-cols-1">
+        <aside className="mx-auto grid w-full max-w-[896px] justify-items-center gap-4 sm:grid-cols-2">
           <PlanningInfoCard
             title="Tu fecha requerida"
             value="Por definir"

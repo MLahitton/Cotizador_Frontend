@@ -435,7 +435,7 @@ function ExperienceQuestionControl({
   onSelect: (optionCode: string) => void;
 }) {
   return (
-    <div className="grid min-w-0 gap-2 md:grid-cols-[minmax(5.75rem,0.65fr)_minmax(0,1fr)] md:items-center xl:grid-cols-[minmax(7rem,0.72fr)_minmax(0,1fr)]">
+    <div className="grid min-w-0 content-start gap-2">
       <p className="min-w-0 text-sm font-semibold text-foreground-secondary md:text-xs">
         {question.label}
       </p>
@@ -520,21 +520,24 @@ function ConfigurationItemCard({
         isExcluded ? "bg-surface-subtle opacity-80" : "bg-surface",
       )}
     >
-      <div className="grid gap-3 p-3 @[35rem]:grid-cols-[6.5rem_minmax(0,1fr)_minmax(14.5rem,1.05fr)_2.25rem] @[35rem]:items-center @[56rem]:grid-cols-[9rem_minmax(0,0.9fr)_minmax(18rem,1.25fr)_2.5rem] @[78rem]:grid-cols-[10.5rem_minmax(10rem,0.85fr)_minmax(20rem,1.2fr)_2.5rem] @[92rem]:grid-cols-[11.75rem_minmax(12rem,0.95fr)_minmax(25rem,1.3fr)_2.5rem]">
+      <div className="grid items-start gap-3 p-3 @[35rem]:grid-cols-[8rem_minmax(0,1fr)_2.5rem] @[56rem]:grid-cols-[9rem_minmax(0,1fr)_2.5rem]">
         <div className="min-w-0">
-          <div className="h-40 overflow-hidden rounded-md border border-[#8D9DB7]/25 bg-[#D9E3F0]/45 p-2 sm:h-44 @[35rem]:h-32 @[56rem]:h-36 @[78rem]:h-40">
+          <div className="h-32 overflow-hidden rounded-md border border-[#8D9DB7]/25 bg-[#D9E3F0]/45 p-2">
             <div className="h-full min-w-0 [&_figure]:h-full [&_figure]:space-y-0 [&_figcaption]:hidden [&_svg]:max-h-36 @[35rem]:[&_svg]:max-h-28 @[56rem]:[&_svg]:max-h-32 @[78rem]:[&_svg]:max-h-36 [&>figure>div]:h-full [&>figure>div]:border-0 [&>figure>div]:bg-transparent [&>figure>div]:p-1 [&>figure>div]:shadow-none">
               <TechnicalProposalVisualPreview visualModel={item.visualModel} />
             </div>
           </div>
         </div>
 
-        <div className="min-w-0 space-y-2.5 @[35rem]:py-1">
-          <div className="space-y-1.5">
+        <div className="min-w-0 space-y-2">
+          <div>
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <span className="shrink-0 rounded-full bg-[#D9E3F0] px-2.5 py-1 text-xs font-bold text-foreground">
                 {item.reference || `Elemento ${item.sequence}`}
               </span>
+              <h3 className="min-w-0 break-words text-base font-semibold text-foreground">
+                {item.description || itemTypeLabel}
+              </h3>
               {item.source === "MANUAL" ? <Badge tone="brand" size="sm">Manual</Badge> : null}
               {isExcluded ? <Badge tone="neutral" size="sm">Excluido</Badge> : null}
               <button
@@ -546,12 +549,9 @@ function ConfigurationItemCard({
                 <ChevronRight aria-hidden="true" size={17} />
               </button>
             </div>
-            <h3 className="line-clamp-2 text-base font-semibold text-foreground">
-              {item.description || itemTypeLabel}
-            </h3>
           </div>
 
-          <div className="grid gap-x-3 gap-y-1 text-sm @[35rem]:text-xs @[56rem]:grid-cols-2">
+          <div className="grid gap-x-4 gap-y-1 text-sm @[35rem]:grid-cols-2 @[35rem]:text-xs @[64rem]:grid-cols-4">
             <p className="min-w-0 text-foreground-secondary">
               <span className="font-semibold text-foreground">Tipología: </span>
               <span className="whitespace-normal break-normal">{itemTypeLabel}</span>
@@ -589,9 +589,18 @@ function ConfigurationItemCard({
             <DraftFeedback status={status} error={error} />
           </div>
         </div>
-        <div className="min-w-0 rounded-md border border-[#C4D2E6] bg-[#EAF1FB] p-3">
+        <button
+          type="button"
+          aria-label={`Abrir detalle de ${item.reference || `elemento ${item.sequence}`}`}
+          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#8D9DB7]/45 bg-[#D9E3F0] text-[#657A9B] transition-colors hover:border-[#657A9B] hover:bg-[#C9D6EA] hover:text-foreground @[35rem]:flex"
+          onClick={() => onOpenItem(item)}
+        >
+          <ChevronRight aria-hidden="true" size={18} />
+        </button>
+      </div>
+        <div className="min-w-0 border-t border-[#C4D2E6] bg-[#EAF1FB] p-4">
           {catalog?.questions.length ? (
-            <div className="grid gap-2">
+            <div className="grid gap-x-8 gap-y-5 @[28rem]:grid-cols-2 @[40rem]:grid-cols-3">
               {catalog.questions.map((question) => (
                 <ExperienceQuestionControl
                   key={question.benefitCode}
@@ -628,7 +637,7 @@ function ConfigurationItemCard({
                 </p>
               ) : null}
             </div>
-            <div className="flex shrink-0 flex-wrap gap-1.5">
+            <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
               <Button
                 type="button"
                 variant={item.isIncluded ? "outline" : "secondary"}
@@ -650,15 +659,6 @@ function ConfigurationItemCard({
           </div>
         </div>
 
-        <button
-          type="button"
-          aria-label={`Abrir detalle de ${item.reference || `elemento ${item.sequence}`}`}
-          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#8D9DB7]/45 bg-[#D9E3F0] text-[#657A9B] transition-colors hover:border-[#657A9B] hover:bg-[#C9D6EA] hover:text-foreground @[35rem]:flex"
-          onClick={() => onOpenItem(item)}
-        >
-          <ChevronRight aria-hidden="true" size={18} />
-        </button>
-      </div>
     </Surface>
   );
 }

@@ -33,8 +33,15 @@ export interface ProjectWorkspaceWorkflow {
   hasTechnicalProposal: boolean;
 }
 
+export interface ProjectWorkspacePublicContext {
+  projectType: string | null;
+  projectTypeOther: string | null;
+  installationWindow: string | null;
+}
+
 export interface ProjectWorkspace {
   project: ProjectWorkspaceProject;
   client: ProjectWorkspaceClient;
   workflow: ProjectWorkspaceWorkflow;
+  publicContext: ProjectWorkspacePublicContext | null;
 }

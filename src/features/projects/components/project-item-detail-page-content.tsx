@@ -7,6 +7,7 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
   Eye,
   Loader2,
   ShieldCheck,
@@ -364,7 +365,7 @@ function Level2TechnicalCard({
   const badges = overrideBadges(overrideState, Boolean(effective));
 
   return (
-    <div className="rounded-md border border-border-subtle bg-surface p-4">
+    <div className="min-w-0 w-full max-w-[320px] rounded-md border border-border-subtle bg-surface p-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{title}</p>
@@ -374,7 +375,7 @@ function Level2TechnicalCard({
         </div>
       </div>
 
-      <div className="mt-4 min-h-16">
+      <div className="mt-3 break-words">
         {pending ? (
           <p className="text-base font-semibold text-foreground">Pendiente de preferencias</p>
         ) : loading ? (
@@ -842,40 +843,47 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
           </div>
         </Surface>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.75fr)]">
-          <Surface padding="lg" className="space-y-4">
+        <div className="grid items-start gap-4">
+          <Surface padding="sm" className="@container min-w-0 self-start space-y-3">
             <div>
               <h3 className="text-lg font-semibold text-foreground">Editar datos comerciales</h3>
               <p className="mt-1 text-sm text-foreground-secondary">Actualiza las medidas y la ubicacion del elemento.</p>
             </div>
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid max-w-[940px] gap-2 @[36rem]:grid-cols-[minmax(0,680px)_auto] @[36rem]:justify-start">
               <label className="space-y-1.5 text-sm font-semibold text-foreground">
                 Ubicacion
                 <Input value={locationInput} onChange={(event) => { setLocationInput(event.target.value); setLocationStatus("dirty"); }} placeholder="Sala principal" />
               </label>
               <div className="flex items-end gap-2">
-                <Button type="button" className="w-full" disabled={locationStatus === "saving" || locationStatus === "idle"} onClick={() => saveLocation(cleanOptional(locationInput))}>Guardar ubicacion</Button>
+                <Button type="button" className="max-w-full @[36rem]:w-[190px]" disabled={locationStatus === "saving" || locationStatus === "idle"} onClick={() => saveLocation(cleanOptional(locationInput))}>Guardar ubicacion</Button>
                 {item.manualLocationOverride ? <Button type="button" variant="outline" title="Usar ubicacion extraida" disabled={locationStatus === "saving"} onClick={() => saveLocation(null)}><RotateCcw aria-hidden="true" size={15} /></Button> : null}
               </div>
-              {item.manualLocationOverride && item.extractedLocation ? <p className="lg:col-span-2 text-xs text-foreground-secondary">Origen extraido: {item.extractedLocation}</p> : null}
+              {item.manualLocationOverride && item.extractedLocation ? <p className="@[36rem]:col-span-2 text-xs text-foreground-secondary">Origen extraido: {item.extractedLocation}</p> : null}
               <DraftFeedback status={locationStatus} error={locationError} />
             </div>
-            <div className="grid gap-4 xl:grid-cols-4">
+            <div className="grid max-w-[784px] gap-2 @[28rem]:grid-cols-[170px_200px] @[50rem]:grid-cols-[170px_200px_200px_190px]">
               <label className="space-y-1.5 text-sm font-semibold text-foreground">Cantidad<Input type="number" min={1} step={1} value={quantityInput} onChange={(event) => { physicalDraft.current.quantity = event.target.value; setQuantityInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
               <label className="space-y-1.5 text-sm font-semibold text-foreground">Ancho mm<Input type="number" min={1} step={1} value={widthInput} onChange={(event) => { physicalDraft.current.widthMm = event.target.value; setWidthInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
               <label className="space-y-1.5 text-sm font-semibold text-foreground">Alto mm<Input type="number" min={1} step={1} value={heightInput} onChange={(event) => { physicalDraft.current.heightMm = event.target.value; setHeightInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
               <div className="flex items-end"><Button type="button" className="w-full" disabled={physicalStatus === "saving" || (physicalStatus === "idle" && item.quantitySource !== "ASSUMED_DEFAULT" && !hasUncertainExtractedQuantity(item))} onClick={savePhysical}>Guardar medidas</Button></div>
-              {item.quantitySource === "ASSUMED_DEFAULT" ? <p className="text-xs text-foreground-secondary xl:col-span-4">No se encontró una cantidad explícita; se asumió 1.</p> : null}
-              {hasUncertainExtractedQuantity(item) ? <p className="text-xs text-foreground-secondary xl:col-span-4">La cantidad fue identificada con incertidumbre. Confírmala si es necesario.</p> : null}
-              <div className="xl:col-span-4"><DraftFeedback status={physicalStatus} error={physicalError} /></div>
+              {item.quantitySource === "ASSUMED_DEFAULT" ? <p className="col-span-full text-xs text-foreground-secondary">No se encontró una cantidad explícita; se asumió 1.</p> : null}
+              {hasUncertainExtractedQuantity(item) ? <p className="col-span-full text-xs text-foreground-secondary">La cantidad fue identificada con incertidumbre. Confírmala si es necesario.</p> : null}
+              <div className="col-span-full"><DraftFeedback status={physicalStatus} error={physicalError} /></div>
             </div>
           </Surface>
 
-          <Surface padding="lg" className="space-y-4 border-[#C4D2E6] bg-[#EAF1FB] p-4 sm:p-6">
+          <details className="group/technical min-w-0 w-fit max-w-full rounded-md border border-[#C4D2E6] bg-[#EAF1FB] p-3 open:w-full open:max-w-[960px]">
+            <summary className="flex w-fit max-w-full cursor-pointer list-none items-center gap-3 rounded-sm text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-dark [&::-webkit-details-marker]:hidden">
+              <span className="group-open/technical:hidden">Mostrar detalles técnicos</span>
+              <span className="hidden group-open/technical:inline">Ocultar detalles técnicos</span>
+              <ChevronDown aria-hidden="true" size={18} className="shrink-0 group-open/technical:rotate-180" />
+            </summary>
+            <div className="@container mt-3 space-y-3 border-t border-[#C4D2E6] pt-3">
             <div>
               <h3 className="text-lg font-semibold text-foreground">Configuracion resultante</h3>
               <p className="mt-1 text-sm text-foreground-secondary">Solucion resultante segun tus prioridades.</p>
             </div>
+            <div className="grid items-start gap-3 @[38rem]:grid-cols-2 @[56rem]:grid-cols-3">
             <Level2TechnicalCard
               kind="system"
               title="Sistema"
@@ -898,10 +906,12 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
               onChange={() => setLevel2Dialog("glass")}
               onClear={() => saveLevel2Selection("glass", null)}
             />
-            <InfoRow label="Acabado" value="Por definir" />
+            <div className="min-w-0 w-full max-w-[320px]"><InfoRow label="Acabado" value="Por definir" /></div>
+            </div>
             {level2Error ? <Button type="button" variant="outline" disabled={isLevel2Loading} onClick={() => setLevel2RefreshKey((value) => value + 1)}>Reintentar configuracion</Button> : null}
             {level2Notice ? <p className="text-xs font-semibold text-warning">{level2Notice}</p> : null}
-          </Surface>
+            </div>
+          </details>
         </div>
 
         <Surface padding="lg" className="space-y-4 border-[#C4D2E6] bg-[#EAF1FB] p-4 sm:p-6">

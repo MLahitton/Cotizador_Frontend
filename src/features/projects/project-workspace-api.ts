@@ -3,6 +3,7 @@ import type {
   ProjectWorkspace,
   ProjectWorkspaceClient,
   ProjectWorkspaceProject,
+  ProjectWorkspacePublicContext,
   ProjectWorkspaceResolutionState,
   ProjectWorkspaceWorkflow,
 } from "@/features/projects/project-workspace-types";
@@ -89,6 +90,15 @@ function isWorkflow(value: unknown): value is ProjectWorkspaceWorkflow {
   );
 }
 
+function isPublicContext(value: unknown): value is ProjectWorkspacePublicContext | null {
+  return value === null || (
+    isRecord(value) &&
+    isNullableString(value.projectType) &&
+    isNullableString(value.projectTypeOther) &&
+    isNullableString(value.installationWindow)
+  );
+}
+
 function isProjectWorkspace(
   value: unknown,
   projectId: string,
@@ -102,7 +112,8 @@ function isProjectWorkspace(
     isClient(value.client) &&
     value.client.id.trim().toLowerCase() ===
       value.project.clientId.trim().toLowerCase() &&
-    isWorkflow(value.workflow)
+    isWorkflow(value.workflow) &&
+    isPublicContext(value.publicContext)
   );
 }
 

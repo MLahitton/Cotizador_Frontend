@@ -12,6 +12,8 @@ import {
   ProjectDetailsLoading,
 } from "@/features/projects/components/project-detail-feedback";
 import { ProjectConfigurationStep } from "@/features/projects/components/project-configuration-step";
+import { ProjectRequirementAnalysisState } from "@/features/projects/components/project-requirement-analysis-state";
+import { useProjectRequirementAnalysis } from "@/features/projects/use-project-requirement-analysis";
 import { ProjectContextStep } from "@/features/projects/components/project-context-step";
 import { ProjectEditForm } from "@/features/projects/components/project-edit-form";
 import {
@@ -67,6 +69,8 @@ function ProjectWorkspaceStepContent({
   hasProposalError,
   onRetryProposal,
   onItemInclusionUpdated,
+  analysis,
+  onRefreshWorkspace,
 }: {
   activeStep: ProjectWorkspaceStep;
   workspace: NonNullable<ReturnType<typeof useProjectWorkspace>["workspace"]>;
@@ -75,6 +79,8 @@ function ProjectWorkspaceStepContent({
   hasProposalError: boolean;
   onRetryProposal: () => void;
   onItemInclusionUpdated: ReturnType<typeof useProjectWorkspaceProposal>["applyItemInclusionUpdate"];
+  analysis: ReturnType<typeof useProjectRequirementAnalysis>;
+  onRefreshWorkspace: () => void;
 }) {
   switch (activeStep) {
     case "context":
@@ -90,6 +96,9 @@ function ProjectWorkspaceStepContent({
     case "moments":
       return <ProjectMomentsStep />;
     case "configuration":
+      if (workspace.workflow.resolutionState === "RESOLVED" && workspace.workflow.requirementId && !workspace.workflow.hasTechnicalProposal) {
+        return <ProjectRequirementAnalysisState analysis={analysis} onRefresh={onRefreshWorkspace} />;
+      }
       return (
         <ProjectConfigurationStep
           workspace={workspace}
@@ -128,6 +137,12 @@ export function ProjectWorkspacePageContent({
     applyProjectUpdate: applyWorkspaceProjectUpdate,
     isProjectIdValid,
   } = useProjectWorkspace(projectId);
+  const analysis = useProjectRequirementAnalysis({
+    projectId,
+    workflow: workspace?.workflow,
+    readOnly: !user || isAdmin,
+    onRefreshWorkspace: retryWorkspace,
+  });
   const {
     project,
     isProjectLoading,
@@ -407,6 +422,8 @@ export function ProjectWorkspacePageContent({
           hasProposalError={Boolean(proposalError)}
           onRetryProposal={retryProposal}
           onItemInclusionUpdated={applyItemInclusionUpdate}
+          analysis={analysis}
+          onRefreshWorkspace={retryWorkspace}
         />
       </div>
     </div>

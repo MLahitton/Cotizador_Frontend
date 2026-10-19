@@ -23,6 +23,7 @@ import {
 } from "@/features/prequotes/technical-proposal-formatters";
 import type { TechnicalProposal } from "@/features/prequotes/technical-proposal-types";
 import type { ProjectWorkspace } from "@/features/projects/project-workspace-types";
+import { formatPublicProjectType, formatPublicInstallationWindow } from "@/features/projects/project-public-context-formatters";
 
 interface ProjectContextMetrics {
   includedItems: number | null;
@@ -80,7 +81,7 @@ function DataPoint({
   Icon: LucideIcon;
 }) {
   return (
-    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(7rem,auto)] items-center gap-4 py-3">
+    <div className="min-w-0 px-4 py-4">
       <div className="flex min-w-0 items-center gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-dark">
           <Icon aria-hidden="true" size={17} strokeWidth={1.75} />
@@ -89,7 +90,7 @@ function DataPoint({
           {label}
         </p>
       </div>
-      <p className="min-w-0 break-words text-right text-sm font-medium text-foreground-secondary">
+      <p className="mt-2 min-w-0 break-words text-sm font-medium text-foreground-secondary">
         {value}
       </p>
     </div>
@@ -232,9 +233,7 @@ function StatusPanel({
 
 function ProjectImagePlaceholder() {
   return (
-    <div className="relative flex min-h-[24rem] w-full min-w-0 max-w-full items-center justify-center overflow-hidden bg-[linear-gradient(135deg,var(--sng-color-accent-soft-strong),var(--sng-color-accent-soft)_48%,var(--sng-color-surface-muted))] p-6 lg:min-h-full">
-      <div className="absolute -left-12 top-8 h-44 w-44 rounded-full bg-white/45 blur-3xl" />
-      <div className="absolute bottom-0 right-0 h-52 w-52 rounded-full bg-accent/15 blur-3xl" />
+    <div className="relative flex h-[260px] w-full min-w-0 items-center justify-center overflow-hidden bg-accent-soft p-6 md:h-[340px] lg:h-[400px] min-[1440px]:h-[440px]">
       <div className="absolute inset-6 rounded-md border border-dashed border-accent/70" />
       <div className="relative z-10 flex max-w-sm flex-col items-center justify-center text-center">
         <span className="flex h-14 w-14 items-center justify-center rounded-md bg-white/55 text-accent-dark shadow-sm shadow-accent/10 backdrop-blur-sm">
@@ -316,44 +315,26 @@ export function ProjectContextStep({
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-2xl font-semibold text-foreground">
-          Contexto del proyecto
+        <h2 className="break-words text-2xl font-semibold text-foreground">
+          {workspace.project.name}
         </h2>
         <p className="mt-2 text-sm leading-6 text-foreground-secondary">
-          Resumen de la informacion recibida y nuestro analisis inicial.
+          Resumen de la informacion recibida y el alcance identificado.
         </p>
       </div>
 
       <Surface padding="none" className="overflow-hidden">
-        <div className="grid min-w-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <div className="min-w-0"><ProjectImagePlaceholder /></div>
-          <div className="min-w-0 overflow-hidden p-5 sm:p-6 lg:h-full">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-foreground">
-                {clientName}
-              </span>
-              {workspace.client.city ? (
-                <span className="rounded-full bg-surface-subtle px-2.5 py-1 text-xs font-semibold text-foreground-secondary">
-                  {workspace.client.city}
-                </span>
-              ) : null}
-            </div>
-
-            <h3 className="mt-4 break-words text-2xl font-semibold text-foreground">
-              {workspace.project.name}
-            </h3>
-
-            <p className="mt-2 max-w-xl text-sm leading-6 text-foreground-secondary">Proyecto residencial con contexto comercial pendiente de completar.</p>
-
-            <div className="mt-5 divide-y divide-border-subtle">
+        <ProjectImagePlaceholder />
+        <div className="@container min-w-0 border-t border-border-subtle">
+            <div className="grid grid-cols-1 gap-px bg-border-subtle [&>div]:bg-surface @[24rem]:grid-cols-2 @[40rem]:grid-cols-3 @[56rem]:grid-cols-5">
               <DataPoint
                 label="Ubicacion"
                 value={workspace.project.location || "Por definir"}
                 Icon={MapPin}
               />
               <DataPoint
-                label="Tipo de inmueble"
-                value="Por definir"
+                label="Tipo de proyecto"
+                value={formatPublicProjectType(workspace.publicContext?.projectType, workspace.publicContext?.projectTypeOther)}
                 Icon={Sparkles}
               />
               <DataPoint
@@ -362,13 +343,8 @@ export function ProjectContextStep({
                 Icon={Ruler}
               />
               <DataPoint
-                label="Etapa actual"
-                value="Por definir"
-                Icon={Shapes}
-              />
-              <DataPoint
-                label="Fecha requerida"
-                value="Por definir"
+                label="Instalacion estimada"
+                value={formatPublicInstallationWindow(workspace.publicContext?.installationWindow)}
                 Icon={CalendarDays}
               />
               <DataPoint
@@ -377,7 +353,6 @@ export function ProjectContextStep({
                 Icon={FileText}
               />
             </div>
-          </div>
         </div>
       </Surface>
 
@@ -401,7 +376,7 @@ export function ProjectContextStep({
             Resumen comercial calculado con la informacion vigente disponible.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:gap-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:gap-4">
           <MetricCard
             label="Items incluidos"
             value={
@@ -421,13 +396,6 @@ export function ProjectContextStep({
             }
             helper="Suma de unidades efectivas"
             Icon={Shapes}
-          />
-          <MetricCard
-            label="Area aproximada"
-            value={approximateArea}
-            helper="Calculada con medidas efectivas"
-            Icon={Ruler}
-            className="sm:col-span-2 md:col-span-1"
           />
         </div>
       </section>
