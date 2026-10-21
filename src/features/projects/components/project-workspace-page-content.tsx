@@ -12,6 +12,7 @@ import {
   ProjectDetailsLoading,
 } from "@/features/projects/components/project-detail-feedback";
 import { ProjectConfigurationStep } from "@/features/projects/components/project-configuration-step";
+import { ProjectDiagnosisStep } from "@/features/projects/components/project-diagnosis-step";
 import { ProjectRequirementAnalysisState } from "@/features/projects/components/project-requirement-analysis-state";
 import { useProjectRequirementAnalysis } from "@/features/projects/use-project-requirement-analysis";
 import { ProjectContextStep } from "@/features/projects/components/project-context-step";
@@ -50,6 +51,7 @@ function ProjectWorkspaceSuccessMessage({
 
 function isProjectWorkspaceStep(value: string | null): value is ProjectWorkspaceStep {
   return value === "context"
+    || value === "diagnosis"
     || value === "moments"
     || value === "configuration"
     || value === "summary"
@@ -93,6 +95,8 @@ function ProjectWorkspaceStepContent({
           onRetryProposal={onRetryProposal}
         />
       );
+    case "diagnosis":
+      return <ProjectDiagnosisStep projectId={workspace.project.id} />;
     case "moments":
       return <ProjectMomentsStep />;
     case "configuration":

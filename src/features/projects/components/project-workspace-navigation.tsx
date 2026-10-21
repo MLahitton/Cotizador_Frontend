@@ -1,5 +1,6 @@
 ﻿import {
   CalendarDays,
+  ClipboardList,
   FileText,
   Home,
   LayoutList,
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils/cn";
 
 export type ProjectWorkspaceStep =
   | "context"
+  | "diagnosis"
   | "moments"
   | "configuration"
   | "summary"
@@ -29,9 +31,19 @@ const steps: Array<{
     Icon: Home,
   },
   {
+    id: "diagnosis",
+    label: "Diagnóstico",
+    Icon: ClipboardList,
+  },
+  {
     id: "moments",
     label: "Momentos",
     Icon: CalendarDays,
+  },
+  {
+    id: "documents",
+    label: "Documentos",
+    Icon: FileText,
   },
   {
     id: "configuration",
@@ -44,11 +56,6 @@ const steps: Array<{
     disabled: true,
     Icon: LayoutList,
   },
-  {
-    id: "documents",
-    label: "Documentos",
-    Icon: FileText,
-  },
 ];
 
 export function ProjectWorkspaceNavigation({
@@ -60,22 +67,23 @@ export function ProjectWorkspaceNavigation({
 }) {
   return (
     <nav aria-label="Secciones del proyecto" className="min-w-0">
-      <ol className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-1.5 lg:overflow-visible lg:pb-0">
+      <ol className="flex gap-2 overflow-x-auto p-1 lg:block lg:space-y-1.5 lg:overflow-visible">
         {steps.map(({ id, label, disabled, Icon }) => {
           const isActive = activeStep === id;
           return (
-            <li key={id} className="w-44 flex-none lg:w-auto lg:flex-auto lg:min-w-0">
+            <li key={id} className="w-max flex-none lg:w-auto lg:flex-auto lg:min-w-0">
               <Button
                 type="button"
                 variant="ghost"
                 disabled={disabled}
+                aria-current={isActive ? "page" : undefined}
                 title={
                   disabled
                     ? "Disponible después de confirmar la configuración y calcular la propuesta."
                     : label
                 }
                 className={cn(
-                  "h-11 w-full justify-start gap-2 rounded-sm border px-3 text-left text-sm",
+                  "min-h-11 h-auto w-full justify-start gap-2 rounded-sm border px-3 py-2.5 text-left text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
                   isActive && id === "moments"
                     ? "border-[#8D9DB7]/60 bg-[#D9E3F0] text-foreground shadow-sm shadow-[#8D9DB7]/15"
                     : isActive
@@ -89,8 +97,8 @@ export function ProjectWorkspaceNavigation({
                   }
                 }}
               >
-                <Icon aria-hidden="true" size={17} strokeWidth={1.75} />
-                <span className="min-w-0 truncate font-semibold">{label}</span>
+                <Icon aria-hidden="true" size={17} strokeWidth={1.75} className="shrink-0" />
+                <span className="min-w-0 font-semibold lg:whitespace-normal">{label}</span>
               </Button>
             </li>
           );
