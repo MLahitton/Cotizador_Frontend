@@ -134,8 +134,8 @@ export function DashboardProcessOverview({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground">
-                        {item.projectCode} · {item.projectName}
+                      <p className="break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
+                        {item.projectName.trim() ? item.projectName : item.projectCode}
                       </p>
 
                       <p className="mt-1 text-xs text-muted">

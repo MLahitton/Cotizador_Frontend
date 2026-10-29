@@ -25,12 +25,19 @@ export interface ProjectWorkspaceClient {
 }
 
 export interface ProjectWorkspaceWorkflow {
+  extraction?: WorkspaceExtraction | null;
   resolutionState: ProjectWorkspaceResolutionState;
   preQuoteId: string | null;
   requirementId: string | null;
   requirementStatus: string | null;
   technicalProposalId: string | null;
   hasTechnicalProposal: boolean;
+}
+
+export interface WorkspaceExtraction {
+  state: "Manual" | "Waiting" | "Admitted" | "Running" | "CancellationRequested" | "Succeeded" | "Failed" | "Cancelled" | "ContinuityUnknown" | "Inconsistent";
+  refreshRecommended: boolean;
+  canAnalyze: boolean;
 }
 
 export interface ProjectWorkspacePublicContext {

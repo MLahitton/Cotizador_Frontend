@@ -2,7 +2,6 @@
   CalendarDays,
   CircleAlert,
   FileText,
-  ImageIcon,
   Palette,
   type LucideIcon,
   MapPin,
@@ -24,6 +23,8 @@ import {
 import type { TechnicalProposal } from "@/features/prequotes/technical-proposal-types";
 import type { ProjectWorkspace } from "@/features/projects/project-workspace-types";
 import { formatPublicProjectType, formatPublicInstallationWindow } from "@/features/projects/project-public-context-formatters";
+import { ProjectCodeRow } from "@/features/projects/components/project-code-row";
+import { ProjectIdeaPhoto } from "@/features/projects/components/project-idea-photo";
 
 interface ProjectContextMetrics {
   includedItems: number | null;
@@ -231,25 +232,6 @@ function StatusPanel({
   return proposal ? null : null;
 }
 
-function ProjectImagePlaceholder() {
-  return (
-    <div className="relative flex h-[260px] w-full min-w-0 items-center justify-center overflow-hidden bg-accent-soft p-6 md:h-[340px] lg:h-[400px] min-[1440px]:h-[440px]">
-      <div className="absolute inset-6 rounded-md border border-dashed border-accent/70" />
-      <div className="relative z-10 flex max-w-sm flex-col items-center justify-center text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-md bg-white/55 text-accent-dark shadow-sm shadow-accent/10 backdrop-blur-sm">
-          <ImageIcon aria-hidden="true" size={26} strokeWidth={1.75} />
-        </span>
-        <p className="mt-4 text-base font-semibold text-foreground">
-          Imagen del proyecto
-        </p>
-        <p className="mt-1 max-w-60 text-sm leading-6 text-foreground-secondary">
-          Aqui se mostrara la imagen principal del proyecto.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 const priorityItems: Array<{
   label: string;
   Icon: LucideIcon;
@@ -278,15 +260,12 @@ const priorityItems: Array<{
 
 function PriorityCard({ label, Icon, className = "" }: { label: string; Icon: LucideIcon; className?: string }) {
   return (
-    <div className={`flex min-h-24 flex-col items-center justify-center px-3 py-3 text-center sm:px-4 ${className}`}>
+    <div className={`flex flex-col items-center justify-center px-3 py-3 text-center sm:px-4 ${className}`}>
       <span className="flex h-10 w-10 items-center justify-center rounded-full border border-accent-soft-strong bg-accent-soft text-accent-dark">
         <Icon aria-hidden="true" size={19} strokeWidth={1.75} />
       </span>
       <p className="mt-2 text-xs font-semibold text-foreground sm:text-sm">
         {label}
-      </p>
-      <p className="mt-0.5 text-xs font-medium text-foreground-secondary">
-        Por definir
       </p>
     </div>
   );
@@ -324,7 +303,7 @@ export function ProjectContextStep({
       </div>
 
       <Surface padding="none" className="overflow-hidden">
-        <ProjectImagePlaceholder />
+        <ProjectIdeaPhoto key={workspace.project.id} projectId={workspace.project.id} />
         <div className="@container min-w-0 border-t border-border-subtle">
             <div className="grid grid-cols-1 gap-px bg-border-subtle [&>div]:bg-surface @[24rem]:grid-cols-2 @[40rem]:grid-cols-3 @[56rem]:grid-cols-5">
               <DataPoint
@@ -412,7 +391,7 @@ export function ProjectContextStep({
             Lo que entendemos que debemos cuidar
           </h3>
           <p className="mt-1 text-sm text-foreground-secondary">
-            Estas prioridades se completaran cuando lleguen desde la experiencia externa.
+            Aquí verás las prioridades que el cliente haya indicado.
           </p>
         </div>
         <div className="overflow-hidden rounded-md border border-accent-soft-strong bg-surface">
@@ -428,6 +407,7 @@ export function ProjectContextStep({
           </div>
         </div>
       </section>
+      <ProjectCodeRow key={workspace.project.id} code={workspace.project.code} />
     </div>
   );
 }

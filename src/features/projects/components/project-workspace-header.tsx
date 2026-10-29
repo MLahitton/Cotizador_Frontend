@@ -59,7 +59,7 @@ export function ProjectWorkspaceHeader({
 
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <h1 className="break-words text-lg font-semibold text-foreground sm:text-xl">
+              <h1 className="min-w-0 break-words text-lg font-semibold text-foreground [overflow-wrap:anywhere] sm:text-xl">
                 {workspace.project.name}
               </h1>
               <Badge tone={workspace.project.isActive ? "success" : "neutral"} size="sm">
@@ -67,9 +67,6 @@ export function ProjectWorkspaceHeader({
               </Badge>
             </div>
             <div className="mt-0.5 flex flex-col gap-1 text-sm text-foreground-secondary md:flex-row md:flex-wrap md:items-center md:gap-3">
-              <span className="font-medium text-foreground">
-                {workspace.project.code}
-              </span>
               {workspace.project.location ? (
                 <span className="inline-flex items-center gap-1">
                   <MapPin aria-hidden="true" size={14} strokeWidth={1.75} />

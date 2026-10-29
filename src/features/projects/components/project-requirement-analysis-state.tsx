@@ -21,17 +21,21 @@ export function ProjectRequirementAnalysisState({ analysis, onRefresh }: {
   const description = processing
     ? "Estamos identificando los elementos del proyecto. El análisis puede tardar varios minutos según la cantidad y complejidad de los documentos."
     : status === "PENDING"
-    ? "Los documentos del proyecto están listos para ser analizados. Inicia el análisis para identificar los elementos de ventanería y continuar con la configuración."
+    ? (readOnly
+      ? "Los documentos del proyecto están pendientes de análisis para identificar los elementos de ventanería."
+      : "Los documentos del proyecto están listos para ser analizados. Inicia el análisis para identificar los elementos de ventanería y continuar con la configuración.")
     : status === "FAILED"
-    ? "Puedes intentarlo nuevamente. Los documentos del proyecto se conservan y no necesitas volver a cargarlos."
+    ? (readOnly
+      ? "El análisis de los documentos del proyecto no pudo completarse."
+      : "Puedes reintentar el análisis de los documentos del proyecto desde esta sección.")
     : status === "CANCELLED" ? "Este análisis fue cancelado y no puede iniciarse desde aquí."
     : status === "SUPERSEDED" ? "Este análisis fue reemplazado por una versión más reciente."
-    : "Actualiza el estado para consultar la información disponible.";
+    : "Consulta el estado para revisar la información disponible.";
   const Icon = processing ? LoaderCircle : FileSearch;
 
   return (
     <section className="min-w-0 space-y-4">
-      <h2 className="text-xl font-semibold text-foreground">Configuración de espacios</h2>
+      <h2 className="text-xl font-semibold text-foreground">Configuración de elementos</h2>
       <Surface className="space-y-5" aria-busy={processing}>
         <div className="flex items-start gap-4" role="status" aria-live="polite">
           <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
@@ -51,7 +55,7 @@ export function ProjectRequirementAnalysisState({ analysis, onRefresh }: {
         ) : null}
         {status === "PROCESSED" || !status ? (
           <Button type="button" variant="outline" onClick={onRefresh}>
-            <RefreshCw className="size-4" aria-hidden="true" />Actualizar estado
+            <RefreshCw className="size-4" aria-hidden="true" />Consultar estado
           </Button>
         ) : null}
       </Surface>

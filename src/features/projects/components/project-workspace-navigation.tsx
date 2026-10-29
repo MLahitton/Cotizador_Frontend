@@ -47,7 +47,7 @@ const steps: Array<{
   },
   {
     id: "configuration",
-    label: "Configuración de espacios",
+    label: "Configuración de elementos",
     Icon: SlidersHorizontal,
   },
   {
@@ -79,7 +79,7 @@ export function ProjectWorkspaceNavigation({
                 aria-current={isActive ? "page" : undefined}
                 title={
                   disabled
-                    ? "Disponible después de confirmar la configuración y calcular la propuesta."
+                    ? "Resumen aún no disponible en esta sección"
                     : label
                 }
                 className={cn(

@@ -30,6 +30,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+/temp_backend_e2e_stderr.log
+/temp_backend_e2e_stdout.log
+/temp_frontend_e2e_stderr.log
+/temp_frontend_e2e_stdout.log
+/test-results/workspace-loading/
 
 # env files (can opt-in for committing if needed)
 .env*

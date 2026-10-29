@@ -135,10 +135,7 @@ export function ProjectsTable({
                 items.map((project) => (
                   <tr key={project.id} className="bg-surface">
                     <td className="px-5 py-4 align-top">
-                      <p className="text-xs font-semibold uppercase text-foreground-secondary">
-                        {project.code}
-                      </p>
-                      <p className="mt-1 font-semibold text-foreground">
+                      <p className="break-words font-semibold text-foreground [overflow-wrap:anywhere]">
                         {project.name}
                       </p>
                       {project.description ? (

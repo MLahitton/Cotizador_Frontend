@@ -180,8 +180,8 @@ export function DashboardActivity({
                         {item.title}
                       </p>
 
-                      <p className="mt-1 text-sm text-foreground-secondary">
-                        {item.projectCode} · {item.projectName}
+                      <p className="mt-1 break-words text-sm text-foreground-secondary [overflow-wrap:anywhere]">
+                        {item.projectName.trim() ? item.projectName : item.projectCode}
                       </p>
 
                       {item.preQuoteSerial ? (

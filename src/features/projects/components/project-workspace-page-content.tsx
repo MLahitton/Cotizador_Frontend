@@ -4,6 +4,9 @@ import { useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Surface } from "@/components/ui/surface";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
+import { ProjectExtractionStatus } from "./project-extraction-status";
 import { useAuth } from "@/features/auth/auth-context";
 import { ProjectActivationConfirmation } from "@/features/projects/components/project-activation-confirmation";
 import {
@@ -18,10 +21,10 @@ import { useProjectRequirementAnalysis } from "@/features/projects/use-project-r
 import { ProjectContextStep } from "@/features/projects/components/project-context-step";
 import { ProjectEditForm } from "@/features/projects/components/project-edit-form";
 import {
-  ProjectDocumentsStep,
   ProjectMomentsStep,
   ProjectSummaryStep,
 } from "@/features/projects/components/project-workspace-placeholder-steps";
+import { ProjectDocumentsStep } from "@/features/projects/components/project-documents-step";
 import { ProjectWorkspaceHeader } from "@/features/projects/components/project-workspace-header";
 import {
   ProjectWorkspaceNavigation,
@@ -73,6 +76,7 @@ function ProjectWorkspaceStepContent({
   onItemInclusionUpdated,
   analysis,
   onRefreshWorkspace,
+  readOnly,
 }: {
   activeStep: ProjectWorkspaceStep;
   workspace: NonNullable<ReturnType<typeof useProjectWorkspace>["workspace"]>;
@@ -83,6 +87,7 @@ function ProjectWorkspaceStepContent({
   onItemInclusionUpdated: ReturnType<typeof useProjectWorkspaceProposal>["applyItemInclusionUpdate"];
   analysis: ReturnType<typeof useProjectRequirementAnalysis>;
   onRefreshWorkspace: () => void;
+  readOnly: boolean;
 }) {
   switch (activeStep) {
     case "context":
@@ -100,11 +105,15 @@ function ProjectWorkspaceStepContent({
     case "moments":
       return <ProjectMomentsStep />;
     case "configuration":
+      if (workspace.workflow.extraction && !["Manual", "Succeeded"].includes(workspace.workflow.extraction.state)) {
+        return <ProjectExtractionStatus extraction={workspace.workflow.extraction} projectId={workspace.project.id} configuration />;
+      }
       if (workspace.workflow.resolutionState === "RESOLVED" && workspace.workflow.requirementId && !workspace.workflow.hasTechnicalProposal) {
         return <ProjectRequirementAnalysisState analysis={analysis} onRefresh={onRefreshWorkspace} />;
       }
       return (
         <ProjectConfigurationStep
+          readOnly={readOnly}
           workspace={workspace}
           proposal={proposal}
           isProposalLoading={isProposalLoading}
@@ -116,7 +125,8 @@ function ProjectWorkspaceStepContent({
     case "summary":
       return <ProjectSummaryStep />;
     case "documents":
-      return <ProjectDocumentsStep />;
+      return <ProjectDocumentsStep key={`${workspace.project.id}:${workspace.workflow.requirementId}:${workspace.workflow.preQuoteId}`}
+        workspace={workspace} readOnly={readOnly} onRefreshWorkspace={onRefreshWorkspace} />;
   }
 }
 
@@ -140,7 +150,10 @@ export function ProjectWorkspacePageContent({
     retryWorkspace,
     applyProjectUpdate: applyWorkspaceProjectUpdate,
     isProjectIdValid,
-  } = useProjectWorkspace(projectId);
+    refreshNotice,
+    consultWorkspace,
+    isConsulting,
+  } = useProjectWorkspace(projectId, user?.id ?? "");
   const analysis = useProjectRequirementAnalysis({
     projectId,
     workflow: workspace?.workflow,
@@ -386,6 +399,17 @@ export function ProjectWorkspacePageContent({
       />
 
       <ProjectWorkspaceSuccessMessage message={successMessage} />
+      {workspace.workflow.extraction && workspace.workflow.extraction.state !== "Manual" ? (
+        <div className="flex flex-wrap items-center justify-between gap-3" aria-busy={isConsulting}>
+          <p role="status" className="min-w-0 text-sm text-foreground-secondary">
+            {isConsulting ? "Consultando estado; se conserva la información anterior." : refreshNotice}
+          </p>
+          <Button type="button" variant="outline" size="sm" disabled={isConsulting} onClick={consultWorkspace}>
+            <RefreshCw aria-hidden="true" size={16} className={isConsulting ? "motion-safe:animate-spin" : undefined} />
+            Consultar estado
+          </Button>
+        </div>
+      ) : null}
 
       {!isAdmin && isEditing ? (
         <ProjectEditForm
@@ -419,6 +443,7 @@ export function ProjectWorkspacePageContent({
           onStepChange={handleStepChange}
         />
         <ProjectWorkspaceStepContent
+          readOnly={!user || isAdmin}
           activeStep={activeStep}
           workspace={workspace}
           proposal={proposal}

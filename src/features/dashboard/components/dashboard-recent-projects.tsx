@@ -124,9 +124,9 @@ export function DashboardRecentProjects({
                     <td className="px-4 py-4 sm:px-6">
                       <Link
                         href={`/projects/${project.projectId}`}
-                        className="font-medium text-foreground hover:underline"
+                        className="break-words font-medium text-foreground [overflow-wrap:anywhere] hover:underline"
                       >
-                        {project.code} · {project.name}
+                        {project.name}
                       </Link>
                     </td>
 

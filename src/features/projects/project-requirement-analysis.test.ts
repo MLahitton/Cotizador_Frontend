@@ -144,10 +144,10 @@ test("polling stops at FAILED/CANCELLED/SUPERSEDED and cleanup removes timers", 
   assert.equal(run.hasTimer, false);
 });
 
-test("API failure preserves retry and uses the friendly error helper", async () => {
+test("API error preserves the last known state instead of fabricating Failed", async () => {
   const run = setup({ processRequirement: async () => { throw new Error("private detail"); } });
   await run.session.process();
-  assert.equal(run.changes.at(-1)?.status, "FAILED");
+  assert.equal(run.changes.at(-1)?.status, "PENDING");
   assert.equal(run.changes.at(-1)?.error, "Mensaje amigable");
   assert.equal(run.refreshes, 0);
 });

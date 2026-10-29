@@ -87,6 +87,9 @@ function isWorkflow(value: unknown): value is ProjectWorkspaceWorkflow {
     isNullableString(value.requirementStatus) &&
     isValidGuidOrNull(value.technicalProposalId) &&
     typeof value.hasTechnicalProposal === "boolean"
+    && (value.extraction == null || (isRecord(value.extraction)
+      && ["Manual", "Waiting", "Admitted", "Running", "CancellationRequested", "Succeeded", "Failed", "Cancelled", "ContinuityUnknown", "Inconsistent"].includes(String(value.extraction.state))
+      && typeof value.extraction.refreshRecommended === "boolean" && typeof value.extraction.canAnalyze === "boolean"))
   );
 }
 
@@ -119,10 +122,11 @@ function isProjectWorkspace(
 
 export async function getProjectWorkspace(
   projectId: string,
+  signal?: AbortSignal,
 ): Promise<ProjectWorkspace> {
   const response = await apiRequest(
     `/api/v2/projects/${encodeURIComponent(projectId)}/workspace`,
-    { authenticated: true },
+    { authenticated: true, signal },
   );
 
   if (!isProjectWorkspace(response, projectId)) {

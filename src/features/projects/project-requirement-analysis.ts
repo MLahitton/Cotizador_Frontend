@@ -68,6 +68,7 @@ export function createProjectRequirementAnalysis(options: AnalysisOptions) {
       if (disposed || busy || options.readOnly || (state.status !== "PENDING" && state.status !== "FAILED")) return;
       busy = true;
       cancelTimer?.();
+      const previousStatus = state.status;
       publish({ status: "PROCESSING", error: null, isSubmitting: true });
       try {
         const result = await options.processRequirement(options.requirementId);
@@ -85,7 +86,7 @@ export function createProjectRequirementAnalysis(options: AnalysisOptions) {
       } catch (error) {
         if (disposed) return;
         const active = options.isAlreadyActive(error);
-        publish({ status: active ? "PROCESSING" : "FAILED", error: active ? null : options.errorMessage(error), isSubmitting: false });
+        publish({ status: active ? "PROCESSING" : previousStatus, error: active ? null : options.errorMessage(error), isSubmitting: false });
       } finally {
         busy = false;
         pollLater();

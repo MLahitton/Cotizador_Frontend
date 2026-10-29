@@ -28,7 +28,6 @@ import {
   getRequirementExperienceCatalog,
   getRequirementExperienceDrafts,
   getRequirementExperienceConfigurationErrorCode,
-  getRequirementExperienceErrorMessage,
   updateRequirementExperienceDraft,
 } from "@/features/prequotes/requirement-experience-api";
 import { defaultDraftForItem, itemDraftFromServer } from "@/features/prequotes/prequote-experience-demo-config";
@@ -55,18 +54,20 @@ import type {
   TechnicalProposalItem,
 } from "@/features/prequotes/technical-proposal-types";
 import type { ProjectWorkspace } from "@/features/projects/project-workspace-types";
+import { getConfigurationDraftFailure } from "@/features/projects/project-configuration-draft-error";
+import { canConfirmConfiguration, hasPendingConfigurationChanges, type ConfigurationDraftStatus } from "@/features/projects/project-configuration-editing";
 import { cn } from "@/lib/utils/cn";
 
 const ITEMS_PER_PAGE = 4;
 
 type ItemFilter = "all" | "complete" | "incomplete" | "excluded";
-type DraftStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "conflict";
+type DraftStatus = ConfigurationDraftStatus;
 type ConfigurationStatusState = "idle" | "loading" | "success" | "error";
 
 const filters: Array<{ id: ItemFilter; label: string }> = [
   { id: "all", label: "Todos" },
-  { id: "complete", label: "Completos" },
-  { id: "incomplete", label: "Incompletos" },
+  { id: "complete", label: "Datos completos" },
+  { id: "incomplete", label: "Datos pendientes" },
   { id: "excluded", label: "Excluidos" },
 ];
 
@@ -100,8 +101,8 @@ function configurationStatusCopy(
   if (configuration.status === "CONFIRMED") {
     return {
       badge: "Confirmada",
-      title: "Configuracion confirmada",
-      description: "La configuracion actual coincide con la ultima confirmacion.",
+      title: "Configuración confirmada",
+      description: "La configuración guardada coincide con la última confirmación.",
       actionLabel: null,
       badgeTone: "success",
     };
@@ -109,9 +110,9 @@ function configurationStatusCopy(
 
   if (configuration.status === "STALE") {
     return {
-      badge: "Modificada",
-      title: "Configuracion modificada",
-      description: "Hay cambios posteriores a la ultima configuracion confirmada.",
+      badge: "Cambios posteriores a la confirmación",
+      title: "Configuración modificada",
+      description: "Hay cambios posteriores a la última configuración confirmada.",
       actionLabel: "Confirmar cambios",
       badgeTone: "warning",
     };
@@ -119,19 +120,19 @@ function configurationStatusCopy(
 
   if (configuration.canConfirm) {
     return {
-      badge: "Lista",
+      badge: "Lista para confirmar",
       title: "Lista para confirmar",
-      description: "La configuracion tecnica esta completa y lista para continuar.",
-      actionLabel: "Confirmar configuracion",
+      description: "La configuración guardada está lista para confirmar.",
+      actionLabel: "Confirmar configuración",
       badgeTone: "success",
     };
   }
 
   return {
-    badge: "Borrador",
-    title: "Borrador",
-    description: "Faltan algunos datos antes de poder confirmar la configuracion.",
-    actionLabel: "Confirmar configuracion",
+    badge: "Pendiente de confirmar",
+    title: "Pendiente de confirmar",
+    description: "Hay información pendiente de revisar antes de confirmar la configuración.",
+    actionLabel: "Confirmar configuración",
     badgeTone: "neutral",
   };
 }
@@ -197,7 +198,7 @@ function formatLevel1State(
 ): string {
   const resolution = draft.level1Resolution;
   if (resolution?.isComplete) {
-    return "Prioridades completas";
+    return "Prioridades definidas";
   }
 
   const answered = resolution?.answeredBenefits ?? answerCount(draft, catalog);
@@ -207,7 +208,7 @@ function formatLevel1State(
     return `${answered} de ${required} prioridades definidas`;
   }
 
-  return "Configuración parcial";
+  return "Prioridades pendientes";
 }
 
 function itemCompleteness(item: TechnicalProposalItem): "complete" | "incomplete" | "excluded" {
@@ -265,7 +266,7 @@ function DraftFeedback({
     return (
       <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground-secondary">
         <Loader2 aria-hidden="true" size={14} className="animate-spin" />
-        Guardando
+        Guardando…
       </span>
     );
   }
@@ -274,7 +275,7 @@ function DraftFeedback({
     return (
       <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success">
         <CheckCircle2 aria-hidden="true" size={14} />
-        Guardado
+        Prioridades guardadas
       </span>
     );
   }
@@ -284,11 +285,11 @@ function DraftFeedback({
   }
 
   if (status === "conflict") {
-    return <span className="text-xs font-semibold text-warning">{error ?? "Hay una versión más reciente."}</span>;
+    return <span className="text-xs font-semibold text-warning">{error ?? "Estas prioridades cambiaron. Vuelve a cargarlas antes de guardar de nuevo."}</span>;
   }
 
   if (status === "error") {
-    return <span className="text-xs font-semibold text-danger">{error ?? "No fue posible guardar."}</span>;
+    return <span className="text-xs font-semibold text-danger">{error ?? "No fue posible guardar las prioridades."}</span>;
   }
 
   return null;
@@ -331,7 +332,7 @@ function PriorityLevelControl({
                 disabled={disabled}
                 aria-pressed={isSelected}
                 className={cn(
-                  "group flex min-w-0 flex-col items-center gap-1 rounded-sm text-[12px] font-semibold text-foreground-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8D9DB7]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-subtle sm:text-xs",
+                  "group flex min-h-11 min-w-0 flex-col items-center gap-0.5 rounded-sm text-[12px] font-semibold text-foreground-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8D9DB7]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-subtle sm:text-xs",
                   isSelected ? "text-foreground" : "hover:text-foreground",
                   disabled ? "cursor-not-allowed opacity-55" : "",
                 )}
@@ -352,7 +353,7 @@ function PriorityLevelControl({
                     )}
                   />
                 </span>
-                <span className="max-w-full truncate">{optionLabel(option)}</span>
+                <span className="max-w-full whitespace-normal break-words text-center">{optionLabel(option)}</span>
               </button>
             );
           })}
@@ -393,7 +394,7 @@ function UvToggleControl({
                 disabled={disabled}
                 aria-pressed={isSelected}
                 className={cn(
-                  "group flex min-w-0 flex-col items-center gap-1 rounded-sm text-[12px] font-semibold text-foreground-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8D9DB7]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-subtle sm:text-xs",
+                  "group flex min-h-11 min-w-0 flex-col items-center gap-0.5 rounded-sm text-[12px] font-semibold text-foreground-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8D9DB7]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-subtle sm:text-xs",
                   isSelected ? "text-foreground" : "hover:text-foreground",
                   disabled ? "cursor-not-allowed opacity-55" : "",
                 )}
@@ -414,7 +415,7 @@ function UvToggleControl({
                     )}
                   />
                 </span>
-                <span className="max-w-full truncate">{optionLabel(option)}</span>
+                <span className="max-w-full whitespace-normal break-words text-center">{optionLabel(option)}</span>
               </button>
             );
           })}
@@ -435,7 +436,7 @@ function ExperienceQuestionControl({
   onSelect: (optionCode: string) => void;
 }) {
   return (
-    <div className="grid min-w-0 content-start gap-2">
+    <div className="grid min-w-0 content-start gap-0.5">
       <p className="min-w-0 text-sm font-semibold text-foreground-secondary md:text-xs">
         {question.label}
       </p>
@@ -457,7 +458,7 @@ function ExperienceQuestionControl({
     </div>
   );
 }
-function ConfigurationItemCard({
+export function ConfigurationItemCard({
   item,
   catalog,
   draft,
@@ -465,6 +466,8 @@ function ConfigurationItemCard({
   error,
   inclusionError,
   inclusionBusy,
+  readOnly,
+  confirming,
   onDraftChange,
   onSaveDraft,
   onToggleInclusion,
@@ -477,6 +480,8 @@ function ConfigurationItemCard({
   error: string | null;
   inclusionError: string | null;
   inclusionBusy: boolean;
+  readOnly: boolean;
+  confirming: boolean;
   onDraftChange: (draft: ItemExperienceDraft) => void;
   onSaveDraft: (draft: ItemExperienceDraft) => void;
   onToggleInclusion: (item: TechnicalProposalItem) => void;
@@ -490,13 +495,14 @@ function ConfigurationItemCard({
   );
   const isExcluded = !item.isIncluded;
   const missingFields = displayMissingFields(item);
-  const canSave = status === "dirty" && !isExcluded;
+  const mutationDisabled = readOnly || confirming;
+  const canSave = status === "dirty" && !isExcluded && !mutationDisabled;
   const dimensions = `${formatProposalNumber(item.effectiveWidthMm, " mm")} x ${formatProposalNumber(item.effectiveHeightMm, " mm")}`;
   const quantity = formatProposalQuantity(item.effectiveQuantity).replace("Cantidad: ", "");
   const itemTypeLabel = typeLabel(item);
 
   const updateAnswer = (benefitCode: string, optionCode: string) => {
-    if (!catalog || isExcluded) {
+    if (!catalog || isExcluded || mutationDisabled || status === "saving") {
       return;
     }
 
@@ -520,10 +526,10 @@ function ConfigurationItemCard({
         isExcluded ? "bg-surface-subtle opacity-80" : "bg-surface",
       )}
     >
-      <div className="grid items-start gap-3 p-3 @[35rem]:grid-cols-[8rem_minmax(0,1fr)_2.5rem] @[56rem]:grid-cols-[9rem_minmax(0,1fr)_2.5rem]">
+      <div className="grid items-start gap-3 p-3 @[35rem]:grid-cols-[12rem_minmax(0,1fr)_2.5rem] @[56rem]:grid-cols-[13.5rem_minmax(0,1fr)_2.5rem]">
         <div className="min-w-0">
-          <div className="h-32 overflow-hidden rounded-md border border-[#8D9DB7]/25 bg-[#D9E3F0]/45 p-2">
-            <div className="h-full min-w-0 [&_figure]:h-full [&_figure]:space-y-0 [&_figcaption]:hidden [&_svg]:max-h-36 @[35rem]:[&_svg]:max-h-28 @[56rem]:[&_svg]:max-h-32 @[78rem]:[&_svg]:max-h-36 [&>figure>div]:h-full [&>figure>div]:border-0 [&>figure>div]:bg-transparent [&>figure>div]:p-1 [&>figure>div]:shadow-none">
+          <div className="rounded-md border border-[#8D9DB7]/25 bg-[#D9E3F0]/45 p-1">
+            <div className="min-w-0 [&_figure]:space-y-1 [&_figcaption]:px-1 [&_svg]:h-40 [&_svg]:max-h-none [&>figure>div]:border-0 [&>figure>div]:bg-transparent [&>figure>div]:p-0 [&>figure>div]:shadow-none">
               <TechnicalProposalVisualPreview visualModel={item.visualModel} />
             </div>
           </div>
@@ -551,7 +557,7 @@ function ConfigurationItemCard({
             </div>
           </div>
 
-          <div className="grid gap-x-4 gap-y-1 text-sm @[35rem]:grid-cols-2 @[35rem]:text-xs @[64rem]:grid-cols-4">
+          <div className="grid gap-x-3 gap-y-1 text-sm @[35rem]:grid-cols-2 @[35rem]:text-xs @[70rem]:grid-cols-4 [&>p]:break-words">
             <p className="min-w-0 text-foreground-secondary">
               <span className="font-semibold text-foreground">Tipología: </span>
               <span className="whitespace-normal break-normal">{itemTypeLabel}</span>
@@ -574,19 +580,18 @@ function ConfigurationItemCard({
 
           <p className="flex min-w-0 items-center gap-1.5 text-xs text-foreground-secondary">
             <MapPin aria-hidden="true" size={13} className="shrink-0 text-[#657A9B]" />
-            <span className="line-clamp-1">{displayLocation(item)}</span>
+            <span className="min-w-0 break-words">{displayLocation(item)}</span>
           </p>
 
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-1.5">
               <Badge tone={item.dataCompleteness.isComplete ? "success" : "warning"} size="sm">
-                {item.dataCompleteness.isComplete ? "Información completa" : "Información pendiente"}
+                {item.dataCompleteness.isComplete ? "Datos completos" : "Datos pendientes"}
               </Badge>
               <Badge tone="neutral" size="sm">
                 {formatLevel1State(draft, catalog)}
               </Badge>
             </div>
-            <DraftFeedback status={status} error={error} />
           </div>
         </div>
         <button
@@ -598,30 +603,52 @@ function ConfigurationItemCard({
           <ChevronRight aria-hidden="true" size={18} />
         </button>
       </div>
-        <div className="min-w-0 border-t border-[#C4D2E6] bg-[#EAF1FB] p-4">
+      <div className="min-w-0 border-t border-[#C4D2E6] bg-[#EAF1FB] px-3 py-2">
+        <div className="grid items-start gap-x-5 gap-y-2 @[30rem]:grid-cols-2 @[48rem]:grid-cols-3">
           {catalog?.questions.length ? (
-            <div className="grid gap-x-8 gap-y-5 @[28rem]:grid-cols-2 @[40rem]:grid-cols-3">
+            <>
               {catalog.questions.map((question) => (
                 <ExperienceQuestionControl
                   key={question.benefitCode}
                   question={question}
                   selectedOptionCode={draft.answers[question.benefitCode]}
-                  disabled={isExcluded || status === "saving"}
+                  disabled={isExcluded || status === "saving" || mutationDisabled}
                   onSelect={(optionCode) => updateAnswer(question.benefitCode, optionCode)}
                 />
               ))}
-            </div>
+            </>
           ) : (
             <div className="text-sm text-foreground-secondary">
-              Catálogo de experiencia no disponible.
+              Las prioridades no están disponibles en este momento.
             </div>
           )}
 
-          <div className="mt-3 flex flex-col gap-2 border-t border-border-subtle pt-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
+          <div className="min-w-0 space-y-1.5 self-end @[30rem]:col-span-2 @[48rem]:col-span-1" role="group" aria-label="Acciones y estado del elemento">
+            <div className="flex min-w-0 flex-wrap gap-1.5">
+              <Button
+                type="button"
+                variant={item.isIncluded ? "outline" : "secondary"}
+                size="sm"
+                disabled={inclusionBusy || mutationDisabled || status === "saving"}
+                onClick={() => { if (!mutationDisabled) onToggleInclusion(item); }}
+              >
+                {inclusionBusy ? "Guardando…" : item.isIncluded ? "Excluir" : "Volver a incluir"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={!canSave}
+                onClick={() => { if (canSave) onSaveDraft(draft); }}
+              >
+                {status === "saving" ? "Guardando…" : "Guardar prioridades"}
+              </Button>
+            </div>
+            <div className="min-w-0 break-words" aria-live="polite">
+              <DraftFeedback status={status} error={error} />
+              {readOnly ? <p className="text-xs text-foreground-secondary">Solo lectura</p> : null}
               {!item.dataCompleteness.isComplete ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {(missingFields.length > 0 ? missingFields : ["Faltan datos comerciales"]).map((field) => (
+                  {(missingFields.length > 0 ? missingFields : ["Hay datos pendientes de revisar"]).map((field) => (
                     <span
                       key={field}
                       className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-semibold text-warning"
@@ -637,28 +664,9 @@ function ConfigurationItemCard({
                 </p>
               ) : null}
             </div>
-            <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-              <Button
-                type="button"
-                variant={item.isIncluded ? "outline" : "secondary"}
-                size="sm"
-                disabled={inclusionBusy}
-                onClick={() => onToggleInclusion(item)}
-              >
-                {inclusionBusy ? "Guardando..." : item.isIncluded ? "Excluir" : "Reactivar"}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                disabled={!canSave}
-                onClick={() => onSaveDraft(draft)}
-              >
-                {status === "saving" ? "Guardando..." : "Guardar"}
-              </Button>
-            </div>
           </div>
         </div>
-
+      </div>
     </Surface>
   );
 }
@@ -667,10 +675,10 @@ function ConfigurationEmptyState() {
   return (
     <Surface variant="subtle">
       <p className="text-sm font-semibold text-foreground">
-        No hay elementos técnicos disponibles.
+        No hay elementos disponibles para configurar.
       </p>
       <p className="mt-2 text-sm leading-6 text-foreground-secondary">
-        Cuando exista una propuesta técnica, aquí aparecerán los elementos para configurar sus prioridades comerciales.
+        Cuando los elementos estén disponibles, podrás configurar sus prioridades aquí.
       </p>
     </Surface>
   );
@@ -716,7 +724,7 @@ function ConfigurationAvailabilityState({
               className="mt-3 bg-surface"
               onClick={onRetry}
             >
-              Reintentar
+              Volver a cargar
             </Button>
           ) : null}
         </div>
@@ -737,7 +745,7 @@ function ConfigurationItemLinks({
   if (items.length > 5) {
     return (
       <p className="mt-2 text-sm text-foreground-secondary">
-        {items.length} elementos requieren atencion. Usa la lista de configuracion para revisarlos por referencia.
+        {items.length} elementos requieren atención. Usa la lista de configuración para revisarlos por referencia.
       </p>
     );
   }
@@ -799,7 +807,7 @@ function ConfigurationPendingRow({
   );
 }
 
-function ExperienceConfigurationConfirmationPanel({
+export function ExperienceConfigurationConfirmationPanel({
   projectId,
   configuration,
   state,
@@ -808,6 +816,9 @@ function ExperienceConfigurationConfirmationPanel({
   error,
   onConfirm,
   onRetry,
+  readOnly,
+  hasPendingChanges,
+  confirmationAllowed,
 }: {
   projectId: string;
   configuration: RequirementExperienceConfigurationStatusResponse | null;
@@ -817,13 +828,16 @@ function ExperienceConfigurationConfirmationPanel({
   error: string | null;
   onConfirm: () => void;
   onRetry: () => void;
+  readOnly: boolean;
+  hasPendingChanges: boolean;
+  confirmationAllowed: boolean;
 }) {
   if (state === "loading" || state === "idle") {
     return (
       <Surface className="border-[#C4D2E6] bg-[#EAF1FB]/70" aria-busy="true">
         <div className="flex items-center gap-3 text-sm font-semibold text-foreground-secondary">
           <Loader2 aria-hidden="true" size={18} className="animate-spin text-[#657A9B]" />
-          Consultando estado de configuracion...
+          Consultando estado de configuración…
         </div>
       </Surface>
     );
@@ -839,15 +853,15 @@ function ExperienceConfigurationConfirmationPanel({
             </span>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground">
-                No fue posible consultar el estado de la configuracion.
+                No fue posible consultar el estado de la configuración.
               </p>
               <p className="mt-1 text-sm leading-6 text-foreground-secondary">
-                Puedes seguir revisando los elementos mientras intentamos consultar nuevamente.
+                Puedes seguir revisando los elementos y volver a consultar el estado cuando lo necesites.
               </p>
             </div>
           </div>
           <Button type="button" variant="outline" size="sm" className="bg-surface" onClick={onRetry}>
-            Reintentar
+            Consultar estado
           </Button>
         </div>
       </Surface>
@@ -874,7 +888,7 @@ function ExperienceConfigurationConfirmationPanel({
     (hasActionablePending || hasProcessDependencies || additionalReasons.length > 0);
   const confirmedDate = formatConfirmationDate(configuration.confirmedAtUtc);
   const showAction = Boolean(copy.actionLabel);
-  const actionDisabled = !configuration.canConfirm || confirming;
+  const actionDisabled = !confirmationAllowed;
 
   return (
     <Surface className="border-[#C4D2E6] bg-[#EAF1FB]/70">
@@ -886,7 +900,7 @@ function ExperienceConfigurationConfirmationPanel({
             </Badge>
             {configuration.latestConfirmationRevision ? (
               <Badge tone="neutral" size="sm">
-                Revision {configuration.latestConfirmationRevision}
+                Revisión {configuration.latestConfirmationRevision}
               </Badge>
             ) : null}
             {confirmedDate ? (
@@ -903,29 +917,36 @@ function ExperienceConfigurationConfirmationPanel({
           </p>
           {configuration.confirmedByUserId && configuration.status === "CONFIRMED" ? (
             <p className="mt-1 text-xs font-semibold text-foreground-secondary">
-              Confirmada por el usuario registrado.
+              Confirmación registrada.
             </p>
           ) : null}
         </div>
 
-        {showAction ? (
+        {showAction && !readOnly ? (
           <div className="flex flex-col items-start gap-2 lg:items-end">
             <Button
               type="button"
               disabled={actionDisabled}
               onClick={onConfirm}
-              aria-describedby={!configuration.canConfirm ? "experience-configuration-blockers" : undefined}
+              aria-describedby={hasPendingChanges ? "experience-configuration-unsaved" : !configuration.canConfirm ? "experience-configuration-blockers" : undefined}
             >
               {confirming ? "Confirmando..." : copy.actionLabel}
             </Button>
             {!configuration.canConfirm ? (
               <span className="text-xs font-semibold text-foreground-secondary">
-                Completa lo pendiente para habilitar la confirmacion.
+                Resuelve los pendientes para habilitar la confirmación.
               </span>
             ) : null}
           </div>
         ) : null}
       </div>
+
+      {readOnly ? <p className="mt-3 text-sm text-foreground-secondary">Solo lectura</p> : null}
+      {hasPendingChanges ? (
+        <p id="experience-configuration-unsaved" role="status" className="mt-3 text-sm font-semibold text-warning">
+          Hay cambios locales pendientes de guardar. La confirmación corresponde a los datos guardados; guarda las prioridades pendientes antes de confirmar.
+        </p>
+      ) : null}
 
       {showBeforeConfirmDetails ? (
         <div id="experience-configuration-blockers" className="mt-4 rounded-md border border-warning/30 bg-warning-soft/60 p-3">
@@ -934,7 +955,7 @@ function ExperienceConfigurationConfirmationPanel({
             {additionalReasons.map((reason) => {
               const items = itemsWithBlockingReason(configuration, reason);
               const actionable = isActionableConfigurationBlocker(reason);
-              return <ConfigurationPendingRow key={reason} tone={actionable ? "action" : "process"} title={configurationBlockerMessage(reason)} description={actionable ? "Abre el elemento para revisar su configuracion." : "Esta definicion debe resolverse antes de confirmar."}>
+              return <ConfigurationPendingRow key={reason} tone={actionable ? "action" : "process"} title={configurationBlockerMessage(reason)} description={actionable ? "Abre el elemento para revisar su configuración." : "Esta definición debe resolverse antes de confirmar."}>
                 {actionable && items.length > 0 ? <ConfigurationItemLinks items={items} projectId={projectId} /> : null}
               </ConfigurationPendingRow>;
             })}
@@ -956,8 +977,8 @@ function ExperienceConfigurationConfirmationPanel({
                 count={glassPendingItems.length}
                 description={
                   glassPendingItems.length === includedConfigurationItems(configuration).length
-                    ? "El vidrio todavia esta pendiente de definicion para los elementos del proyecto."
-                    : "La definicion del vidrio continua pendiente para algunos elementos del proyecto."
+                    ? "El vidrio todavía está pendiente de definición para los elementos del proyecto."
+                    : "La definición del vidrio continúa pendiente para algunos elementos del proyecto."
                 }
               />
             ) : null}
@@ -966,7 +987,7 @@ function ExperienceConfigurationConfirmationPanel({
               <ConfigurationPendingRow
                 tone="process"
                 title="Acabado pendiente"
-                description="El acabado esta pendiente de definicion."
+                description="El acabado está pendiente de definición."
               />
             ) : null}
           </div>
@@ -989,13 +1010,13 @@ function ExperienceConfigurationConfirmationPanel({
       {hasReviews ? (
         <div className="mt-3 rounded-md border border-[#C4D2E6] bg-surface p-3">
           <p className="text-sm font-semibold text-foreground">
-            Revision tecnica
+            Revisión técnica
           </p>
           <p className="mt-1 text-sm leading-6 text-foreground-secondary">
-            Hay {reviewItems.length === 1 ? "un elemento cuya definicion tecnica requiere" : `${reviewItems.length} elementos cuya definicion tecnica requiere`} revision. Esto no cambia por si solo la disponibilidad de confirmacion.
+            Hay {reviewItems.length === 1 ? "un elemento cuya definición técnica requiere" : `${reviewItems.length} elementos cuya definición técnica requiere`} revisión. Esto no cambia por sí solo la disponibilidad de confirmación.
           </p>
           {reviewItems.length <= 5 ? (
-            <div className="mt-3 flex flex-wrap gap-2" aria-label="Elementos con revision tecnica">
+            <div className="mt-3 flex flex-wrap gap-2" aria-label="Elementos con revisión técnica">
               {reviewItems.map((item) => (
                 <span
                   key={item.technicalProposalItemId}
@@ -1034,6 +1055,7 @@ export function ProjectConfigurationStep({
   hasProposalError,
   onRetryProposal,
   onItemInclusionUpdated,
+  readOnly,
 }: {
   workspace: ProjectWorkspace;
   proposal: TechnicalProposal | null;
@@ -1041,6 +1063,7 @@ export function ProjectConfigurationStep({
   hasProposalError: boolean;
   onRetryProposal: () => void;
   onItemInclusionUpdated: (update: TechnicalProposalItemInclusionResponse) => void;
+  readOnly: boolean;
 }) {
   const router = useRouter();
   const [catalog, setCatalog] = useState<RequirementExperienceCatalog | null>(null);
@@ -1064,6 +1087,15 @@ export function ProjectConfigurationStep({
   const technicalProposalId = proposal?.technicalProposalId ?? workspace.workflow.technicalProposalId;
   const requirementId = proposal?.requirementId ?? workspace.workflow.requirementId;
   const shouldLoadExperienceData = Boolean(proposal && technicalProposalId && requirementId);
+  const hasPendingChanges = hasPendingConfigurationChanges(statuses);
+  const confirmationAllowed = canConfirmConfiguration({
+    readOnly,
+    confirming: configurationConfirming,
+    hasPendingChanges,
+    inclusionBusy: Object.values(inclusionBusy).some(Boolean),
+    dataReady: catalogState === "success" && draftsState === "success" && configurationState === "success",
+    canConfirm: configurationStatus?.canConfirm ?? false,
+  });
 
   useEffect(() => {
     if (!shouldLoadExperienceData) {
@@ -1171,6 +1203,7 @@ export function ProjectConfigurationStep({
   const visibleItems = filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const changeDraft = useCallback((draft: ItemExperienceDraft) => {
+    if (readOnly || configurationConfirming) return;
     setDrafts((current) => ({
       ...current,
       [draft.itemId]: draft,
@@ -1183,10 +1216,10 @@ export function ProjectConfigurationStep({
       ...current,
       [draft.itemId]: null,
     }));
-  }, []);
+  }, [readOnly, configurationConfirming]);
 
   const saveDraft = useCallback(async (draft: ItemExperienceDraft) => {
-    if (!technicalProposalId || !catalog) {
+    if (readOnly || configurationConfirming || !technicalProposalId || !catalog) {
       return;
     }
 
@@ -1214,23 +1247,21 @@ export function ProjectConfigurationStep({
       setStatuses((current) => ({ ...current, [draft.itemId]: "saved" }));
       void loadConfigurationStatus();
     } catch (error: unknown) {
-      const message = getRequirementExperienceErrorMessage(error);
+      const failure = getConfigurationDraftFailure(error);
       setStatuses((current) => ({
         ...current,
-        [draft.itemId]: message.includes("versión") || message.includes("version")
-          ? "conflict"
-          : "error",
+        [draft.itemId]: failure.status,
       }));
-      setErrors((current) => ({ ...current, [draft.itemId]: message }));
+      setErrors((current) => ({ ...current, [draft.itemId]: failure.message }));
     }
-  }, [catalog, loadConfigurationStatus, technicalProposalId]);
+  }, [catalog, loadConfigurationStatus, technicalProposalId, readOnly, configurationConfirming]);
 
   const openItem = useCallback((item: TechnicalProposalItem) => {
     router.push(`/projects/${encodeURIComponent(workspace.project.id)}/items/${encodeURIComponent(item.itemId)}`);
   }, [router, workspace.project.id]);
 
   const toggleInclusion = useCallback(async (item: TechnicalProposalItem) => {
-    if (!requirementId) {
+    if (readOnly || configurationConfirming || !requirementId) {
       return;
     }
 
@@ -1252,10 +1283,10 @@ export function ProjectConfigurationStep({
     } finally {
       setInclusionBusy((current) => ({ ...current, [item.itemId]: false }));
     }
-  }, [loadConfigurationStatus, onItemInclusionUpdated, requirementId]);
+  }, [loadConfigurationStatus, onItemInclusionUpdated, requirementId, readOnly, configurationConfirming]);
 
   const confirmConfiguration = useCallback(async () => {
-    if (!technicalProposalId || configurationConfirming) {
+    if (!technicalProposalId || !confirmationAllowed) {
       return;
     }
 
@@ -1266,22 +1297,22 @@ export function ProjectConfigurationStep({
       const response = await confirmRequirementExperienceConfiguration(technicalProposalId);
       setConfigurationStatus(response);
       setConfigurationState("success");
-      setConfigurationNotice("Configuracion confirmada.");
+      setConfigurationNotice("Configuración confirmada.");
     } catch (error: unknown) {
       const code = getRequirementExperienceConfigurationErrorCode(error);
       if (code === "REQUIREMENT_EXPERIENCE_CONFIGURATION_BLOCKED") {
         await loadConfigurationStatus();
-        setConfigurationError("La configuracion cambio y necesita una nueva revision antes de confirmarse.");
+        setConfigurationError("La configuración cambió y necesita una nueva revisión antes de confirmarse.");
       } else if (code === "REQUIREMENT_EXPERIENCE_CONFLICT") {
         await loadConfigurationStatus();
-        setConfigurationError("La configuracion fue actualizada. Revisamos nuevamente su estado.");
+        setConfigurationError("La configuración fue actualizada. Consultamos nuevamente su estado.");
       } else {
-        setConfigurationError("No fue posible confirmar la configuracion.");
+        setConfigurationError("No fue posible confirmar la configuración.");
       }
     } finally {
       setConfigurationConfirming(false);
     }
-  }, [configurationConfirming, loadConfigurationStatus, technicalProposalId]);
+  }, [confirmationAllowed, loadConfigurationStatus, technicalProposalId]);
 
   if (isProposalLoading) {
     return (
@@ -1298,7 +1329,7 @@ export function ProjectConfigurationStep({
     return (
       <ConfigurationAvailabilityState
         title="Este proyecto tiene más de un proceso anterior"
-        message="Aún no se ha definido cuál debe continuar en la nueva experiencia. La configuración estará disponible cuando se seleccione el proceso correspondiente."
+        message="Falta definir cuál de los procesos asociados continuará. La configuración estará disponible cuando se seleccione el proceso correspondiente."
       />
     );
   }
@@ -1316,7 +1347,7 @@ export function ProjectConfigurationStep({
     return (
       <ConfigurationAvailabilityState
         title="No fue posible cargar los elementos"
-        message="El servidor no pudo devolver la propuesta técnica en este momento."
+        message="No pudimos cargar los elementos en este momento. Vuelve a cargarlos."
         tone="warning"
         onRetry={onRetryProposal}
       />
@@ -1336,7 +1367,7 @@ export function ProjectConfigurationStep({
     return (
       <ConfigurationAvailabilityState
         title="La configuración aún no está disponible"
-        message="Podrás configurar los elementos cuando exista una propuesta técnica generada a partir de los documentos del proyecto."
+        message="Podrás configurar los elementos cuando estén disponibles los resultados del análisis de los documentos del proyecto."
       />
     );
   }
@@ -1353,13 +1384,13 @@ export function ProjectConfigurationStep({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0">
           <h2 id="project-configuration-title" className="text-2xl font-semibold text-foreground">
-            Configura tus elementos
+            Configuración de elementos
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground-secondary">
-            Ajusta las prioridades de cada elemento según las necesidades del proyecto.
+            Ajusta las prioridades de cada elemento según las necesidades del proyecto. Los datos completos corresponden a cantidad y medidas; no indican una confirmación comercial.
           </p>
         </div>
-        <Button type="button" variant="outline" disabled title="Pendiente de definicion">
+        <Button type="button" variant="outline" disabled title="Agregar elementos todavía no está disponible en esta sección">
           <Plus aria-hidden="true" size={16} />
           Agregar elemento
         </Button>
@@ -1395,12 +1426,12 @@ export function ProjectConfigurationStep({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="neutral" size="sm">
-              {catalog ? "Prioridades del proyecto" : "Prioridades pendientes"}
+              {catalog ? "Prioridades por elemento" : "Prioridades no disponibles"}
             </Badge>
-            {loadingExperience ? <Badge tone="neutral" size="sm">Cargando preferencias</Badge> : null}
+            {loadingExperience ? <Badge tone="neutral" size="sm">Cargando prioridades…</Badge> : null}
             {experienceError ? (
               <Button type="button" variant="outline" size="sm" onClick={() => { setCatalogRetryKey((value) => value + 1); if (draftsState === "error") loadDrafts(); }}>
-                Reintentar preferencias
+                Volver a cargar prioridades
               </Button>
             ) : null}
           </div>
@@ -1455,6 +1486,8 @@ export function ProjectConfigurationStep({
                 error={errors[item.itemId] ?? null}
                 inclusionError={inclusionErrors[item.itemId] ?? null}
                 inclusionBusy={Boolean(inclusionBusy[item.itemId])}
+                readOnly={readOnly}
+                confirming={configurationConfirming}
                 onDraftChange={changeDraft}
                 onSaveDraft={saveDraft}
                 onToggleInclusion={toggleInclusion}
@@ -1466,6 +1499,9 @@ export function ProjectConfigurationStep({
       )}
 
       <ExperienceConfigurationConfirmationPanel
+        readOnly={readOnly}
+        hasPendingChanges={hasPendingChanges}
+        confirmationAllowed={confirmationAllowed}
         projectId={workspace.project.id}
         configuration={configurationStatus}
         state={configurationState}

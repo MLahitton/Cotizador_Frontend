@@ -10,11 +10,79 @@ interface ApiRequestOptions {
   body?: unknown;
   headers?: HeadersInit;
   authenticated?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface ApiDownload {
   blob: Blob;
   contentDisposition: string | null;
+}
+
+// Exact document GET; JSON and Excel consumers keep their existing contracts.
+export async function apiGetDocument(path: string, signal: AbortSignal): Promise<ApiDownload> {
+  const token = getAccessToken();
+  const checkCurrent = () => {
+    signal.throwIfAborted();
+    if (getAccessToken() !== token) throw new DOMException("Session changed", "AbortError");
+  };
+  checkCurrent();
+  const headers = new Headers({ Accept: "application/octet-stream, application/pdf, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, image/jpeg, image/png" });
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const response = await fetch(buildUrl(path), { method: "GET", headers, signal, cache: "no-store", redirect: "error" });
+  checkCurrent();
+  if (!response.ok) {
+    const problemDetails = toProblemDetails(await readResponseBody(response).catch(() => undefined));
+    checkCurrent();
+    if (response.status === 401) { removeAccessToken(); notifyUnauthorized(); }
+    throw new ApiError({ status: response.status, title: "Documento no disponible", detail: "No fue posible descargar el documento.", problemDetails });
+  }
+  const mime = response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
+  if (response.status !== 200 || !["application/pdf", "application/octet-stream", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "image/jpeg", "image/png"].includes(mime ?? "")) {
+    await response.body?.cancel();
+    throw new ApiError({ status: 0, title: "Respuesta inválida", detail: "El servidor no devolvió un documento válido." });
+  }
+  const blob = await response.blob();
+  checkCurrent();
+  if (!blob.size || blob.size > 20 * 1024 * 1024) throw new ApiError({ status: 0, title: "Respuesta inválida", detail: "El tamaño del documento no es válido." });
+  return { blob, contentDisposition: response.headers.get("content-disposition") };
+}
+
+// Binary GET shares the existing credentials and unauthorized notification, not a new auth flow.
+export async function apiGetImage(path: string, signal: AbortSignal): Promise<Blob | null> {
+  const token = getAccessToken();
+  const checkCurrent = () => {
+    signal.throwIfAborted();
+    if (getAccessToken() !== token) throw new DOMException("Session changed", "AbortError");
+  };
+  checkCurrent();
+  const headers = new Headers({ Accept: "image/jpeg, image/png" });
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path), { method: "GET", headers, signal, cache: "no-store", redirect: "error" });
+  } catch (error) {
+    checkCurrent();
+    if (error instanceof ApiError) throw error;
+    throw new ApiError({ status: 0, title: "Error de conexion", detail: NETWORK_ERROR_MESSAGE });
+  }
+  checkCurrent();
+  if (response.status === 204) return null;
+  if (!response.ok) {
+    const problemDetails = toProblemDetails(await readResponseBody(response));
+    checkCurrent();
+    if (response.status === 401) { removeAccessToken(); notifyUnauthorized(); }
+    throw new ApiError({ status: response.status, title: "Imagen no disponible",
+      detail: "No fue posible consultar la imagen.", traceId: problemDetails?.traceId, problemDetails });
+  }
+  const mime = response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
+  if (response.status !== 200 || (mime !== "image/jpeg" && mime !== "image/png")) {
+    await response.body?.cancel();
+    throw new ApiError({ status: 0, title: "Respuesta invalida", detail: "La respuesta no es una imagen compatible." });
+  }
+  const blob = await response.blob();
+  checkCurrent();
+  if (!blob.size) throw new ApiError({ status: 0, title: "Respuesta invalida", detail: "La imagen esta vacia." });
+  return blob;
 }
 
 const NETWORK_ERROR_MESSAGE =
@@ -155,8 +223,10 @@ export async function apiRequest(
       method: options.method ?? "GET",
       headers,
       body: requestBody,
+      signal: options.signal,
     });
   } catch (error: unknown) {
+    if (options.signal?.aborted) throw error;
     if (error instanceof ApiError) {
       throw error;
     }

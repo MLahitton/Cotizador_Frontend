@@ -4,25 +4,25 @@ const blockerMessages: Record<string, string> = {
   QUANTITY_REQUIRED: "Hay elementos con cantidad pendiente.",
   WIDTH_REQUIRED: "Hay elementos con ancho pendiente.",
   HEIGHT_REQUIRED: "Hay elementos con altura pendiente.",
-  SYSTEM_REQUIRED: "Hay elementos cuya solucion de sistema esta pendiente.",
-  GLASS_REQUIRED: "Hay elementos cuyo vidrio esta pendiente de definicion.",
-  FINISH_REQUIRED: "El acabado esta pendiente de definicion.",
-  FINISH_PENDING_EXTERNAL_SOURCE: "El acabado depende de informacion aun pendiente.",
-  SYSTEM_STALE: "Revisa la seleccion anterior de sistema: ya no es compatible.",
-  GLASS_STALE: "Revisa la seleccion anterior de vidrio: ya no es compatible.",
-  SYSTEM_BLOCKED: "La solucion de sistema requiere revision antes de confirmar.",
-  GLASS_BLOCKED: "La solucion de vidrio requiere revision antes de confirmar.",
-  LEVEL2_OVERRIDE_STALE: "Una seleccion anterior ya no es compatible con la configuracion actual.",
-  SYSTEM_NO_COMPATIBLE_CANDIDATE: "No hay un sistema compatible disponible para esta configuracion.",
-  GLASS_NO_COMPATIBLE_CANDIDATE: "No hay un vidrio compatible disponible para esta configuracion.",
+  SYSTEM_REQUIRED: "Hay elementos cuya solución de sistema está pendiente.",
+  GLASS_REQUIRED: "Hay elementos cuyo vidrio está pendiente de definición.",
+  FINISH_REQUIRED: "El acabado está pendiente de definición.",
+  FINISH_PENDING_EXTERNAL_SOURCE: "El acabado depende de información aún pendiente.",
+  SYSTEM_STALE: "Revisa la selección anterior de sistema: ya no es compatible.",
+  GLASS_STALE: "Revisa la selección anterior de vidrio: ya no es compatible.",
+  SYSTEM_BLOCKED: "La solución de sistema requiere revisión antes de confirmar.",
+  GLASS_BLOCKED: "La solución de vidrio requiere revisión antes de confirmar.",
+  LEVEL2_OVERRIDE_STALE: "Una selección anterior ya no es compatible con la configuración actual.",
+  SYSTEM_NO_COMPATIBLE_CANDIDATE: "No hay un sistema compatible disponible para esta configuración.",
+  GLASS_NO_COMPATIBLE_CANDIDATE: "No hay un vidrio compatible disponible para esta configuración.",
 };
 
 export function configurationBlockerMessage(code: string): string {
   // Constraint codes include a catalog-defined identifier, not a fixed enum.
   if (code.startsWith("SYSTEM_CONSTRAINT_")) {
-    return "El sistema no cumple una condicion tecnica y requiere revision.";
+    return "El sistema no cumple una condición técnica y requiere revisión.";
   }
-  return blockerMessages[code] ?? "Hay informacion pendiente antes de confirmar.";
+  return blockerMessages[code] ?? "Hay información pendiente de revisar antes de confirmar.";
 }
 
 export function isActionableConfigurationBlocker(code: string): boolean {
