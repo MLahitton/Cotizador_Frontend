@@ -63,6 +63,8 @@ function isLevel1Resolution(value: unknown): boolean {
 
 function isItemDraft(value: unknown): value is RequirementExperienceItemDraft {
   return isRecord(value) && isNonEmptyString(value.technicalProposalItemId) &&
+    (value.hasSavedDraft === undefined || typeof value.hasSavedDraft === "boolean") &&
+    (value.preferenceOrigin === undefined || ["NONE", "EXPERIENCE", "SAVED"].includes(String(value.preferenceOrigin))) &&
     isNullableString(value.catalogVersion) && isNullableString(value.spaceTypeCode) &&
     isNonEmptyString(value.resolutionState) && isNonNegativeInteger(value.revision) &&
     (value.updatedAtUtc === null || isDateTime(value.updatedAtUtc)) &&

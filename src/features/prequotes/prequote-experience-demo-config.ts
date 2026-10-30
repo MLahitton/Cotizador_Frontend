@@ -31,7 +31,8 @@ export function itemDraftFromServer(draft: RequirementExperienceItemDraft): Item
     updatedByUserId: draft.updatedByUserId,
     level1Resolution: draft.level1Resolution,
     answers: Object.fromEntries(draft.answers.map((answer) => [answer.benefitCode, answer.optionCode])),
-    hasServerDraft: draft.catalogVersion !== null || draft.revision > 0 || draft.answers.length > 0,
+    hasServerDraft: draft.hasSavedDraft ?? draft.revision > 0,
+    preferenceOrigin: draft.preferenceOrigin ?? (draft.revision > 0 ? "SAVED" : "NONE"),
   };
 }
 
@@ -51,13 +52,7 @@ export function defaultDraftForItem(
   const merged = mergeExperienceDraftWithItem(item, existing);
 
   if (catalog && merged.catalogVersion !== null && merged.catalogVersion !== catalog.version) {
-    return {
-      ...merged,
-      catalogVersion: catalog.version,
-      spaceTypeCode: null,
-      answers: {},
-      level1Resolution: null,
-    };
+    return merged;
   }
 
   return catalog && merged.catalogVersion === null

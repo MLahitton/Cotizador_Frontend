@@ -32,6 +32,8 @@ export interface RequirementExperienceAnswer {
 }
 
 export interface RequirementExperienceItemDraft {
+  preferenceOrigin?: "NONE" | "EXPERIENCE" | "SAVED";
+  hasSavedDraft?: boolean;
   technicalProposalItemId: string;
   catalogVersion: string | null;
   spaceTypeCode: string | null;
@@ -207,6 +209,7 @@ export interface RequirementExperienceConfigurationStatusResponse {
 export type ExperienceAnswers = Record<string, string>;
 
 export interface ItemExperienceDraft {
+  preferenceOrigin?: "NONE" | "EXPERIENCE" | "SAVED";
   itemId: string;
   catalogVersion: string | null;
   spaceTypeCode: string | null;

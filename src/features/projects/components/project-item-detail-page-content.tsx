@@ -16,11 +16,14 @@ import {
   ThermometerSun,
   Volume2,
   RotateCcw,
+  Pencil,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getAccessToken } from "@/features/auth/auth-storage";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -424,6 +427,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
   const [draftStatus, setDraftStatus] = useState<SaveStatus>("idle");
   const [draftError, setDraftError] = useState<string | null>(null);
   const [locationInput, setLocationInput] = useState("");
+  const [commercialEditing, setCommercialEditing] = useState(false);
   const [observationInput, setObservationInput] = useState("");
   const [quantityInput, setQuantityInput] = useState("");
   const [widthInput, setWidthInput] = useState("");
@@ -450,11 +454,25 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
   const physicalDraft = useRef<PhysicalDataDraft>({ quantity: "", widthMm: "", heightMm: "" });
   const physicalRequestId = useRef(0);
   const physicalSaving = useRef(false);
+  const locationSaving = useRef(false);
+  const locationDraft = useRef("");
+  const commercialBaseline = useRef({ location: "", quantity: "", widthMm: "", heightMm: "" });
+  const commercialToken = getAccessToken();
+  const canEditCommercial = Boolean(user?.isActive && !isAdmin && workspace?.project.isActive &&
+    workspace.workflow.requirementStatus !== "PROCESSING");
+  const preferenceRequest = useRef(0);
+  const preferenceSaving = useRef(false);
+  useEffect(() => () => {
+    preferenceRequest.current += 1;
+    preferenceSaving.current = false;
+  }, [projectId, itemId, proposal?.technicalProposalId]);
 
   useEffect(() => () => {
     physicalRequestId.current += 1;
     physicalSaving.current = false;
-  }, [projectId, itemId]);
+    locationSaving.current = false;
+    initializedItem.current = null;
+  }, [projectId, itemId, workspace?.workflow.technicalProposalId, user?.id, commercialToken]);
 
   const item = useMemo(
     () => proposal?.items.find((candidate) => candidate.itemId.toLowerCase() === itemId.toLowerCase()) ?? null,
@@ -546,7 +564,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
 
   useEffect(() => {
     if (!item) return;
-    const key = `${projectId}:${item.itemId}`;
+    const key = `${projectId}:${proposal?.technicalProposalId}:${item.itemId}:${user?.id}`;
     if (initializedItem.current === key) return;
     let cancelled = false;
     queueMicrotask(() => {
@@ -557,7 +575,10 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
         widthMm: toInput(item.effectiveWidthMm),
         heightMm: toInput(item.effectiveHeightMm),
       };
-      setLocationInput(locationLabel(item) === "Por definir" ? "" : locationLabel(item));
+      locationDraft.current = locationLabel(item) === "Por definir" ? "" : locationLabel(item);
+      commercialBaseline.current = { location: locationDraft.current, ...physicalDraft.current };
+      setCommercialEditing(false);
+      setLocationInput(locationDraft.current);
       setQuantityInput(toInput(item.effectiveQuantity));
       setWidthInput(toInput(item.effectiveWidthMm));
       setHeightInput(toInput(item.effectiveHeightMm));
@@ -570,14 +591,42 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
       setObservationError(null);
     });
     return () => { cancelled = true; };
-  }, [item, projectId]);
+  }, [item, projectId, proposal?.technicalProposalId, user?.id, commercialToken]);
+
+  const physicalHasChanges = useCallback(() =>
+    (["quantity", "widthMm", "heightMm"] as const).some(field => {
+      const value = physicalDraft.current[field].trim();
+      const saved = commercialBaseline.current[field];
+      return value === "" || saved === "" ? value !== saved : Number(value) !== Number(saved);
+    }), []);
+  const locationHasChanges = useCallback(() =>
+    cleanOptional(locationDraft.current) !== cleanOptional(commercialBaseline.current.location), []);
+
+  const resetCommercialForm = () => {
+    if (!item || physicalSaving.current || locationSaving.current) return;
+    const baseline = {
+      location: locationLabel(item) === "Por definir" ? "" : locationLabel(item),
+      quantity: toInput(item.effectiveQuantity), widthMm: toInput(item.effectiveWidthMm), heightMm: toInput(item.effectiveHeightMm),
+    };
+    commercialBaseline.current = baseline;
+    locationDraft.current = baseline.location;
+    physicalDraft.current = { quantity: baseline.quantity, widthMm: baseline.widthMm, heightMm: baseline.heightMm };
+    setLocationInput(baseline.location);
+    setQuantityInput(baseline.quantity); setWidthInput(baseline.widthMm); setHeightInput(baseline.heightMm);
+    setLocationStatus("idle"); setPhysicalStatus("idle");
+    setLocationError(null); setPhysicalError(null);
+  };
 
   const handleStepChange = useCallback((step: ProjectWorkspaceStep) => {
     router.push(`/projects/${encodeURIComponent(projectId)}${step === "context" ? "" : `?section=${step}`}`);
   }, [projectId, router]);
 
   const saveLocation = useCallback(async (nextLocation: string | null) => {
-    if (!proposal || !item) return;
+    if (!proposal || !item || !canEditCommercial || locationSaving.current) return;
+    const context = physicalRequestId.current;
+    const token = getAccessToken();
+    const submitted = locationDraft.current;
+    locationSaving.current = true;
     setLocationStatus("saving");
     setLocationError(null);
     try {
@@ -586,17 +635,29 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
         item.itemId,
         { location: nextLocation },
       );
+      if (context !== physicalRequestId.current || token !== getAccessToken()) return;
+      if (response.technicalProposalId !== proposal.technicalProposalId || response.itemId !== item.itemId) throw new Error("Mismatched item response");
       applyItemLocationUpdate(response);
-      setLocationInput(response.effectiveLocation ?? "");
-      setLocationStatus("saved");
+      commercialBaseline.current.location = response.effectiveLocation ?? "";
+      if (locationDraft.current === submitted) locationDraft.current = commercialBaseline.current.location;
+      setLocationInput(locationDraft.current);
+      const dirty = locationHasChanges();
+      setLocationStatus(dirty ? "dirty" : "saved");
+      if (!dirty && !physicalHasChanges() && !physicalSaving.current) setCommercialEditing(false);
     } catch (error) {
+      if (context !== physicalRequestId.current || token !== getAccessToken()) return;
       setLocationError(getTechnicalProposalItemLocationErrorMessage(error));
       setLocationStatus("error");
+    } finally {
+      if (context === physicalRequestId.current) {
+        locationSaving.current = false;
+        if (token !== getAccessToken()) { setLocationStatus("error"); setLocationError("La sesión cambió. Consulta nuevamente el elemento."); }
+      }
     }
-  }, [applyItemLocationUpdate, item, proposal]);
+  }, [applyItemLocationUpdate, item, proposal, canEditCommercial, locationHasChanges, physicalHasChanges]);
 
   const savePhysical = useCallback(async () => {
-    if (!proposal || !item || physicalSaving.current) return;
+    if (!proposal || !item || !canEditCommercial || physicalSaving.current) return;
     const submitted = { ...physicalDraft.current };
     const quantity = parsePositiveInteger(submitted.quantity);
     const widthMm = parsePositiveInteger(submitted.widthMm);
@@ -610,29 +671,36 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
       return;
     }
     const request = { quantity, widthMm, heightMm };
-    const requestId = ++physicalRequestId.current;
+    const requestId = physicalRequestId.current;
+    const token = getAccessToken();
     physicalSaving.current = true;
     setPhysicalStatus("saving");
     setPhysicalError(null);
     try {
       const response = await updateTechnicalProposalItemPhysicalData(proposal.technicalProposalId, item.itemId, request);
+      if (token !== getAccessToken()) return;
       const reconciled = reconcilePhysicalDataDraft(submitted, physicalDraft.current, response, requestId, physicalRequestId.current);
       if (!reconciled) return;
       applyItemPhysicalUpdate(response);
+      commercialBaseline.current = { ...commercialBaseline.current, ...reconciled.baseline };
       physicalDraft.current = reconciled.draft;
       setQuantityInput(reconciled.draft.quantity);
       setWidthInput(reconciled.draft.widthMm);
       setHeightInput(reconciled.draft.heightMm);
       retryProposal();
       setPhysicalStatus(reconciled.dirty ? "dirty" : "saved");
+      if (!reconciled.dirty && !locationHasChanges() && !locationSaving.current) setCommercialEditing(false);
     } catch {
-      if (requestId !== physicalRequestId.current) return;
+      if (requestId !== physicalRequestId.current || token !== getAccessToken()) return;
       setPhysicalError("No fue posible actualizar las medidas del elemento.");
       setPhysicalStatus("error");
     } finally {
-      if (requestId === physicalRequestId.current) physicalSaving.current = false;
+      if (requestId === physicalRequestId.current) {
+        physicalSaving.current = false;
+        if (token !== getAccessToken()) { setPhysicalStatus("error"); setPhysicalError("La sesión cambió. Consulta nuevamente el elemento."); }
+      }
     }
-  }, [applyItemPhysicalUpdate, item, proposal, retryProposal]);
+  }, [applyItemPhysicalUpdate, item, proposal, retryProposal, canEditCommercial, locationHasChanges]);
 
   const saveObservation = useCallback(async () => {
     if (!proposal || !item) return;
@@ -654,7 +722,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
   }, [applyItemObservationUpdate, item, observationInput, proposal]);
 
   const changeDraftAnswer = useCallback((benefitCode: string, optionCode: string) => {
-    if (!draft || !catalog) return;
+    if (!draft || !catalog || draft.catalogVersion !== catalog.version) return;
     setDraft({
       ...draft,
       catalogVersion: catalog.version,
@@ -667,7 +735,10 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
   }, [catalog, draft]);
 
   const saveDraft = useCallback(async () => {
-    if (!draft || !catalog || !proposal || !item) return;
+    if (!draft || !catalog || !proposal || !item || draft.itemId !== item.itemId || draft.catalogVersion !== catalog.version || preferenceSaving.current) return;
+    const request = ++preferenceRequest.current;
+    const token = getAccessToken();
+    preferenceSaving.current = true;
     setDraftStatus("saving");
     setDraftError(null);
     try {
@@ -677,14 +748,21 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
         expectedRevision: draft.revision,
         answers: Object.entries(draft.answers).map(([benefitCode, optionCode]) => ({ benefitCode, optionCode })),
       });
+      if (preferenceRequest.current !== request || getAccessToken() !== token) return;
       setDraft(itemDraftFromServer(response));
       setDraftStatus("saved");
       setLevel2(null);
       setLevel2RefreshKey((value) => value + 1);
     } catch (error) {
+      if (preferenceRequest.current !== request || getAccessToken() !== token) return;
       const message = getRequirementExperienceErrorMessage(error);
       setDraftError(message);
       setDraftStatus(message.includes("version") || message.includes("version") ? "conflict" : "error");
+    } finally {
+      if (preferenceRequest.current === request) {
+        preferenceSaving.current = false;
+        if (getAccessToken() !== token) setDraftStatus("dirty");
+      }
     }
   }, [catalog, draft, item, proposal]);
 
@@ -845,31 +923,38 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
 
         <div className="grid items-start gap-4">
           <Surface padding="sm" className="@container min-w-0 self-start space-y-3">
-            <div>
-              <h3 className="text-lg font-semibold text-foreground">Editar datos comerciales</h3>
-              <p className="mt-1 text-sm text-foreground-secondary">Actualiza las medidas y la ubicacion del elemento.</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-lg font-semibold text-foreground">Datos comerciales</h3>
+              {!commercialEditing && canEditCommercial ? <Button type="button" variant="outline" className="w-[112px]" onClick={() => { resetCommercialForm(); setCommercialEditing(true); }}><Pencil aria-hidden="true" size={15} />Editar</Button> : null}
+              {commercialEditing ? <Button type="button" variant="outline" className="w-[112px]" disabled={locationStatus === "saving" || physicalStatus === "saving"} onClick={() => { resetCommercialForm(); setCommercialEditing(false); }}><X aria-hidden="true" size={15} />Cancelar</Button> : null}
             </div>
+            <fieldset className="min-w-0 space-y-3">
             <div className="grid max-w-[940px] gap-2 @[36rem]:grid-cols-[minmax(0,680px)_auto] @[36rem]:justify-start">
               <label className="space-y-1.5 text-sm font-semibold text-foreground">
                 Ubicacion
-                <Input value={locationInput} onChange={(event) => { setLocationInput(event.target.value); setLocationStatus("dirty"); }} placeholder="Sala principal" />
+                <Input readOnly={!commercialEditing || !canEditCommercial} value={commercialEditing ? locationInput : (item.effectiveLocation || item.occurrenceContext || "")} onChange={(event) => { locationDraft.current = event.target.value; setLocationInput(event.target.value); if (!locationSaving.current) setLocationStatus("dirty"); }} placeholder="Sala principal" />
               </label>
-              <div className="flex items-end gap-2">
-                <Button type="button" className="max-w-full @[36rem]:w-[190px]" disabled={locationStatus === "saving" || locationStatus === "idle"} onClick={() => saveLocation(cleanOptional(locationInput))}>Guardar ubicacion</Button>
+              <div className={cn("flex items-end gap-2", (!commercialEditing || !canEditCommercial) && "invisible")}>
+                <Button type="button" className="max-w-full @[36rem]:w-[190px]" disabled={locationStatus === "saving" || cleanOptional(locationInput) === cleanOptional(item.effectiveLocation || item.occurrenceContext || "")} onClick={() => saveLocation(cleanOptional(locationInput))}>Guardar ubicación</Button>
                 {item.manualLocationOverride ? <Button type="button" variant="outline" title="Usar ubicacion extraida" disabled={locationStatus === "saving"} onClick={() => saveLocation(null)}><RotateCcw aria-hidden="true" size={15} /></Button> : null}
               </div>
               {item.manualLocationOverride && item.extractedLocation ? <p className="@[36rem]:col-span-2 text-xs text-foreground-secondary">Origen extraido: {item.extractedLocation}</p> : null}
-              <DraftFeedback status={locationStatus} error={locationError} />
+              {locationStatus === "saving" || locationStatus === "error" ? <DraftFeedback status={locationStatus} error={locationError} /> : null}
             </div>
             <div className="grid max-w-[784px] gap-2 @[28rem]:grid-cols-[170px_200px] @[50rem]:grid-cols-[170px_200px_200px_190px]">
-              <label className="space-y-1.5 text-sm font-semibold text-foreground">Cantidad<Input type="number" min={1} step={1} value={quantityInput} onChange={(event) => { physicalDraft.current.quantity = event.target.value; setQuantityInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
-              <label className="space-y-1.5 text-sm font-semibold text-foreground">Ancho mm<Input type="number" min={1} step={1} value={widthInput} onChange={(event) => { physicalDraft.current.widthMm = event.target.value; setWidthInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
-              <label className="space-y-1.5 text-sm font-semibold text-foreground">Alto mm<Input type="number" min={1} step={1} value={heightInput} onChange={(event) => { physicalDraft.current.heightMm = event.target.value; setHeightInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
-              <div className="flex items-end"><Button type="button" className="w-full" disabled={physicalStatus === "saving" || (physicalStatus === "idle" && item.quantitySource !== "ASSUMED_DEFAULT" && !hasUncertainExtractedQuantity(item))} onClick={savePhysical}>Guardar medidas</Button></div>
+              <label className="space-y-1.5 text-sm font-semibold text-foreground">Cantidad<Input readOnly={!commercialEditing || !canEditCommercial} type="number" min={1} step={1} value={commercialEditing ? quantityInput : toInput(item.effectiveQuantity)} onChange={(event) => { physicalDraft.current.quantity = event.target.value; setQuantityInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
+              <label className="space-y-1.5 text-sm font-semibold text-foreground">Ancho mm<Input readOnly={!commercialEditing || !canEditCommercial} type="number" min={1} step={1} value={commercialEditing ? widthInput : toInput(item.effectiveWidthMm)} onChange={(event) => { physicalDraft.current.widthMm = event.target.value; setWidthInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
+              <label className="space-y-1.5 text-sm font-semibold text-foreground">Alto mm<Input readOnly={!commercialEditing || !canEditCommercial} type="number" min={1} step={1} value={commercialEditing ? heightInput : toInput(item.effectiveHeightMm)} onChange={(event) => { physicalDraft.current.heightMm = event.target.value; setHeightInput(event.target.value); if (!physicalSaving.current) setPhysicalStatus("dirty"); }} /></label>
+              <div className={cn("flex items-end", (!commercialEditing || !canEditCommercial) && "invisible")}><Button type="button" className="w-full" disabled={physicalStatus === "saving" ||
+                (Number(quantityInput) === item.effectiveQuantity && Number(widthInput) === item.effectiveWidthMm && Number(heightInput) === item.effectiveHeightMm && item.quantitySource !== "ASSUMED_DEFAULT" && !hasUncertainExtractedQuantity(item))} onClick={savePhysical}>Guardar medidas</Button></div>
               {item.quantitySource === "ASSUMED_DEFAULT" ? <p className="col-span-full text-xs text-foreground-secondary">No se encontró una cantidad explícita; se asumió 1.</p> : null}
               {hasUncertainExtractedQuantity(item) ? <p className="col-span-full text-xs text-foreground-secondary">La cantidad fue identificada con incertidumbre. Confírmala si es necesario.</p> : null}
-              <div className="col-span-full"><DraftFeedback status={physicalStatus} error={physicalError} /></div>
+              <div className="col-span-full">{physicalStatus === "saving" || physicalStatus === "error" ? <DraftFeedback status={physicalStatus} error={physicalError} /> : null}</div>
             </div>
+            {commercialEditing && (cleanOptional(locationInput) !== cleanOptional(item.effectiveLocation || item.occurrenceContext || "") ||
+              [[quantityInput, item.effectiveQuantity], [widthInput, item.effectiveWidthMm], [heightInput, item.effectiveHeightMm]].some(([value, saved]) => String(value).trim() === "" ? saved !== null : Number(value) !== saved)) ?
+              <p role="status" className="text-sm text-warning">Cambios sin guardar</p> : null}
+            </fieldset>
           </Surface>
 
           <details className="group/technical min-w-0 w-fit max-w-full rounded-md border border-[#C4D2E6] bg-[#EAF1FB] p-3 open:w-full open:max-w-[960px]">
@@ -890,7 +975,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
               preferencesPending={!resolution?.isComplete}
               loading={showLevel2Loading}
               loadError={level2Error}
-              level2={level2}
+              level2={["dirty", "saving", "error", "conflict"].includes(draftStatus) ? null : level2}
               saving={level2Saving !== null}
               onChange={() => setLevel2Dialog("system")}
               onClear={() => saveLevel2Selection("system", null)}
@@ -901,7 +986,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
               preferencesPending={!resolution?.isComplete}
               loading={showLevel2Loading}
               loadError={level2Error}
-              level2={level2}
+              level2={["dirty", "saving", "error", "conflict"].includes(draftStatus) ? null : level2}
               saving={level2Saving !== null}
               onChange={() => setLevel2Dialog("glass")}
               onClear={() => saveLevel2Selection("glass", null)}
@@ -918,11 +1003,15 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-lg font-semibold text-foreground">Prioridades</h3>
-              <p className="mt-1 text-sm text-foreground-secondary">La vista general y esta pantalla usan el mismo borrador.</p>
+              <p className="mt-1 text-sm text-foreground-secondary">
+                {draft && catalog && draft.catalogVersion !== catalog.version ? "Catálogo anterior: datos conservados, edición no disponible."
+                  : draft?.preferenceOrigin === "EXPERIENCE" ? "Preferencias de Experience: pendientes de aceptación."
+                  : draft?.hasServerDraft ? "Configuración guardada" : "Prioridades pendientes"}
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <DraftFeedback status={draftStatus} error={draftError} />
-              <Button type="button" disabled={draftStatus !== "dirty" || !draft || !catalog} onClick={saveDraft}>{draftStatus === "saving" ? "Guardando..." : "Guardar prioridades"}</Button>
+              <Button type="button" disabled={(draftStatus !== "dirty" && !(draft?.preferenceOrigin === "EXPERIENCE" && draftStatus === "idle")) || !draft || !catalog || draft.catalogVersion !== catalog.version} onClick={saveDraft}>{draftStatus === "saving" ? "Guardando..." : "Guardar prioridades"}</Button>
             </div>
           </div>
           {catalog && draft ? (
@@ -932,7 +1021,7 @@ export function ProjectItemDetailPageContent({ projectId, itemId }: { projectId:
                   key={question.benefitCode}
                   question={question}
                   selectedOptionCode={draft.answers[question.benefitCode]}
-                  disabled={!item.isIncluded || draftStatus === "saving"}
+                  disabled={!item.isIncluded || draftStatus === "saving" || draft.catalogVersion !== catalog.version}
                   onSelect={(optionCode) => changeDraftAnswer(question.benefitCode, optionCode)}
                 />
               ))}

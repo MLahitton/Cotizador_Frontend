@@ -5,8 +5,52 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { ConfigurationItemCard, ExperienceConfigurationConfirmationPanel } from "./components/project-configuration-step";
 import { canConfirmConfiguration, hasPendingConfigurationChanges, type ConfigurationDraftStatus } from "./project-configuration-editing";
+import { defaultDraftForItem, itemDraftFromServer } from "../prequotes/prequote-experience-demo-config";
 
 const ready = { readOnly: false, confirming: false, hasPendingChanges: false, inclusionBusy: false, dataReady: true, canConfirm: true };
+
+test("inherited preferences can be accepted without editing and are not saved drafts", () => {
+  let saves = 0;
+  const props = card({ status: "idle", onSaveDraft: () => { saves++; } });
+  props.draft = { ...props.draft, preferenceOrigin: "EXPERIENCE", answers: { benefit: "HIGH" } };
+  const html = renderToStaticMarkup(createElement(ConfigurationItemCard, props));
+  assert.match(html, /Preferencias de Experience/);
+  assert.doesNotMatch(html, /Cambios sin guardar/);
+  visit(ConfigurationItemCard(props), (button) => {
+    if (button.children === "Guardar prioridades") {
+      assert.equal(button.disabled, false);
+      (button.onClick as () => void)();
+    }
+  });
+  assert.equal(saves, 1);
+  const mapped = itemDraftFromServer({ technicalProposalItemId: "item-1", catalogVersion: "1", spaceTypeCode: null,
+    resolutionState: "PENDING", revision: 0, updatedAtUtc: null, updatedByUserId: null, level1Resolution: null,
+    answers: [{ benefitCode: "benefit", optionCode: "HIGH" }], preferenceOrigin: "EXPERIENCE", hasSavedDraft: false });
+  assert.equal(mapped.hasServerDraft, false);
+});
+
+test("historical catalog remains intact and cannot be saved destructively", () => {
+  const props = card();
+  props.draft = { ...props.draft, catalogVersion: "old", revision: 1, hasServerDraft: true, answers: { B02: "ACU_4" } };
+  assert.equal(defaultDraftForItem(props.item, props.catalog, props.draft), props.draft);
+  let saves = 0;
+  props.onSaveDraft = () => { saves++; };
+  visit(ConfigurationItemCard(props), (button) => {
+    if (button.children === "Guardar prioridades") {
+      assert.equal(button.disabled, true);
+      (button.onClick as () => void)();
+    }
+  });
+  assert.equal(saves, 0);
+  assert.match(renderToStaticMarkup(createElement(ConfigurationItemCard, props)), /datos conservados/);
+});
+
+test("dirty priorities do not display a previous technical result", () => {
+  const props = card({ status: "dirty", resolution: "error" });
+  const html = renderToStaticMarkup(createElement(ConfigurationItemCard, props));
+  assert.match(html, /Resultado pendiente de guardar/);
+  assert.doesNotMatch(html, /Prioridades guardadas/);
+});
 
 test("confirmation requires persisted changes, loaded data and the existing server permission", () => {
   assert.equal(canConfirmConfiguration(ready), true);

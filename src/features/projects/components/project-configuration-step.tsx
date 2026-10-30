@@ -16,7 +16,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { getAccessToken } from "@/features/auth/auth-storage";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
   getRequirementExperienceConfiguration,
   getRequirementExperienceCatalog,
   getRequirementExperienceDrafts,
+  getRequirementExperienceLevel2,
   getRequirementExperienceConfigurationErrorCode,
   updateRequirementExperienceDraft,
 } from "@/features/prequotes/requirement-experience-api";
@@ -38,6 +40,7 @@ import type {
   RequirementExperienceConfigurationStatusResponse,
   RequirementExperienceConfigurationItemStatus,
   RequirementExperienceCatalogQuestion,
+  RequirementExperienceLevel2Response,
 } from "@/features/prequotes/prequote-experience-types";
 import {
   updateTechnicalProposalItemInclusion,
@@ -281,7 +284,7 @@ function DraftFeedback({
   }
 
   if (status === "dirty") {
-    return <span className="text-xs font-semibold text-warning">Cambios sin guardar</span>;
+    return <span className="text-xs font-semibold text-warning">{error ?? "Cambios sin guardar"}</span>;
   }
 
   if (status === "conflict") {
@@ -470,6 +473,7 @@ export function ConfigurationItemCard({
   confirming,
   onDraftChange,
   onSaveDraft,
+  resolution,
   onToggleInclusion,
   onOpenItem,
 }: {
@@ -484,6 +488,7 @@ export function ConfigurationItemCard({
   confirming: boolean;
   onDraftChange: (draft: ItemExperienceDraft) => void;
   onSaveDraft: (draft: ItemExperienceDraft) => void;
+  resolution?: RequirementExperienceLevel2Response | "loading" | "error";
   onToggleInclusion: (item: TechnicalProposalItem) => void;
   onOpenItem: (item: TechnicalProposalItem) => void;
 }) {
@@ -495,14 +500,16 @@ export function ConfigurationItemCard({
   );
   const isExcluded = !item.isIncluded;
   const missingFields = displayMissingFields(item);
+  const incompatibleCatalog = Boolean(catalog && draft.catalogVersion && draft.catalogVersion !== catalog.version);
   const mutationDisabled = readOnly || confirming;
-  const canSave = status === "dirty" && !isExcluded && !mutationDisabled;
+  const inherited = draft.preferenceOrigin === "EXPERIENCE" && !draft.hasServerDraft;
+  const canSave = (status === "dirty" || (inherited && status !== "saving")) && !isExcluded && !mutationDisabled && !incompatibleCatalog;
   const dimensions = `${formatProposalNumber(item.effectiveWidthMm, " mm")} x ${formatProposalNumber(item.effectiveHeightMm, " mm")}`;
   const quantity = formatProposalQuantity(item.effectiveQuantity).replace("Cantidad: ", "");
   const itemTypeLabel = typeLabel(item);
 
   const updateAnswer = (benefitCode: string, optionCode: string) => {
-    if (!catalog || isExcluded || mutationDisabled || status === "saving") {
+    if (!catalog || isExcluded || mutationDisabled || incompatibleCatalog || status === "saving") {
       return;
     }
 
@@ -604,6 +611,11 @@ export function ConfigurationItemCard({
         </button>
       </div>
       <div className="min-w-0 border-t border-[#C4D2E6] bg-[#EAF1FB] px-3 py-2">
+        <p className="mb-2 text-xs text-foreground-secondary">
+          {incompatibleCatalog ? "Catálogo anterior: datos conservados, edición no disponible." : inherited
+            ? "Preferencias de Experience: pendientes de aceptación."
+            : draft.hasServerDraft ? "Configuración guardada" : "Prioridades pendientes"}
+        </p>
         <div className="grid items-start gap-x-5 gap-y-2 @[30rem]:grid-cols-2 @[48rem]:grid-cols-3">
           {catalog?.questions.length ? (
             <>
@@ -612,7 +624,7 @@ export function ConfigurationItemCard({
                   key={question.benefitCode}
                   question={question}
                   selectedOptionCode={draft.answers[question.benefitCode]}
-                  disabled={isExcluded || status === "saving" || mutationDisabled}
+                  disabled={isExcluded || status === "saving" || mutationDisabled || incompatibleCatalog}
                   onSelect={(optionCode) => updateAnswer(question.benefitCode, optionCode)}
                 />
               ))}
@@ -645,6 +657,17 @@ export function ConfigurationItemCard({
             </div>
             <div className="min-w-0 break-words" aria-live="polite">
               <DraftFeedback status={status} error={error} />
+              {status === "dirty" || status === "saving" || status === "error" || status === "conflict" ? (
+                <p className="text-xs text-foreground-secondary">Resultado pendiente de guardar las prioridades.</p>
+              ) : resolution === "loading" ? (
+                <p className="text-xs text-foreground-secondary">Consultando sistema y vidrio...</p>
+              ) : resolution === "error" ? (
+                <p className="text-xs text-warning">Prioridades guardadas. No fue posible consultar sistema y vidrio; consulta el detalle del elemento.</p>
+              ) : resolution ? (
+                <p className="text-xs text-foreground-secondary">
+                  Sistema: {resolution.system.effective?.name ?? "Pendiente de definición"}. Vidrio: {resolution.glass.effective?.name ?? "Pendiente de definición"}. Sin confirmación automática.
+                </p>
+              ) : null}
               {readOnly ? <p className="text-xs text-foreground-secondary">Solo lectura</p> : null}
               {!item.dataCompleteness.isComplete ? (
                 <div className="flex flex-wrap gap-1.5">
@@ -1073,6 +1096,11 @@ export function ProjectConfigurationStep({
   const [draftsState, setDraftsState] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [statuses, setStatuses] = useState<Record<string, DraftStatus>>({});
   const [errors, setErrors] = useState<Record<string, string | null>>({});
+  const [resolutions, setResolutions] = useState<Record<string, RequirementExperienceLevel2Response | "loading" | "error">>({});
+  const writesInFlight = useRef(new Map<string, { request: symbol; context: symbol }>());
+  const [savingOwners, setSavingOwners] = useState<Record<string, { request: symbol; context: symbol }>>({});
+  const resolutionRequests = useRef(new Map<string, symbol>());
+  const localEdits = useRef(new Set<string>());
   const [inclusionBusy, setInclusionBusy] = useState<Record<string, boolean>>({});
   const [inclusionErrors, setInclusionErrors] = useState<Record<string, string | null>>({});
   const [configurationStatus, setConfigurationStatus] =
@@ -1087,7 +1115,32 @@ export function ProjectConfigurationStep({
   const technicalProposalId = proposal?.technicalProposalId ?? workspace.workflow.technicalProposalId;
   const requirementId = proposal?.requirementId ?? workspace.workflow.requirementId;
   const shouldLoadExperienceData = Boolean(proposal && technicalProposalId && requirementId);
-  const hasPendingChanges = hasPendingConfigurationChanges(statuses);
+  const token = getAccessToken();
+  const requestContext = useMemo(() => ({ id: Symbol("priorities-context"), technicalProposalId, token }), [technicalProposalId, token]);
+  const activeContext = useRef<typeof requestContext | null>(null);
+  useEffect(() => {
+    activeContext.current = requestContext;
+    const writes = writesInFlight.current;
+    const resolutions = resolutionRequests.current;
+    return () => {
+      if (activeContext.current === requestContext) activeContext.current = null;
+      for (const [itemId, owner] of writes) {
+        if (owner.context !== requestContext.id) continue;
+        writes.delete(itemId);
+        if (resolutions.get(itemId) === owner.request) resolutions.delete(itemId);
+      }
+      setSavingOwners(current => Object.fromEntries(
+        Object.entries(current).filter(([, owner]) => owner.context !== requestContext.id),
+      ));
+    };
+  }, [requestContext]);
+  const visibleStatuses = { ...statuses };
+  for (const [itemId, owner] of Object.entries(savingOwners)) {
+    if (owner.context === requestContext.id) visibleStatuses[itemId] = "saving";
+  }
+  const hasPendingChanges = hasPendingConfigurationChanges(Object.fromEntries(
+    (proposal?.items ?? []).map(item => [item.itemId, visibleStatuses[item.itemId] ?? "idle"]),
+  ));
   const confirmationAllowed = canConfirmConfiguration({
     readOnly,
     confirming: configurationConfirming,
@@ -1140,22 +1193,24 @@ export function ProjectConfigurationStep({
     setDraftsState("loading");
     void getRequirementExperienceDrafts(technicalProposalId)
       .then((response) => {
-        setDrafts(
-          Object.fromEntries(
+        if (activeContext.current !== requestContext || getAccessToken() !== requestContext.token) return;
+        setDrafts((current) => ({
+          ...current,
+          ...Object.fromEntries(
             response.items.map((draft) => [
               draft.technicalProposalItemId,
-              itemDraftFromServer(draft),
+              localEdits.current.has(draft.technicalProposalItemId) && current[draft.technicalProposalItemId]
+                ? current[draft.technicalProposalItemId] : itemDraftFromServer(draft),
             ]),
           ),
-        );
-        setStatuses({});
-        setErrors({});
+        }));
         setDraftsState("success");
       })
       .catch(() => {
+        if (activeContext.current !== requestContext || getAccessToken() !== requestContext.token) return;
         setDraftsState("error");
       });
-  }, [shouldLoadExperienceData, technicalProposalId]);
+  }, [shouldLoadExperienceData, technicalProposalId, requestContext]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -1176,12 +1231,14 @@ export function ProjectConfigurationStep({
     setConfigurationError(null);
     try {
       const response = await getRequirementExperienceConfiguration(technicalProposalId);
+      if (activeContext.current !== requestContext || getAccessToken() !== requestContext.token) return;
       setConfigurationStatus(response);
       setConfigurationState("success");
     } catch {
+      if (activeContext.current !== requestContext || getAccessToken() !== requestContext.token) return;
       setConfigurationState("error");
     }
-  }, [shouldLoadExperienceData, technicalProposalId]);
+  }, [shouldLoadExperienceData, technicalProposalId, requestContext]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -1204,6 +1261,7 @@ export function ProjectConfigurationStep({
 
   const changeDraft = useCallback((draft: ItemExperienceDraft) => {
     if (readOnly || configurationConfirming) return;
+    localEdits.current.add(draft.itemId);
     setDrafts((current) => ({
       ...current,
       [draft.itemId]: draft,
@@ -1219,12 +1277,29 @@ export function ProjectConfigurationStep({
   }, [readOnly, configurationConfirming]);
 
   const saveDraft = useCallback(async (draft: ItemExperienceDraft) => {
-    if (readOnly || configurationConfirming || !technicalProposalId || !catalog) {
+    if (readOnly || configurationConfirming || !technicalProposalId || !catalog ||
+      draft.catalogVersion !== catalog.version || activeContext.current !== requestContext ||
+      getAccessToken() !== requestContext.token || writesInFlight.current.has(draft.itemId)) {
       return;
     }
-
-    setStatuses((current) => ({ ...current, [draft.itemId]: "saving" }));
-    setErrors((current) => ({ ...current, [draft.itemId]: null }));
+    const request = Symbol("item-priorities");
+    const owner = { request, context: requestContext.id };
+    writesInFlight.current.set(draft.itemId, owner);
+    setSavingOwners(current => ({ ...current, [draft.itemId]: owner }));
+    resolutionRequests.current.set(draft.itemId, request);
+    // Preserve the submitted draft/revision if this context loses confirmation.
+    localEdits.current.add(draft.itemId);
+    setStatuses((current) => ({ ...current, [draft.itemId]: "dirty" }));
+    setErrors((current) => ({ ...current, [draft.itemId]: "No se ha confirmado este guardado. Puede haberse persistido; no se ha reenviado automáticamente." }));
+    const finishSaving = () => {
+      if (writesInFlight.current.get(draft.itemId) === owner) writesInFlight.current.delete(draft.itemId);
+      setSavingOwners(current => {
+        if (current[draft.itemId]?.request !== request) return current;
+        const next = { ...current };
+        delete next[draft.itemId];
+        return next;
+      });
+    };
 
     try {
       const response = await updateRequirementExperienceDraft(
@@ -1240,21 +1315,37 @@ export function ProjectConfigurationStep({
           })),
         },
       );
+      if (activeContext.current !== requestContext || getAccessToken() !== requestContext.token || writesInFlight.current.get(draft.itemId) !== owner) return;
+      localEdits.current.delete(draft.itemId);
       setDrafts((current) => ({
         ...current,
         [response.technicalProposalItemId]: itemDraftFromServer(response),
       }));
       setStatuses((current) => ({ ...current, [draft.itemId]: "saved" }));
+      setErrors(current => ({ ...current, [draft.itemId]: null }));
+      finishSaving();
       void loadConfigurationStatus();
+      setResolutions((current) => ({ ...current, [draft.itemId]: "loading" }));
+      try {
+        const result = await getRequirementExperienceLevel2(technicalProposalId, draft.itemId);
+        if (activeContext.current === requestContext && getAccessToken() === requestContext.token && resolutionRequests.current.get(draft.itemId) === request)
+          setResolutions((current) => ({ ...current, [draft.itemId]: result }));
+      } catch {
+        if (activeContext.current === requestContext && getAccessToken() === requestContext.token && resolutionRequests.current.get(draft.itemId) === request)
+          setResolutions((current) => ({ ...current, [draft.itemId]: "error" }));
+      }
     } catch (error: unknown) {
+      if (activeContext.current !== requestContext || getAccessToken() !== requestContext.token || writesInFlight.current.get(draft.itemId) !== owner) return;
       const failure = getConfigurationDraftFailure(error);
       setStatuses((current) => ({
         ...current,
         [draft.itemId]: failure.status,
       }));
       setErrors((current) => ({ ...current, [draft.itemId]: failure.message }));
+    } finally {
+      finishSaving();
     }
-  }, [catalog, loadConfigurationStatus, technicalProposalId, readOnly, configurationConfirming]);
+  }, [catalog, loadConfigurationStatus, technicalProposalId, readOnly, configurationConfirming, requestContext]);
 
   const openItem = useCallback((item: TechnicalProposalItem) => {
     router.push(`/projects/${encodeURIComponent(workspace.project.id)}/items/${encodeURIComponent(item.itemId)}`);
@@ -1482,7 +1573,7 @@ export function ProjectConfigurationStep({
                 item={item}
                 catalog={catalog}
                 draft={draft}
-                status={statuses[item.itemId] ?? "idle"}
+                status={visibleStatuses[item.itemId] ?? "idle"}
                 error={errors[item.itemId] ?? null}
                 inclusionError={inclusionErrors[item.itemId] ?? null}
                 inclusionBusy={Boolean(inclusionBusy[item.itemId])}
@@ -1490,6 +1581,7 @@ export function ProjectConfigurationStep({
                 confirming={configurationConfirming}
                 onDraftChange={changeDraft}
                 onSaveDraft={saveDraft}
+                resolution={resolutions[item.itemId]}
                 onToggleInclusion={toggleInclusion}
                 onOpenItem={openItem}
               />

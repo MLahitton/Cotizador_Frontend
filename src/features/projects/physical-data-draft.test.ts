@@ -80,6 +80,9 @@ test("savePhysical preserves newer inputs and other drafts while preventing over
   const dependencies = {
     proposal: { technicalProposalId: "proposal" }, item: { itemId: "item" },
     physicalDraft, physicalSaving: { current: false }, physicalRequestId: { current: 0 },
+    canEditCommercial: true, getAccessToken: () => "fixture",
+    commercialBaseline: { current: { location: "Local", ...submitted } },
+    locationHasChanges: () => false, locationSaving: { current: false }, setCommercialEditing: () => {},
     parsePositiveInteger: Number, reconcilePhysicalDataDraft,
     setPhysicalError: () => {}, setPhysicalStatus: (value: string) => { state.status = value; },
     updateTechnicalProposalItemPhysicalData: () => { calls += 1; return pending; },

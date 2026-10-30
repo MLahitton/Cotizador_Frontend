@@ -22,3 +22,5 @@ for (const extension of [".ts", ".tsx"]) {
 }
 load(path.join(root, "src/features/projects/project-configuration-draft-error.test.ts"));
 load(path.join(root, "src/features/projects/project-configuration-editing.test.tsx"));
+load(path.join(root, "src/features/projects/physical-data-draft.test.ts"));
+load(path.join(root, "src/features/projects/commercial-data.test.ts"));
